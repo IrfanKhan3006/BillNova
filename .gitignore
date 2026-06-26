@@ -17,3 +17,4 @@ coverage
 *.log
 
 .vscode/settings.json
+/generated/prisma
