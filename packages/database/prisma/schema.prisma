@@ -6,29 +6,81 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum Role {
+  OWNER
+  STAFF
+  ACCOUNTANT
+}
+
+enum TenantPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
 model Tenant {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
+  id    String     @id @default(uuid())
+  name  String
+  slug  String     @unique
+  plan  TenantPlan @default(FREE)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  gstin     String?
+  stateCode String?
+  address   String?
+  phone     String?
+  email     String?
+  logoUrl   String?
 
-  users User[]
+  invoicePrefix  String @default("INV")
+  invoiceCounter Int    @default(0)
+  dueDays        Int    @default(30)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  users         User[]
+  refreshTokens RefreshToken[]
 
   @@map("tenants")
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
+  id           String  @id @default(uuid())
+  tenantId     String
+  email        String
+  name         String  @default("")
   passwordHash String
+  role         Role    @default(STAFF)
+  isActive     Boolean @default(true)
 
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tenantId  String
+  tokenHash String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  userAgent String?
+  ipAddress String?
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@map("users")
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("refresh_tokens")
 }
