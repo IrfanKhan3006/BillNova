@@ -59,7 +59,23 @@ export class AuthService {
     const tokens = await this.generateTokens(user, meta);
 
     return {
-      user: { id: user.id, tenantId: tenant.id, name: user.name, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        tenantId: tenant.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+          gstin: tenant.gstin,
+          plan: tenant.plan,
+          logoUrl: tenant.logoUrl,
+          address: tenant.address,
+          phone: tenant.phone,
+        },
+      },
       tokens,
     };
   }
@@ -87,7 +103,23 @@ export class AuthService {
     const tokens = await this.generateTokens(user, meta);
 
     return {
-      user: { id: user.id, tenantId: user.tenantId, name: user.name, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        tenantId: user.tenantId,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        tenant: {
+          id: user.tenant.id,
+          name: user.tenant.name,
+          slug: user.tenant.slug,
+          gstin: user.tenant.gstin,
+          plan: user.tenant.plan,
+          logoUrl: user.tenant.logoUrl,
+          address: user.tenant.address,
+          phone: user.tenant.phone,
+        },
+      },
       tokens,
     };
   }
@@ -146,7 +178,7 @@ export class AuthService {
         isActive: true,
         createdAt: true,
         tenant: {
-          select: { id: true, name: true, slug: true, gstin: true, plan: true, logoUrl: true },
+          select: { id: true, name: true, slug: true, gstin: true, plan: true, logoUrl: true, address: true, phone: true },
         },
       },
     });
