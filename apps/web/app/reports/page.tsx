@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
+import FeatureGate from '../components/FeatureGate';
 import { api } from '../lib/api';
+import Link from 'next/link';
 import {
   BarChart3,
   Calendar,
@@ -70,7 +72,8 @@ export default function ReportsPage() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
+      <FeatureGate featureKey="reportsEnabled" featureName="Financial Reports">
+        <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 no-print">
           <div>
@@ -188,6 +191,7 @@ export default function ReportsPage() {
                         <th className="p-4 text-right">Subtotal</th>
                         <th className="p-4 text-right">GST Collected</th>
                         <th className="p-4 text-right">Grand Total</th>
+                        <th className="p-4 text-right no-print">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-800/40">
@@ -205,6 +209,14 @@ export default function ReportsPage() {
                           <td className="p-4 text-right text-zinc-350">{formatCurrency(inv.subTotal)}</td>
                           <td className="p-4 text-right text-emerald-400">{formatCurrency(inv.taxAmount)}</td>
                           <td className="p-4 text-right font-black text-white">{formatCurrency(inv.totalAmount)}</td>
+                          <td className="p-4 text-right no-print">
+                            <Link
+                              href={`/billing?invoiceId=${inv.id}`}
+                              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition"
+                            >
+                              Reprint
+                            </Link>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -336,6 +348,7 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+      </FeatureGate>
     </SidebarLayout>
   );
 }

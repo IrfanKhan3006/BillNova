@@ -184,8 +184,16 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
         {/* Header (Desktop only) */}
         <header className="hidden md:flex items-center justify-between px-8 py-4 border-b border-zinc-805/50 bg-zinc-900/10 no-print">
-          <div className="flex items-center gap-2">
-            <Building className="h-5 w-5 text-emerald-500" />
+          <div className="flex items-center gap-3">
+            {user?.tenant?.logoUrl ? (
+              <img
+                src={user.tenant.logoUrl}
+                alt="Business Logo"
+                className="h-7 w-7 rounded-lg object-contain bg-white border border-zinc-800 p-0.5 shrink-0"
+              />
+            ) : (
+              <Building className="h-5 w-5 text-emerald-500" />
+            )}
             <h2 className="text-md font-semibold text-zinc-200">{user?.tenant?.name || 'Loading Business...'}</h2>
             {user?.tenant?.gstin && (
               <span className="ml-3 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 uppercase border border-emerald-500/20">

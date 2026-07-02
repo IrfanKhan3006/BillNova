@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
+import FeatureGate from '../components/FeatureGate';
 import { api } from '../lib/api';
 import {
   Search,
@@ -231,7 +232,8 @@ export default function ProductsPage() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6 flex flex-col h-[85vh]">
+      <FeatureGate featureKey="productsEnabled" featureName="Product Catalog">
+        <div className="space-y-6 flex flex-col h-[85vh]">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
           <div>
@@ -601,6 +603,7 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+      </FeatureGate>
     </SidebarLayout>
   );
 }

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
+import FeatureGate from '../components/FeatureGate';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import {
@@ -74,6 +75,16 @@ export default function BillingPage() {
         setProducts(prodData);
         if (custData.length > 0) {
           setSelectedCustomerId(custData[0].id);
+        }
+
+        // Check for invoiceId in search params
+        if (typeof window !== 'undefined') {
+          const urlParams = new URLSearchParams(window.location.search);
+          const invoiceId = urlParams.get('invoiceId');
+          if (invoiceId) {
+            const fullInvoice = await api.get(`/invoices/${invoiceId}`);
+            setCreatedInvoice(fullInvoice);
+          }
         }
       } catch (err) {
         console.error('Failed to load data', err);
@@ -194,6 +205,9 @@ export default function BillingPage() {
     setCreatedInvoice(null);
     setNotes('');
     setItems([{ name: '', qty: 1, price: 0, taxRate: 0, discountRate: 0 }]);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   };
 
   const handlePrint = () => {
@@ -222,7 +236,8 @@ export default function BillingPage() {
     const cust = createdInvoice.customer;
     return (
       <SidebarLayout>
-        <div className="space-y-6 max-w-4xl mx-auto no-print">
+        <FeatureGate featureKey="billingEnabled" featureName="Billing Engine">
+          <div className="space-y-6 max-w-4xl mx-auto no-print">
           {/* Action buttons */}
           <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shrink-0">
             <div className="flex items-center gap-3">
@@ -257,15 +272,24 @@ export default function BillingPage() {
         <div className="print-invoice-sheet bg-white text-zinc-900 p-8 rounded-2xl border border-zinc-300 max-w-4xl mx-auto mt-6 shadow-md">
           {/* Header */}
           <div className="flex justify-between items-start border-b border-zinc-200 pb-6">
-            <div>
-              <h2 className="text-2xl font-black tracking-tight text-zinc-950 uppercase">{user?.tenant?.name}</h2>
-              {user?.tenant?.address && <p className="text-xs text-zinc-550 mt-1 max-w-sm whitespace-pre-line">{user.tenant.address}</p>}
-              {user?.tenant?.phone && <p className="text-xs text-zinc-500 mt-0.5">Phone: {user.tenant.phone}</p>}
-              {user?.tenant?.gstin && (
-                <p className="text-xs text-zinc-650 font-bold mt-1 text-emerald-700">
-                  GSTIN: <span className="uppercase">{user.tenant.gstin}</span>
-                </p>
+            <div className="flex items-start gap-4">
+              {user?.tenant?.logoUrl && (
+                <img
+                  src={user.tenant.logoUrl}
+                  alt="Business Logo"
+                  className="h-16 w-16 rounded-xl object-contain border border-zinc-200/80 p-1 bg-zinc-50 shrink-0"
+                />
               )}
+              <div>
+                <h2 className="text-2xl font-black tracking-tight text-zinc-950 uppercase">{user?.tenant?.name}</h2>
+                {user?.tenant?.address && <p className="text-xs text-zinc-550 mt-1 max-w-sm whitespace-pre-line">{user.tenant.address}</p>}
+                {user?.tenant?.phone && <p className="text-xs text-zinc-500 mt-0.5">Phone: {user.tenant.phone}</p>}
+                {user?.tenant?.gstin && (
+                  <p className="text-xs text-zinc-650 font-bold mt-1 text-emerald-700">
+                    GSTIN: <span className="uppercase">{user.tenant.gstin}</span>
+                  </p>
+                )}
+              </div>
             </div>
             <div className="text-right">
               <h3 className="text-xl font-bold text-zinc-400 tracking-wider uppercase">TAX INVOICE</h3>
@@ -361,13 +385,15 @@ export default function BillingPage() {
             </div>
           </div>
         </div>
+        </FeatureGate>
       </SidebarLayout>
     );
   }
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
+      <FeatureGate featureKey="billingEnabled" featureName="Billing Engine">
+        <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <Sparkles className="h-7 w-7 text-emerald-500" />
@@ -569,6 +595,7 @@ export default function BillingPage() {
           </div>
         </div>
       </div>
+      </FeatureGate>
     </SidebarLayout>
   );
 }

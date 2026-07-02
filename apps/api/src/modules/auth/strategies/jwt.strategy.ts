@@ -6,7 +6,7 @@ import { PrismaService } from '../../../database/prisma.service';
 
 export interface JwtPayload {
   sub: string;
-  tenantId: string;
+  tenantId: string | null;
   email: string;
   role: string;
 }
@@ -28,9 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     const user = await this.prisma.user.findFirst({
       where: {
         id: payload.sub,
-        tenantId: payload.tenantId,
-        // isActive: true,
-        // deletedAt: null,
+        tenantId: payload.tenantId || null,
       },
     });
 
@@ -42,7 +40,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       id: user.id,
       tenantId: user.tenantId,
       email: user.email,
-      // role: user.role,
+      role: user.role,
     };
   }
 }

@@ -24,7 +24,11 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', { email, password });
       setAuth(res.user, res.tokens.accessToken, res.tokens.refreshToken);
-      router.push('/dashboard');
+      if (res.user.role === 'SUPER_ADMIN') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check credentials.');
     } finally {

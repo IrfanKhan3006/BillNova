@@ -74,6 +74,10 @@ export class AuthService {
           logoUrl: tenant.logoUrl,
           address: tenant.address,
           phone: tenant.phone,
+          billingEnabled: tenant.billingEnabled,
+          productsEnabled: tenant.productsEnabled,
+          paymentsEnabled: tenant.paymentsEnabled,
+          reportsEnabled: tenant.reportsEnabled,
         },
       },
       tokens,
@@ -96,7 +100,7 @@ export class AuthService {
       throw new UnauthorizedException('Email ya password galat hai.');
     }
 
-    if (user.tenant.deletedAt) {
+    if (user.tenant && user.tenant.deletedAt) {
       throw new UnauthorizedException('Account inactive kar diya gaya hai.');
     }
 
@@ -109,16 +113,22 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
-        tenant: {
-          id: user.tenant.id,
-          name: user.tenant.name,
-          slug: user.tenant.slug,
-          gstin: user.tenant.gstin,
-          plan: user.tenant.plan,
-          logoUrl: user.tenant.logoUrl,
-          address: user.tenant.address,
-          phone: user.tenant.phone,
-        },
+        tenant: user.tenant
+          ? {
+              id: user.tenant.id,
+              name: user.tenant.name,
+              slug: user.tenant.slug,
+              gstin: user.tenant.gstin,
+              plan: user.tenant.plan,
+              logoUrl: user.tenant.logoUrl,
+              address: user.tenant.address,
+              phone: user.tenant.phone,
+              billingEnabled: user.tenant.billingEnabled,
+              productsEnabled: user.tenant.productsEnabled,
+              paymentsEnabled: user.tenant.paymentsEnabled,
+              reportsEnabled: user.tenant.reportsEnabled,
+            }
+          : null,
       },
       tokens,
     };
@@ -178,7 +188,20 @@ export class AuthService {
         isActive: true,
         createdAt: true,
         tenant: {
-          select: { id: true, name: true, slug: true, gstin: true, plan: true, logoUrl: true, address: true, phone: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            gstin: true,
+            plan: true,
+            logoUrl: true,
+            address: true,
+            phone: true,
+            billingEnabled: true,
+            productsEnabled: true,
+            paymentsEnabled: true,
+            reportsEnabled: true,
+          },
         },
       },
     });
@@ -189,7 +212,7 @@ export class AuthService {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   private async generateTokens(
-    user: { id: string; tenantId: string; email: string; role: string },
+    user: { id: string; tenantId: string | null; email: string; role: string },
     meta: { userAgent?: string; ipAddress?: string },
   ) {
     const payload = { sub: user.id, tenantId: user.tenantId, email: user.email, role: user.role };
