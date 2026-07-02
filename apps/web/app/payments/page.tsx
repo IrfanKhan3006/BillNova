@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
+import FeatureGate from '../components/FeatureGate';
 import { api } from '../lib/api';
 import {
   CreditCard,
@@ -165,7 +166,8 @@ export default function PaymentsPage() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
+      <FeatureGate featureKey="paymentsEnabled" featureName="Payments Ledger">
+        <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
           <div>
@@ -415,6 +417,7 @@ export default function PaymentsPage() {
           </div>
         )}
       </div>
+      </FeatureGate>
     </SidebarLayout>
   );
 }

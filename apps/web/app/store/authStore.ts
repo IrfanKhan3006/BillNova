@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 interface User {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   name: string;
   email: string;
   role: string;
@@ -15,7 +15,11 @@ interface User {
     logoUrl?: string;
     address?: string;
     phone?: string;
-  };
+    billingEnabled?: boolean;
+    productsEnabled?: boolean;
+    paymentsEnabled?: boolean;
+    reportsEnabled?: boolean;
+  } | null;
 }
 
 interface AuthState {

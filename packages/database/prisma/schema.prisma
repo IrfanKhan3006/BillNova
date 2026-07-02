@@ -11,6 +11,7 @@ enum Role {
   OWNER
   STAFF
   ACCOUNTANT
+  SUPER_ADMIN
 }
 
 enum TenantPlan {
@@ -37,6 +38,12 @@ model Tenant {
   invoiceCounter Int    @default(0)
   dueDays        Int    @default(30)
 
+  // Gating Toggles
+  billingEnabled  Boolean @default(true)
+  productsEnabled Boolean @default(true)
+  paymentsEnabled Boolean @default(true)
+  reportsEnabled  Boolean @default(true)
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -54,7 +61,7 @@ model Tenant {
 
 model User {
   id           String  @id @default(uuid())
-  tenantId     String
+  tenantId     String?
   email        String
   name         String  @default("")
   passwordHash String
@@ -65,7 +72,7 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
   refreshTokens RefreshToken[]
 
   @@unique([tenantId, email])
@@ -75,7 +82,7 @@ model User {
 model RefreshToken {
   id        String   @id @default(uuid())
   userId    String
-  tenantId  String
+  tenantId  String?
   tokenHash String
   expiresAt DateTime
   isRevoked Boolean  @default(false)
@@ -84,8 +91,8 @@ model RefreshToken {
 
   createdAt DateTime @default(now())
 
-  user   User   @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User    @relation(fields: [userId], references: [id])
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
 
   @@map("refresh_tokens")
 }

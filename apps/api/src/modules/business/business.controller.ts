@@ -4,15 +4,43 @@ import { JwtAuthGuard } from '../auth/guards/ jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { BusinessService } from './business.service';
 
+import { IsString, IsOptional, IsNumber } from 'class-validator';
+
 class UpdateBusinessDto {
+  @IsOptional()
+  @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsString()
   gstin?: string;
+
+  @IsOptional()
+  @IsString()
   stateCode?: string;
+
+  @IsOptional()
+  @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
   email?: string;
+
+  @IsOptional()
+  @IsString()
   logoUrl?: string;
+
+  @IsOptional()
+  @IsString()
   invoicePrefix?: string;
+
+  @IsOptional()
+  @IsNumber()
   dueDays?: number;
 }
 

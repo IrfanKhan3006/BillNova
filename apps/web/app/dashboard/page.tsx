@@ -218,6 +218,7 @@ export default function DashboardPage() {
                       <th className="py-3 px-2">Date</th>
                       <th className="py-3 px-2">Amount</th>
                       <th className="py-3 px-2">Status</th>
+                      <th className="py-3 px-2 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -237,6 +238,14 @@ export default function DashboardPage() {
                           <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(inv.status)}`}>
                             {inv.status}
                           </span>
+                        </td>
+                        <td className="py-3.5 px-2 text-right">
+                          <Link
+                            href={`/billing?invoiceId=${inv.id}`}
+                            className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition"
+                          >
+                            Reprint
+                          </Link>
                         </td>
                       </tr>
                     ))}

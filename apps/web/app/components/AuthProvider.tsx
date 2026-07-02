@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '../store/authStore';
+import { api } from '../lib/api';
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { hydrate, isAuthenticated, isLoading } = useAuthStore();
@@ -14,13 +15,39 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }, [hydrate]);
 
   useEffect(() => {
+    if (isAuthenticated) {
+      api.get('/auth/me')
+        .then((res) => {
+          // Update zustand state and localStorage to capture live feature gates
+          useAuthStore.setState({ user: res });
+          localStorage.setItem('user', JSON.stringify(res));
+        })
+        .catch((err) => {
+          console.error('Failed to sync live session settings:', err);
+        });
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (isLoading) return;
 
     const isPublicPath = pathname === '/login' || pathname === '/register';
+    const isAdminPath = pathname.startsWith('/admin');
 
-    if (isAuthenticated && isPublicPath) {
-      router.push('/dashboard');
-    } else if (!isAuthenticated && !isPublicPath) {
+    if (isAuthenticated) {
+      const user = useAuthStore.getState().user;
+      if (user?.role === 'SUPER_ADMIN') {
+        if (isPublicPath || !isAdminPath) {
+          router.push('/admin/dashboard');
+        }
+      } else {
+        if (isAdminPath) {
+          router.push('/dashboard');
+        } else if (isPublicPath) {
+          router.push('/dashboard');
+        }
+      }
+    } else if (!isPublicPath) {
       router.push('/login');
     }
   }, [isAuthenticated, isLoading, pathname, router]);
