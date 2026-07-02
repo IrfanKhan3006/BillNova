@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  OWNER
+  STAFF
+  ACCOUNTANT
+  SUPER_ADMIN
+}
+
+enum TenantPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+model Tenant {
+  id    String     @id @default(uuid())
+  name  String
+  slug  String     @unique
+  plan  TenantPlan @default(FREE)
+
+  gstin     String?
+  stateCode String?
+  address   String?
+  phone     String?
+  email     String?
+  logoUrl   String?
+
+  invoicePrefix  String @default("INV")
+  invoiceCounter Int    @default(0)
+  dueDays        Int    @default(30)
+
+  // Gating Toggles
+  billingEnabled  Boolean @default(true)
+  productsEnabled Boolean @default(true)
+  paymentsEnabled Boolean @default(true)
+  reportsEnabled  Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  users             User[]
+  refreshTokens     RefreshToken[]
+  customers         Customer[]
+  productCategories ProductCategory[]
+  products          Product[]
+  invoices          Invoice[]
+  payments          Payment[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String  @id @default(uuid())
+  tenantId     String?
+  email        String
+  name         String  @default("")
+  passwordHash String
+  role         Role    @default(STAFF)
+  isActive     Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tenantId  String?
+  tokenHash String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  userAgent String?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id])
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@map("refresh_tokens")
+}
+
+model Customer {
+  id                 String    @id @default(uuid())
+  tenantId           String
+  name               String
+  email              String?
+  phone              String?
+  address            String?
+  gstin              String?
+  outstandingBalance Float     @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  invoices  Invoice[]
+  payments  Payment[]
+
+  @@map("customers")
+}
+
+model ProductCategory {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id            String    @id @default(uuid())
+  tenantId      String
+  categoryId    String?
+  name          String
+  sku           String?
+  barcode       String?
+  description   String?
+  salesPrice    Float     @default(0)
+  purchasePrice Float     @default(0)
+  taxRate       Float     @default(0) // Tax percentage (e.g. 18 for 18% GST)
+  unit          String    @default("PCS") // PCS, BOX, KG, LTR etc.
+  stock         Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id])
+  category     ProductCategory? @relation(fields: [categoryId], references: [id])
+  invoiceItems InvoiceItem[]
+
+  @@map("products")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  VOID
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  tenantId       String
+  customerId     String
+  invoiceNumber  String
+  date           DateTime      @default(now())
+  dueDate        DateTime
+  status         InvoiceStatus @default(DRAFT)
+  discountAmount Float         @default(0)
+  taxAmount      Float         @default(0)
+  subTotal       Float         @default(0)
+  totalAmount    Float         @default(0)
+  amountPaid     Float         @default(0)
+  amountDue      Float         @default(0)
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+  items    InvoiceItem[]
+  payments Payment[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id             String  @id @default(uuid())
+  invoiceId      String
+  productId      String?
+  name           String
+  qty            Int     @default(1)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@map("invoice_items")
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  UPI
+  OTHER
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  tenantId    String
+  customerId  String
+  invoiceId   String?
+  amount      Float
+  date        DateTime      @default(now())
+  method      PaymentMethod @default(CASH)
+  referenceNo String?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+  invoice  Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@map("payments")
+}
