@@ -23,7 +23,7 @@ export class RegisterDto {
   @MinLength(8)
   @MaxLength(100)
   @Matches(/[A-Z]/, { message: 'Kam se kam ek uppercase letter hona chahiye' })
-  @Matches(/[0-9]/, { message: 'Kam se kam ek number hona chahiye' })
+  @Matches(/[0-9]/, { message: 'atleast one number required' })
   password: string;
 
   @ApiPropertyOptional({ example: '9876543210' })
