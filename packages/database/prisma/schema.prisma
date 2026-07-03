@@ -38,6 +38,7 @@ model Tenant {
   invoicePrefix  String @default("INV")
   invoiceCounter Int    @default(0)
   dueDays        Int    @default(30)
+  invoiceTemplate String @default("CLASSIC")
 
   // Gating Toggles
   billingEnabled  Boolean @default(true)

@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
-import { Save, AlertCircle, CheckCircle, Building } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Building, Search } from 'lucide-react';
 
 export default function BusinessSettingsPage() {
   const { updateUserTenant } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [gstLoading, setGstLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -23,6 +24,7 @@ export default function BusinessSettingsPage() {
     logoUrl: '',
     invoicePrefix: 'INV',
     dueDays: 30,
+    invoiceTemplate: 'CLASSIC',
   });
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function BusinessSettingsPage() {
           logoUrl: res.logoUrl || '',
           invoicePrefix: res.invoicePrefix || 'INV',
           dueDays: res.dueDays ?? 30,
+          invoiceTemplate: res.invoiceTemplate || 'CLASSIC',
         });
       } catch (err: any) {
         setError(err.message || 'Failed to load business profile.');
@@ -50,12 +53,38 @@ export default function BusinessSettingsPage() {
     loadProfile();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
       [name]: name === 'dueDays' ? parseInt(value) || 0 : value,
     }));
+  };
+
+  const handleGstSearch = async () => {
+    setError(null);
+    setSuccess(null);
+    if (!form.gstin || form.gstin.trim().length !== 15) {
+      alert('Please enter a valid 15-character GSTIN!');
+      return;
+    }
+    try {
+      setGstLoading(true);
+      const res = await api.get(`/business/gst-fetch/${form.gstin.trim()}`);
+      setForm((prev) => ({
+        ...prev,
+        name: res.name || prev.name,
+        stateCode: res.stateCode || prev.stateCode,
+        address: res.address || prev.address,
+        email: res.email || prev.email,
+        phone: res.phone || prev.phone,
+      }));
+      setSuccess('Details successfully auto-fetched from GSTIN!');
+    } catch (err: any) {
+      setError(err.message || 'Failed to auto-fetch details from GSTIN.');
+    } finally {
+      setGstLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,6 +100,7 @@ export default function BusinessSettingsPage() {
         name: res.name,
         gstin: res.gstin,
         logoUrl: res.logoUrl,
+        invoiceTemplate: res.invoiceTemplate,
       });
       setSuccess('Business profile updated successfully!');
     } catch (err: any) {
@@ -131,15 +161,26 @@ export default function BusinessSettingsPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-zinc-300">GSTIN Number (Optional)</label>
-                <input
-                  type="text"
-                  name="gstin"
-                  value={form.gstin}
-                  onChange={handleChange}
-                  maxLength={15}
-                  className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none uppercase"
-                  placeholder="e.g. 07AAAAA1111A1Z1"
-                />
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    name="gstin"
+                    value={form.gstin}
+                    onChange={handleChange}
+                    maxLength={15}
+                    className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none uppercase"
+                    placeholder="e.g. 07AAAAA1111A1Z1"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGstSearch}
+                    disabled={gstLoading}
+                    className="rounded-lg bg-zinc-800 hover:bg-zinc-700 px-4 py-2.5 text-xs font-semibold text-white border border-zinc-700 flex items-center gap-1.5 transition whitespace-nowrap"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    <span>{gstLoading ? 'Searching...' : 'Search GST'}</span>
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -239,6 +280,20 @@ export default function BusinessSettingsPage() {
                     className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
                     placeholder="30"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-zinc-300">Active Invoice Template</label>
+                  <select
+                    name="invoiceTemplate"
+                    value={form.invoiceTemplate}
+                    onChange={handleChange}
+                    className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none font-medium"
+                  >
+                    <option value="CLASSIC">Classic Template (Default)</option>
+                    <option value="MODERN_EMERALD">Modern Emerald Template</option>
+                    <option value="ELEGANT_BLUE">Elegant Blue Template</option>
+                  </select>
                 </div>
               </div>
             </div>

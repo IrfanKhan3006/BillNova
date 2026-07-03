@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/ jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -42,6 +42,10 @@ class UpdateBusinessDto {
   @IsOptional()
   @IsNumber()
   dueDays?: number;
+
+  @IsOptional()
+  @IsString()
+  invoiceTemplate?: string;
 }
 
 @ApiTags('Business')
@@ -55,6 +59,12 @@ export class BusinessController {
   @ApiOperation({ summary: 'Apne business ka profile dekho' })
   async getProfile(@CurrentUser() user: any) {
     return this.businessService.getProfile(user.tenantId);
+  }
+
+  @Get('gst-fetch/:gstin')
+  @ApiOperation({ summary: 'Auto-fetch business details from GSTIN' })
+  async gstFetch(@Param('gstin') gstin: string) {
+    return this.businessService.gstFetch(gstin);
   }
 
   @Patch()

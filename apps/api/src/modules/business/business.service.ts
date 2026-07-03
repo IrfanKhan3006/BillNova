@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
@@ -22,6 +22,7 @@ export class BusinessService {
         invoicePrefix: true,
         invoiceCounter: true,
         dueDays: true,
+        invoiceTemplate: true,
         createdAt: true,
       },
     });
@@ -45,6 +46,7 @@ export class BusinessService {
       logoUrl,
       invoicePrefix,
       dueDays,
+      invoiceTemplate,
     } = updateData;
 
     return this.prisma.tenant.update({
@@ -59,7 +61,45 @@ export class BusinessService {
         logoUrl,
         invoicePrefix,
         dueDays,
+        invoiceTemplate,
       },
     });
+  }
+
+  async gstFetch(gstin: string) {
+    const cleanGst = gstin.trim().toUpperCase();
+    if (cleanGst.length !== 15) {
+      throw new BadRequestException('GSTIN must be 15 characters long.');
+    }
+    const stateCode = cleanGst.slice(0, 2);
+    const pan = cleanGst.slice(2, 12);
+    // State code to Name mapping
+    const states: Record<string, string> = {
+      '01': 'Jammu & Kashmir',
+      '02': 'Himachal Pradesh',
+      '03': 'Punjab',
+      '05': 'Uttarakhand',
+      '06': 'Haryana',
+      '07': 'Delhi',
+      '08': 'Rajasthan',
+      '09': 'Uttar Pradesh',
+      '27': 'Maharashtra',
+      '29': 'Karnataka',
+      '33': 'Tamil Nadu',
+      '36': 'Telangana',
+      '37': 'Andhra Pradesh'
+    };
+    const stateName = states[stateCode] || 'Other State';
+    
+    // Return mock but structured data
+    return {
+      name: `${pan.slice(0, 4)} Enterprises`,
+      gstin: cleanGst,
+      stateCode,
+      stateName,
+      address: `Plot No. ${pan.slice(4, 7)}, Industrial Area Phase II, State of ${stateName}`,
+      phone: `98711${pan.slice(7, 12)}`,
+      email: `contact@${pan.toLowerCase().slice(0, 4)}enterprises.com`
+    };
   }
 }

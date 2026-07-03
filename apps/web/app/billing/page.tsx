@@ -64,6 +64,99 @@ export default function BillingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createdInvoice, setCreatedInvoice] = useState<any | null>(null);
 
+  // Quick Add Modal States
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  
+  const [custForm, setCustForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    gstin: '',
+  });
+  const [custGstLoading, setCustGstLoading] = useState(false);
+  const [custSaving, setCustSaving] = useState(false);
+
+  const [prodForm, setProdForm] = useState({
+    name: '',
+    salesPrice: 0,
+    purchasePrice: 0,
+    taxRate: 0,
+    unit: 'PCS',
+    stock: 0,
+  });
+  const [prodSaving, setProdSaving] = useState(false);
+
+  // Quick Add Customer Handler
+  const handleSaveCustomer = async () => {
+    if (!custForm.name.trim()) {
+      alert('Customer Name is required!');
+      return;
+    }
+    try {
+      setCustSaving(true);
+      const res = await api.post('/customers', custForm);
+      setCustomers((prev) => [...prev, res]);
+      setSelectedCustomerId(res.id);
+      setShowCustomerModal(false);
+      setCustForm({ name: '', phone: '', email: '', address: '', gstin: '' });
+    } catch (err: any) {
+      alert(err.message || 'Failed to create customer.');
+    } finally {
+      setCustSaving(false);
+    }
+  };
+
+  // Quick Add Customer GST Fetch
+  const handleCustGstSearch = async () => {
+    if (!custForm.gstin || custForm.gstin.trim().length !== 15) {
+      alert('Please enter a valid 15-character GSTIN!');
+      return;
+    }
+    try {
+      setCustGstLoading(true);
+      const res = await api.get(`/business/gst-fetch/${custForm.gstin.trim()}`);
+      setCustForm((prev) => ({
+        ...prev,
+        name: res.name || prev.name,
+        address: res.address || prev.address,
+        email: res.email || prev.email,
+        phone: res.phone || prev.phone,
+      }));
+    } catch (err: any) {
+      alert(err.message || 'Failed to fetch GSTIN details.');
+    } finally {
+      setCustGstLoading(false);
+    }
+  };
+
+  // Quick Add Product Handler
+  const handleSaveProduct = async () => {
+    if (!prodForm.name.trim()) {
+      alert('Product Name is required!');
+      return;
+    }
+    try {
+      setProdSaving(true);
+      const res = await api.post('/products', prodForm);
+      setProducts((prev) => [...prev, res]);
+      setShowProductModal(false);
+      setProdForm({
+        name: '',
+        salesPrice: 0,
+        purchasePrice: 0,
+        taxRate: 0,
+        unit: 'PCS',
+        stock: 0,
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to create product.');
+    } finally {
+      setProdSaving(false);
+    }
+  };
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -269,122 +362,136 @@ export default function BillingPage() {
         </div>
 
         {/* Printable Area (Styled to fit standard A4 sheets) */}
-        <div className="print-invoice-sheet bg-white text-zinc-900 p-8 rounded-2xl border border-zinc-300 max-w-4xl mx-auto mt-6 shadow-md">
-          {/* Header */}
-          <div className="flex justify-between items-start border-b border-zinc-200 pb-6">
-            <div className="flex items-start gap-4">
-              {user?.tenant?.logoUrl && (
-                <img
-                  src={user.tenant.logoUrl}
-                  alt="Business Logo"
-                  className="h-16 w-16 rounded-xl object-contain border border-zinc-200/80 p-1 bg-zinc-50 shrink-0"
-                />
+        {(() => {
+          const activeTemplate = (user as any)?.tenant?.invoiceTemplate || 'CLASSIC';
+          const isEmerald = activeTemplate === 'MODERN_EMERALD';
+          const isBlue = activeTemplate === 'ELEGANT_BLUE';
+          
+          return (
+            <div className={`print-invoice-sheet bg-white text-zinc-900 p-8 rounded-2xl border max-w-4xl mx-auto mt-6 shadow-md ${isEmerald ? 'border-emerald-300' : isBlue ? 'border-blue-300' : 'border-zinc-300'}`}>
+              {/* Header */}
+              <div className={
+                isEmerald
+                  ? "flex justify-between items-center bg-emerald-600 text-white p-6 -mx-8 -mt-8 rounded-t-2xl border-b border-emerald-700"
+                  : isBlue
+                  ? "flex justify-between items-center bg-slate-900 text-white p-6 -mx-8 -mt-8 rounded-t-2xl border-b border-slate-800"
+                  : "flex justify-between items-start border-b border-zinc-200 pb-6"
+              }>
+                <div className="flex items-start gap-4">
+                  {user?.tenant?.logoUrl && (
+                    <img
+                      src={user.tenant.logoUrl}
+                      alt="Business Logo"
+                      className={`h-16 w-16 rounded-xl object-contain border p-1 shrink-0 ${isEmerald ? 'border-emerald-500/30 bg-white' : isBlue ? 'border-slate-700 bg-white' : 'border-zinc-200/80 bg-zinc-50'}`}
+                    />
+                  )}
+                  <div>
+                    <h2 className={`text-2xl font-black tracking-tight uppercase ${isEmerald || isBlue ? 'text-white' : 'text-zinc-950'}`}>{user?.tenant?.name}</h2>
+                    {user?.tenant?.address && <p className={`text-xs mt-1 max-w-sm whitespace-pre-line ${isEmerald ? 'text-emerald-100' : isBlue ? 'text-slate-350' : 'text-zinc-550'}`}>{user.tenant.address}</p>}
+                    {user?.tenant?.phone && <p className={`text-xs mt-0.5 ${isEmerald ? 'text-emerald-200' : isBlue ? 'text-slate-400' : 'text-zinc-500'}`}>Phone: {user.tenant.phone}</p>}
+                    {user?.tenant?.gstin && (
+                      <p className={`text-xs font-bold mt-1 ${isEmerald ? 'bg-emerald-750 text-white px-2 py-0.5 rounded inline-block text-[10px]' : isBlue ? 'bg-slate-800 text-emerald-450 px-2 py-0.5 rounded inline-block text-[10px]' : 'text-zinc-650 text-emerald-750'}`}>
+                        GSTIN: <span className="uppercase">{user.tenant.gstin}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <h3 className={`text-xl font-bold tracking-wider uppercase ${isEmerald || isBlue ? 'text-white font-black' : 'text-zinc-400'}`}>TAX INVOICE</h3>
+                  <div className={`mt-3 text-xs space-y-1 ${isEmerald ? 'text-emerald-100' : isBlue ? 'text-slate-300' : 'text-zinc-600'}`}>
+                    <p>Invoice No: <span className={`font-mono font-bold ${isEmerald || isBlue ? 'text-white' : 'text-zinc-950'}`}>{createdInvoice.invoiceNumber}</span></p>
+                    <p>Date: <span className={`font-medium ${isEmerald || isBlue ? 'text-white' : 'text-zinc-950'}`}>{new Date(createdInvoice.date).toLocaleDateString('en-IN')}</span></p>
+                    <p>Due Date: <span className={`font-medium ${isEmerald || isBlue ? 'text-white' : 'text-zinc-950'}`}>{new Date(createdInvoice.dueDate).toLocaleDateString('en-IN')}</span></p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bill To */}
+              <div className="my-6 grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Bill To:</h4>
+                  <p className="font-bold text-zinc-900 text-sm mt-1">{cust.name}</p>
+                  {cust.address && <p className="text-xs text-zinc-555 mt-0.5 whitespace-pre-line">{cust.address}</p>}
+                  {cust.phone && <p className="text-xs text-zinc-500 mt-0.5">Phone: {cust.phone}</p>}
+                  {cust.gstin && (
+                    <p className={`text-xs font-bold mt-1 ${isEmerald ? 'text-emerald-700' : isBlue ? 'text-blue-700' : 'text-emerald-850'}`}>
+                      Customer GSTIN: <span className="uppercase">{cust.gstin}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Table */}
+              <table className="w-full text-left text-xs border-collapse mt-4">
+                <thead>
+                  <tr className={`uppercase font-bold border-t border-b ${isEmerald ? 'bg-emerald-50 text-emerald-950 border-emerald-200' : isBlue ? 'bg-slate-100 text-slate-850 border-slate-300' : 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
+                    <th className="py-2.5 px-2">#</th>
+                    <th className="py-2.5 px-2">Item Description</th>
+                    <th className="py-2.5 px-2 text-right">Price</th>
+                    <th className="py-2.5 px-2 text-center">Qty</th>
+                    <th className="py-2.5 px-2 text-right">Disc %</th>
+                    <th className="py-2.5 px-2 text-right">GST %</th>
+                    <th className="py-2.5 px-2 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {createdInvoice.items.map((item: any, idx: number) => (
+                    <tr key={item.id} className="border-b border-zinc-200/60">
+                      <td className="py-3 px-2 text-zinc-400">{idx + 1}</td>
+                      <td className="py-3 px-2 font-bold text-zinc-900">{item.name}</td>
+                      <td className="py-3 px-2 text-right">{formatCurrency(item.price)}</td>
+                      <td className="py-3 px-2 text-center font-semibold">{item.qty}</td>
+                      <td className="py-3 px-2 text-right">{item.discountRate}%</td>
+                      <td className="py-3 px-2 text-right">{item.taxRate}%</td>
+                      <td className="py-3 px-2 text-right font-bold text-zinc-900">{formatCurrency(item.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Summary calculations */}
+              <div className="flex justify-end mt-6">
+                <div className={`w-64 space-y-2 text-xs border-t pt-4 ${isEmerald ? 'bg-emerald-50/30 p-4 rounded-xl border-emerald-100 border-t-0' : isBlue ? 'bg-slate-50 p-4 rounded-xl border-slate-200 border-t-0' : 'border-zinc-200'}`}>
+                  <div className="flex justify-between text-zinc-550">
+                    <span>Subtotal:</span>
+                    <span>{formatCurrency(createdInvoice.subTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-zinc-550">
+                    <span>Discount Allowed:</span>
+                    <span className="text-red-650">- {formatCurrency(createdInvoice.discountAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-zinc-550 border-b border-zinc-200 pb-2">
+                    <span>Tax Amount (GST):</span>
+                    <span>{formatCurrency(createdInvoice.taxAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-black text-zinc-950 pt-1">
+                    <span>Grand Total:</span>
+                    <span className={isEmerald ? 'text-emerald-700 text-sm font-black' : isBlue ? 'text-blue-700 text-sm font-black' : ''}>{formatCurrency(createdInvoice.totalAmount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {createdInvoice.notes && (
+                <div className="border-t border-zinc-150 mt-8 pt-4">
+                  <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Notes & Terms</h5>
+                  <p className="text-xs text-zinc-600 mt-1 whitespace-pre-line">{createdInvoice.notes}</p>
+                </div>
               )}
-              <div>
-                <h2 className="text-2xl font-black tracking-tight text-zinc-950 uppercase">{user?.tenant?.name}</h2>
-                {user?.tenant?.address && <p className="text-xs text-zinc-550 mt-1 max-w-sm whitespace-pre-line">{user.tenant.address}</p>}
-                {user?.tenant?.phone && <p className="text-xs text-zinc-500 mt-0.5">Phone: {user.tenant.phone}</p>}
-                {user?.tenant?.gstin && (
-                  <p className="text-xs text-zinc-650 font-bold mt-1 text-emerald-700">
-                    GSTIN: <span className="uppercase">{user.tenant.gstin}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="text-right">
-              <h3 className="text-xl font-bold text-zinc-400 tracking-wider uppercase">TAX INVOICE</h3>
-              <div className="mt-3 text-xs text-zinc-600 space-y-1">
-                <p>Invoice No: <span className="font-mono font-bold text-zinc-950">{createdInvoice.invoiceNumber}</span></p>
-                <p>Date: <span className="font-medium text-zinc-950">{new Date(createdInvoice.date).toLocaleDateString('en-IN')}</span></p>
-                <p>Due Date: <span className="font-medium text-zinc-950">{new Date(createdInvoice.dueDate).toLocaleDateString('en-IN')}</span></p>
-              </div>
-            </div>
-          </div>
 
-          {/* Bill To */}
-          <div className="my-6 grid grid-cols-2 gap-4">
-            <div>
-              <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Bill To:</h4>
-              <p className="font-bold text-zinc-900 text-sm mt-1">{cust.name}</p>
-              {cust.address && <p className="text-xs text-zinc-550 mt-0.5 whitespace-pre-line">{cust.address}</p>}
-              {cust.phone && <p className="text-xs text-zinc-500 mt-0.5">Phone: {cust.phone}</p>}
-              {cust.gstin && (
-                <p className="text-xs text-emerald-850 font-bold mt-1">
-                  Customer GSTIN: <span className="uppercase">{cust.gstin}</span>
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Table */}
-          <table className="w-full text-left text-xs border-collapse mt-4">
-            <thead>
-              <tr className="bg-zinc-100 text-zinc-700 uppercase font-bold border-t border-b border-zinc-200">
-                <th className="py-2.5 px-2">#</th>
-                <th className="py-2.5 px-2">Item Description</th>
-                <th className="py-2.5 px-2 text-right">Price</th>
-                <th className="py-2.5 px-2 text-center">Qty</th>
-                <th className="py-2.5 px-2 text-right">Disc %</th>
-                <th className="py-2.5 px-2 text-right">GST %</th>
-                <th className="py-2.5 px-2 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {createdInvoice.items.map((item: any, idx: number) => (
-                <tr key={item.id} className="border-b border-zinc-200/60">
-                  <td className="py-3 px-2 text-zinc-400">{idx + 1}</td>
-                  <td className="py-3 px-2 font-bold text-zinc-900">{item.name}</td>
-                  <td className="py-3 px-2 text-right">{formatCurrency(item.price)}</td>
-                  <td className="py-3 px-2 text-center font-semibold">{item.qty}</td>
-                  <td className="py-3 px-2 text-right">{item.discountRate}%</td>
-                  <td className="py-3 px-2 text-right">{item.taxRate}%</td>
-                  <td className="py-3 px-2 text-right font-bold text-zinc-900">{formatCurrency(item.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Summary calculations */}
-          <div className="flex justify-end mt-6">
-            <div className="w-64 space-y-2 text-xs border-t border-zinc-200 pt-4">
-              <div className="flex justify-between text-zinc-550">
-                <span>Subtotal:</span>
-                <span>{formatCurrency(createdInvoice.subTotal)}</span>
-              </div>
-              <div className="flex justify-between text-zinc-550">
-                <span>Discount Allowed:</span>
-                <span className="text-red-650">- {formatCurrency(createdInvoice.discountAmount)}</span>
-              </div>
-              <div className="flex justify-between text-zinc-550 border-b border-zinc-200 pb-2">
-                <span>Tax Amount (GST):</span>
-                <span>{formatCurrency(createdInvoice.taxAmount)}</span>
-              </div>
-              <div className="flex justify-between text-sm font-black text-zinc-950 pt-1">
-                <span>Grand Total:</span>
-                <span>{formatCurrency(createdInvoice.totalAmount)}</span>
+              {/* Footer signature */}
+              <div className="flex justify-between items-end mt-16 pt-8 border-t border-zinc-100 text-[10px] text-zinc-450">
+                <div>
+                  <p>Thank you for your business!</p>
+                  <p className="text-zinc-400 mt-0.5">Software Powered by BillNova ERP</p>
+                </div>
+                <div className="text-center w-48 border-t border-zinc-350 pt-2">
+                  <p className="font-bold text-zinc-700 uppercase tracking-wider">Authorized Signatory</p>
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Notes */}
-          {createdInvoice.notes && (
-            <div className="border-t border-zinc-150 mt-8 pt-4">
-              <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Notes & Terms</h5>
-              <p className="text-xs text-zinc-600 mt-1 whitespace-pre-line">{createdInvoice.notes}</p>
-            </div>
-          )}
-
-          {/* Footer signature */}
-          <div className="flex justify-between items-end mt-16 pt-8 border-t border-zinc-100 text-[10px] text-zinc-450">
-            <div>
-              <p>Thank you for your business!</p>
-              <p className="text-zinc-400 mt-0.5">Software Powered by BillNova ERP</p>
-            </div>
-            <div className="text-center w-48 border-t border-zinc-350 pt-2">
-              <p className="font-bold text-zinc-700 uppercase tracking-wider">Authorized Signatory</p>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
         </FeatureGate>
       </SidebarLayout>
     );
@@ -409,12 +516,23 @@ export default function BillingPage() {
               {/* Customer Selector & Date */}
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider">Select Customer *</label>
+                  <div className="flex justify-between items-center">
+                    <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider">Select Customer *</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomerModal(true)}
+                      className="text-xs text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition animate-pulse"
+                    >
+                      <Plus className="h-3 w-3" />
+                      <span>Add Customer</span>
+                    </button>
+                  </div>
                   <select
                     value={selectedCustomerId}
                     onChange={(e) => setSelectedCustomerId(e.target.value)}
                     className="mt-2 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
                   >
+                    <option value="">-- Choose Customer --</option>
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.phone ? `(${c.phone})` : ''}
@@ -446,7 +564,17 @@ export default function BillingPage() {
                   <div key={idx} className="grid gap-3 sm:grid-cols-12 items-end border-b border-zinc-850 pb-4 last:border-0 last:pb-0">
                     {/* Select Product */}
                     <div className="sm:col-span-4">
-                      <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Select Product</label>
+                      <div className="flex justify-between items-center">
+                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Select Product</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowProductModal(true)}
+                          className="text-[10px] text-emerald-450 hover:text-emerald-400 font-bold flex items-center transition"
+                        >
+                          <Plus className="h-2.5 w-2.5" />
+                          <span>Quick Add</span>
+                        </button>
+                      </div>
                       <select
                         value={item.productId || ''}
                         onChange={(e) => handleProductSelect(idx, e.target.value)}
@@ -596,6 +724,198 @@ export default function BillingPage() {
         </div>
       </div>
       </FeatureGate>
+
+      {/* Add Customer Modal */}
+      {showCustomerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl relative">
+            <button
+              onClick={() => setShowCustomerModal(false)}
+              className="absolute right-4 top-4 p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h3 className="text-lg font-bold text-white mb-4">Add New Customer</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">GSTIN Number (Optional)</label>
+                <div className="flex gap-2 mt-1.5">
+                  <input
+                    type="text"
+                    value={custForm.gstin}
+                    onChange={(e) => setCustForm({ ...custForm, gstin: e.target.value })}
+                    maxLength={15}
+                    placeholder="e.g. 07AAAAA1111A1Z1"
+                    className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white placeholder-zinc-650 focus:border-emerald-500 focus:outline-none uppercase"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCustGstSearch}
+                    disabled={custGstLoading}
+                    className="rounded-lg bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-xs font-semibold text-white border border-zinc-700 transition"
+                  >
+                    {custGstLoading ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Customer Name *</label>
+                <input
+                  type="text"
+                  value={custForm.name}
+                  onChange={(e) => setCustForm({ ...custForm, name: e.target.value })}
+                  className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                  placeholder="e.g. Verma Enterprises"
+                />
+              </div>
+              <div className="grid gap-4 grid-cols-2">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Phone</label>
+                  <input
+                    type="text"
+                    value={custForm.phone}
+                    onChange={(e) => setCustForm({ ...custForm, phone: e.target.value })}
+                    className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                    placeholder="9876543210"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Email</label>
+                  <input
+                    type="email"
+                    value={custForm.email}
+                    onChange={(e) => setCustForm({ ...custForm, email: e.target.value })}
+                    className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                    placeholder="client@mail.com"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Address</label>
+                <textarea
+                  value={custForm.address}
+                  onChange={(e) => setCustForm({ ...custForm, address: e.target.value })}
+                  rows={2}
+                  className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                  placeholder="Full Address"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setShowCustomerModal(false)}
+                  className="rounded-lg bg-zinc-800 hover:bg-zinc-700 px-4 py-2.5 text-xs font-semibold text-white border border-zinc-700 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveCustomer}
+                  disabled={custSaving}
+                  className="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-4 py-2.5 text-xs font-semibold text-zinc-950 transition disabled:opacity-50"
+                >
+                  {custSaving ? 'Saving...' : 'Save Customer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Product Modal */}
+      {showProductModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl relative">
+            <button
+              onClick={() => setShowProductModal(false)}
+              className="absolute right-4 top-4 p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h3 className="text-lg font-bold text-white mb-4">Quick Add Product</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Product Name *</label>
+                <input
+                  type="text"
+                  value={prodForm.name}
+                  onChange={(e) => setProdForm({ ...prodForm, name: e.target.value })}
+                  className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                  placeholder="e.g. Wireless Mouse"
+                />
+              </div>
+              <div className="grid gap-4 grid-cols-2">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Sales Price (INR) *</label>
+                  <input
+                    type="number"
+                    value={prodForm.salesPrice}
+                    onChange={(e) => setProdForm({ ...prodForm, salesPrice: parseFloat(e.target.value) || 0 })}
+                    className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Purchase Price (INR)</label>
+                  <input
+                    type="number"
+                    value={prodForm.purchasePrice}
+                    onChange={(e) => setProdForm({ ...prodForm, purchasePrice: parseFloat(e.target.value) || 0 })}
+                    className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 grid-cols-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">GST Rate (%)</label>
+                  <input
+                    type="number"
+                    value={prodForm.taxRate}
+                    onChange={(e) => setProdForm({ ...prodForm, taxRate: parseFloat(e.target.value) || 0 })}
+                    className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                    placeholder="18"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Unit</label>
+                  <select
+                    value={prodForm.unit}
+                    onChange={(e) => setProdForm({ ...prodForm, unit: e.target.value })}
+                    className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                  >
+                    <option value="PCS">PCS</option>
+                    <option value="BOX">BOX</option>
+                    <option value="KG">KG</option>
+                    <option value="LTR">LTR</option>
+                    <option value="MTR">MTR</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Stock Qty</label>
+                  <input
+                    type="number"
+                    value={prodForm.stock}
+                    onChange={(e) => setProdForm({ ...prodForm, stock: parseInt(e.target.value) || 0 })}
+                    className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setShowProductModal(false)}
+                  className="rounded-lg bg-zinc-800 hover:bg-zinc-700 px-4 py-2.5 text-xs font-semibold text-white border border-zinc-700 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveProduct}
+                  disabled={prodSaving}
+                  className="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-4 py-2.5 text-xs font-semibold text-zinc-950 transition disabled:opacity-50"
+                >
+                  {prodSaving ? 'Saving...' : 'Save Product'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </SidebarLayout>
   );
 }

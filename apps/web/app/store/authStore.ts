@@ -15,6 +15,7 @@ interface User {
     logoUrl?: string;
     address?: string;
     phone?: string;
+    invoiceTemplate?: string;
     billingEnabled?: boolean;
     productsEnabled?: boolean;
     paymentsEnabled?: boolean;
