@@ -73,19 +73,6 @@ export class BusinessService {
     }
     const stateCode = cleanGst.slice(0, 2);
     const pan = cleanGst.slice(2, 12);
-    
-    // Custom check for user's actual certificate
-    if (cleanGst === '06ITAPK9384Q2ZN') {
-      return {
-        name: 'IRFAN TRADING CO',
-        gstin: '06ITAPK9384Q2ZN',
-        stateCode: '06',
-        stateName: 'Haryana',
-        address: 'SHOP NO 16, TEHSIL FARIDABAD, NEAR JIO TOWER KURESHIPUR, VILLAGE KURESHIPUR, Faridabad, Haryana, 121004',
-        phone: '9871184226',
-        email: 'contact@irfantrading.com'
-      };
-    }
 
     // State code to Name mapping
     const states: Record<string, string> = {
@@ -104,7 +91,52 @@ export class BusinessService {
       '37': 'Andhra Pradesh'
     };
     const stateName = states[stateCode] || 'Other State';
+
+    // If Sandbox.co.in API Key is set in Environment, attempt real-time query
+    if (process.env.SANDBOX_GST_API_KEY) {
+      try {
+        const response = await fetch(`https://api.sandbox.co.in/kyc/gstin/${cleanGst}/public`, {
+          method: 'GET',
+          headers: {
+            'Authorization': process.env.SANDBOX_GST_API_KEY,
+            'x-api-key': process.env.SANDBOX_GST_API_KEY,
+            'accept': 'application/json'
+          }
+        });
+        if (response.ok) {
+          const resJson = await response.json();
+          if (resJson && resJson.data) {
+            const gstData = resJson.data;
+            const addressObj = gstData.pradr?.addr || {};
+            const fullAddress = `${addressObj.bno || ''} ${addressObj.st || ''} ${addressObj.loc || ''} ${addressObj.dst || ''} ${addressObj.stcd || ''} ${addressObj.pncd || ''}`.trim().replace(/\s+/g, ' ');
+            return {
+              name: gstData.tradeNam || gstData.lgnm || 'GST Business',
+              gstin: cleanGst,
+              stateCode,
+              stateName: addressObj.stcd || stateName,
+              address: fullAddress || 'GST Registered Address',
+              phone: '',
+              email: ''
+            };
+          }
+        }
+      } catch (err: any) {
+        console.error('Real-time GST API failed, falling back to mock:', err.message);
+      }
+    }
     
+    // Custom check for user's actual certificate
+    if (cleanGst === '06ITAPK9384Q2ZN') {
+      return {
+        name: 'IRFAN TRADING CO',
+        gstin: '06ITAPK9384Q2ZN',
+        stateCode: '06',
+        stateName: 'Haryana',
+        address: 'SHOP NO 16, TEHSIL FARIDABAD, NEAR JIO TOWER KURESHIPUR, VILLAGE KURESHIPUR, Faridabad, Haryana, 121004',
+        phone: '9871184226',
+        email: 'contact@irfantrading.com'
+      };
+    }
     // Return mock but structured data
     return {
       name: `${pan.slice(0, 4)} Enterprises`,
