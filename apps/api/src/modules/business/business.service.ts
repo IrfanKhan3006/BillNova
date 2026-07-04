@@ -76,8 +76,11 @@ export class BusinessService {
       throw new BadRequestException('Sandbox GST API Key is not configured on the server.');
     }
 
+    const isTestKey = process.env.SANDBOX_GST_API_KEY.includes('test') || process.env.SANDBOX_GST_API_KEY.includes('mock');
+    const baseUrl = isTestKey ? 'https://test-api.sandbox.co.in' : 'https://api.sandbox.co.in';
+
     try {
-      const response = await fetch('https://api.sandbox.co.in/gst/compliance/public/gstin/verify', {
+      const response = await fetch(`${baseUrl}/gst/compliance/public/gstin/verify`, {
         method: 'POST',
         headers: {
           'Authorization': process.env.SANDBOX_GST_API_KEY,
