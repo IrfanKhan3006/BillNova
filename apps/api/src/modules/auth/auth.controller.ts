@@ -8,7 +8,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
-import { JwtAuthGuard, Public } from './guards/ jwt-auth.guard';
+import { JwtAuthGuard, Public } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
 @ApiTags('Auth')

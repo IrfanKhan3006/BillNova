@@ -67,6 +67,7 @@ export default function BillingPage() {
   // Quick Add Modal States
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [activeProductItemIndex, setActiveProductItemIndex] = useState<number | null>(null);
   
   const [custForm, setCustForm] = useState({
     name: '',
@@ -141,6 +142,22 @@ export default function BillingPage() {
       setProdSaving(true);
       const res = await api.post('/products', prodForm);
       setProducts((prev) => [...prev, res]);
+
+      if (activeProductItemIndex !== null) {
+        setItems((prev) => {
+          const copy = [...prev];
+          copy[activeProductItemIndex] = {
+            productId: res.id,
+            name: res.name,
+            qty: 1,
+            price: res.salesPrice,
+            taxRate: res.taxRate,
+            discountRate: 0,
+          };
+          return copy;
+        });
+      }
+
       setShowProductModal(false);
       setProdForm({
         name: '',
@@ -150,6 +167,7 @@ export default function BillingPage() {
         unit: 'PCS',
         stock: 0,
       });
+      setActiveProductItemIndex(null);
     } catch (err: any) {
       alert(err.message || 'Failed to create product.');
     } finally {
@@ -334,6 +352,116 @@ export default function BillingPage() {
       style: 'currency',
       currency: 'INR',
     }).format(val);
+  };
+
+  const renderTemplateModal = () => {
+    if (!showTemplateModal) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl relative">
+          <button
+            onClick={() => setShowTemplateModal(false)}
+            className="absolute right-4 top-4 p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <h3 className="text-xl font-extrabold text-white mb-1">Select Invoice Template</h3>
+          <p className="text-zinc-400 text-xs mb-6">Choose a template style to instantly customize your print invoice layout.</p>
+          
+          <div className="grid gap-4 sm:grid-cols-3 mb-6">
+            {/* Classic Template Card */}
+            <button
+              type="button"
+              onClick={() => setSelectedTemplate('CLASSIC')}
+              className={`group text-left p-4 rounded-xl border transition flex flex-col justify-between h-48 ${selectedTemplate === 'CLASSIC' ? 'border-emerald-500 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}`}
+            >
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-white">Classic Minimal</span>
+                  {selectedTemplate === 'CLASSIC' && <div className="h-2 w-2 rounded-full bg-emerald-500" />}
+                </div>
+                <span className="text-[11px] text-zinc-400 leading-relaxed block">Clean, traditional corporate look with monochrome lines and margins.</span>
+              </div>
+              {/* Visual Preview Swatch */}
+              <div className="w-full h-12 rounded-lg bg-zinc-900 border border-zinc-800 p-1.5 flex flex-col justify-between gap-1 mt-3">
+                <div className="h-1.5 w-1/2 bg-zinc-700 rounded-sm" />
+                <div className="h-1 w-full bg-zinc-850 rounded-sm" />
+                <div className="flex justify-between items-center mt-1">
+                  <div className="h-1 w-1/4 bg-zinc-800 rounded-sm" />
+                  <div className="h-2 w-8 bg-zinc-700 rounded-sm" />
+                </div>
+              </div>
+            </button>
+
+            {/* Modern Emerald Template Card */}
+            <button
+              type="button"
+              onClick={() => setSelectedTemplate('MODERN_EMERALD')}
+              className={`group text-left p-4 rounded-xl border transition flex flex-col justify-between h-48 ${selectedTemplate === 'MODERN_EMERALD' ? 'border-emerald-500 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}`}
+            >
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-white">Modern Emerald</span>
+                  {selectedTemplate === 'MODERN_EMERALD' && <div className="h-2 w-2 rounded-full bg-emerald-500" />}
+                </div>
+                <span className="text-[11px] text-zinc-400 leading-relaxed block">Solid emerald header block, custom badge styling, and vibrant green details.</span>
+              </div>
+              {/* Visual Preview Swatch */}
+              <div className="w-full h-12 rounded-lg bg-emerald-950/40 border border-emerald-900/30 p-1.5 flex flex-col justify-between gap-1 mt-3">
+                <div className="h-2 w-full bg-emerald-600 rounded-sm" />
+                <div className="h-1 w-full bg-zinc-800 rounded-sm" />
+                <div className="flex justify-between items-center mt-1">
+                  <div className="h-1.5 w-1/3 bg-emerald-500/40 rounded-sm" />
+                  <div className="h-2 w-8 bg-emerald-500 rounded-sm" />
+                </div>
+              </div>
+            </button>
+
+            {/* Elegant Blue Template Card */}
+            <button
+              type="button"
+              onClick={() => setSelectedTemplate('ELEGANT_BLUE')}
+              className={`group text-left p-4 rounded-xl border transition flex flex-col justify-between h-48 ${selectedTemplate === 'ELEGANT_BLUE' ? 'border-emerald-500 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}`}
+            >
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-white">Elegant Navy Blue</span>
+                  {selectedTemplate === 'ELEGANT_BLUE' && <div className="h-2 w-2 rounded-full bg-emerald-500" />}
+                </div>
+                <span className="text-[11px] text-zinc-400 leading-relaxed block">Deep slate header, navy borders, and clear information boxes.</span>
+              </div>
+              {/* Visual Preview Swatch */}
+              <div className="w-full h-12 rounded-lg bg-slate-950/60 border border-slate-800 p-1.5 flex flex-col justify-between gap-1 mt-3">
+                <div className="h-2 w-full bg-slate-800 rounded-sm" />
+                <div className="h-1 w-full bg-zinc-800 rounded-sm" />
+                <div className="flex justify-between items-center mt-1">
+                  <div className="h-1.5 w-1/3 bg-blue-500/40 rounded-sm" />
+                  <div className="h-2 w-8 bg-blue-500 rounded-sm" />
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2 border-t border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setShowTemplateModal(false)}
+              className="rounded-lg bg-zinc-800 hover:bg-zinc-700 px-4 py-2.5 text-xs font-semibold text-white border border-zinc-700 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveTemplate}
+              disabled={savingTemplate}
+              className="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-5 py-2.5 text-xs font-semibold text-zinc-950 transition disabled:opacity-50"
+            >
+              {savingTemplate ? 'Saving...' : 'Apply Template'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -526,6 +654,7 @@ export default function BillingPage() {
           );
         })()}
         </FeatureGate>
+        {renderTemplateModal()}
       </SidebarLayout>
     );
   }
@@ -614,7 +743,10 @@ export default function BillingPage() {
                         <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Select Product</label>
                         <button
                           type="button"
-                          onClick={() => setShowProductModal(true)}
+                          onClick={() => {
+                            setActiveProductItemIndex(idx);
+                            setShowProductModal(true);
+                          }}
                           className="text-[10px] text-emerald-450 hover:text-emerald-400 font-bold flex items-center transition"
                         >
                           <Plus className="h-2.5 w-2.5" />
@@ -871,7 +1003,10 @@ export default function BillingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl relative">
             <button
-              onClick={() => setShowProductModal(false)}
+              onClick={() => {
+                setShowProductModal(false);
+                setActiveProductItemIndex(null);
+              }}
               className="absolute right-4 top-4 p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
             >
               <X className="h-5 w-5" />
@@ -945,7 +1080,10 @@ export default function BillingPage() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button
-                  onClick={() => setShowProductModal(false)}
+                  onClick={() => {
+                    setShowProductModal(false);
+                    setActiveProductItemIndex(null);
+                  }}
                   className="rounded-lg bg-zinc-800 hover:bg-zinc-700 px-4 py-2.5 text-xs font-semibold text-white border border-zinc-700 transition"
                 >
                   Cancel
@@ -963,113 +1101,7 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* Template Select Modal */}
-      {showTemplateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl relative">
-            <button
-              onClick={() => setShowTemplateModal(false)}
-              className="absolute right-4 top-4 p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <h3 className="text-xl font-extrabold text-white mb-1">Select Invoice Template</h3>
-            <p className="text-zinc-400 text-xs mb-6">Choose a template style to instantly customize your print invoice layout.</p>
-            
-            <div className="grid gap-4 sm:grid-cols-3 mb-6">
-              {/* Classic Template Card */}
-              <button
-                type="button"
-                onClick={() => setSelectedTemplate('CLASSIC')}
-                className={`group text-left p-4 rounded-xl border transition flex flex-col justify-between h-48 ${selectedTemplate === 'CLASSIC' ? 'border-emerald-500 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}`}
-              >
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-bold text-white">Classic Minimal</span>
-                    {selectedTemplate === 'CLASSIC' && <div className="h-2 w-2 rounded-full bg-emerald-500" />}
-                  </div>
-                  <span className="text-[11px] text-zinc-400 leading-relaxed block">Clean, traditional corporate look with monochrome lines and margins.</span>
-                </div>
-                {/* Visual Preview Swatch */}
-                <div className="w-full h-12 rounded-lg bg-zinc-900 border border-zinc-800 p-1.5 flex flex-col justify-between gap-1 mt-3">
-                  <div className="h-1.5 w-1/2 bg-zinc-700 rounded-sm" />
-                  <div className="h-1 w-full bg-zinc-850 rounded-sm" />
-                  <div className="flex justify-between items-center mt-1">
-                    <div className="h-1 w-1/4 bg-zinc-800 rounded-sm" />
-                    <div className="h-2 w-8 bg-zinc-700 rounded-sm" />
-                  </div>
-                </div>
-              </button>
-
-              {/* Modern Emerald Template Card */}
-              <button
-                type="button"
-                onClick={() => setSelectedTemplate('MODERN_EMERALD')}
-                className={`group text-left p-4 rounded-xl border transition flex flex-col justify-between h-48 ${selectedTemplate === 'MODERN_EMERALD' ? 'border-emerald-500 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}`}
-              >
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-bold text-white">Modern Emerald</span>
-                    {selectedTemplate === 'MODERN_EMERALD' && <div className="h-2 w-2 rounded-full bg-emerald-500" />}
-                  </div>
-                  <span className="text-[11px] text-zinc-400 leading-relaxed block">Solid emerald header block, custom badge styling, and vibrant green details.</span>
-                </div>
-                {/* Visual Preview Swatch */}
-                <div className="w-full h-12 rounded-lg bg-emerald-950/40 border border-emerald-900/30 p-1.5 flex flex-col justify-between gap-1 mt-3">
-                  <div className="h-2 w-full bg-emerald-600 rounded-sm" />
-                  <div className="h-1 w-full bg-zinc-800 rounded-sm" />
-                  <div className="flex justify-between items-center mt-1">
-                    <div className="h-1.5 w-1/3 bg-emerald-500/40 rounded-sm" />
-                    <div className="h-2 w-8 bg-emerald-500 rounded-sm" />
-                  </div>
-                </div>
-              </button>
-
-              {/* Elegant Blue Template Card */}
-              <button
-                type="button"
-                onClick={() => setSelectedTemplate('ELEGANT_BLUE')}
-                className={`group text-left p-4 rounded-xl border transition flex flex-col justify-between h-48 ${selectedTemplate === 'ELEGANT_BLUE' ? 'border-emerald-500 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}`}
-              >
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-bold text-white">Elegant Navy Blue</span>
-                    {selectedTemplate === 'ELEGANT_BLUE' && <div className="h-2 w-2 rounded-full bg-emerald-500" />}
-                  </div>
-                  <span className="text-[11px] text-zinc-400 leading-relaxed block">Deep slate header, navy borders, and clear information boxes.</span>
-                </div>
-                {/* Visual Preview Swatch */}
-                <div className="w-full h-12 rounded-lg bg-slate-950/60 border border-slate-800 p-1.5 flex flex-col justify-between gap-1 mt-3">
-                  <div className="h-2 w-full bg-slate-800 rounded-sm" />
-                  <div className="h-1 w-full bg-zinc-800 rounded-sm" />
-                  <div className="flex justify-between items-center mt-1">
-                    <div className="h-1.5 w-1/3 bg-blue-500/40 rounded-sm" />
-                    <div className="h-2 w-8 bg-blue-500 rounded-sm" />
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2 border-t border-zinc-800">
-              <button
-                type="button"
-                onClick={() => setShowTemplateModal(false)}
-                className="rounded-lg bg-zinc-800 hover:bg-zinc-700 px-4 py-2.5 text-xs font-semibold text-white border border-zinc-700 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveTemplate}
-                disabled={savingTemplate}
-                className="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-5 py-2.5 text-xs font-semibold text-zinc-950 transition disabled:opacity-50"
-              >
-                {savingTemplate ? 'Saving...' : 'Apply Template'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {renderTemplateModal()}
     </SidebarLayout>
   );
 }
