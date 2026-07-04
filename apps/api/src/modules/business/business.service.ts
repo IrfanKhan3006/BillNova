@@ -66,26 +66,54 @@ export class BusinessService {
     });
   }
 
+  async getSandboxToken(baseUrl: string): Promise<string> {
+    const response = await fetch(`${baseUrl}/authenticate`, {
+      method: 'POST',
+      headers: {
+        'x-api-key': process.env.SANDBOX_GST_API_KEY || '',
+        'x-api-secret': process.env.SANDBOX_GST_API_SECRET || '',
+        'x-api-version': '1.0.0',
+        'accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new BadRequestException(`Sandbox Authentication Failed (Status ${response.status}): ${errText}`);
+    }
+
+    const data = await response.json();
+    if (!data || !data.access_token) {
+      throw new BadRequestException('Access token missing in Sandbox authentication response.');
+    }
+
+    return data.access_token;
+  }
+
   async gstFetch(gstin: string) {
     const cleanGst = gstin.trim().toUpperCase();
     if (cleanGst.length !== 15) {
       throw new BadRequestException('GSTIN must be 15 characters long.');
     }
 
-    if (!process.env.SANDBOX_GST_API_KEY) {
-      throw new BadRequestException('Sandbox GST API Key is not configured on the server.');
+    if (!process.env.SANDBOX_GST_API_KEY || !process.env.SANDBOX_GST_API_SECRET) {
+      throw new BadRequestException('Sandbox API Key and API Secret must be configured on the server.');
     }
 
     const isTestKey = process.env.SANDBOX_GST_API_KEY.includes('test') || process.env.SANDBOX_GST_API_KEY.includes('mock');
     const baseUrl = isTestKey ? 'https://test-api.sandbox.co.in' : 'https://api.sandbox.co.in';
 
     try {
+      // Step 1: Authenticate and get temporary access token
+      const accessToken = await this.getSandboxToken(baseUrl);
+
+      // Step 2: Query the public GST validation endpoint
       const response = await fetch(`${baseUrl}/gst/compliance/public/gstin/verify`, {
         method: 'POST',
         headers: {
-          'Authorization': process.env.SANDBOX_GST_API_KEY,
           'x-api-key': process.env.SANDBOX_GST_API_KEY,
-          'x-api-version': '1.0',
+          'authorization': accessToken,
+          'x-api-version': '1.0.0',
           'content-type': 'application/json',
           'accept': 'application/json'
         },
