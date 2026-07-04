@@ -77,13 +77,18 @@ export class BusinessService {
     }
 
     try {
-      const response = await fetch(`https://api.sandbox.co.in/kyc/gstin/${cleanGst}/public`, {
-        method: 'GET',
+      const response = await fetch('https://api.sandbox.co.in/gst/compliance/public/gstin/verify', {
+        method: 'POST',
         headers: {
           'Authorization': process.env.SANDBOX_GST_API_KEY,
           'x-api-key': process.env.SANDBOX_GST_API_KEY,
+          'x-api-version': '1.0',
+          'content-type': 'application/json',
           'accept': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          gstin: cleanGst
+        })
       });
 
       if (!response.ok) {
@@ -92,20 +97,25 @@ export class BusinessService {
       }
 
       const resJson = await response.json();
-      if (!resJson || !resJson.data) {
+      if (!resJson || !resJson.data || !resJson.data.data) {
         throw new NotFoundException('GSTIN details not found in Sandbox response.');
       }
 
-      const gstData = resJson.data;
+      const gstData = resJson.data.data;
       const addressObj = gstData.pradr?.addr || {};
-      const fullAddress = `${addressObj.bno || ''} ${addressObj.st || ''} ${addressObj.loc || ''} ${addressObj.dst || ''} ${addressObj.stcd || ''} ${addressObj.pncd || ''}`.trim().replace(/\s+/g, ' ');
+      let fullAddress = '';
+      if (addressObj.bno || addressObj.st || addressObj.loc || addressObj.dst || addressObj.pncd) {
+        fullAddress = `${addressObj.bno || ''} ${addressObj.st || ''} ${addressObj.loc || ''} ${addressObj.dst || ''} ${addressObj.stcd || ''} ${addressObj.pncd || ''}`.trim().replace(/\s+/g, ' ');
+      } else {
+        fullAddress = `Registered business in State of ${gstData.stateName || 'Haryana'}`;
+      }
 
       return {
-        name: gstData.tradeNam || gstData.lgnm || 'GST Business',
+        name: gstData.legalName || gstData.tradeNam || 'GST Business',
         gstin: cleanGst,
-        stateCode: cleanGst.slice(0, 2),
-        stateName: addressObj.stcd || 'Haryana',
-        address: fullAddress || 'GST Registered Address',
+        stateCode: gstData.stateCode || cleanGst.slice(0, 2),
+        stateName: gstData.stateName || 'Haryana',
+        address: fullAddress,
         phone: '',
         email: ''
       };
