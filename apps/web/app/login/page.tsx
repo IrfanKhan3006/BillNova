@@ -47,6 +47,12 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-zinc-400">Log in to manage your business invoicing</p>
         </div>
 
+        {typeof window !== 'undefined' && window.location.search.includes('expired=true') && (
+          <div className="mb-6 rounded-lg bg-amber-500/10 border border-amber-500/20 p-4 text-sm text-amber-400">
+            ⚠️ Your session has expired. Please log in again to continue.
+          </div>
+        )}
+
         {error && (
           <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
             {error}

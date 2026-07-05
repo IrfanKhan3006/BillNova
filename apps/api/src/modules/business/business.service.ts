@@ -19,10 +19,15 @@ export class BusinessService {
         phone: true,
         email: true,
         logoUrl: true,
+        customHeaderUrl: true,
         invoicePrefix: true,
         invoiceCounter: true,
         dueDays: true,
         invoiceTemplate: true,
+        bankAccountName: true,
+        bankAccountNumber: true,
+        bankIfsc: true,
+        upiId: true,
         createdAt: true,
       },
     });
@@ -44,9 +49,14 @@ export class BusinessService {
       phone,
       email,
       logoUrl,
+      customHeaderUrl,
       invoicePrefix,
       dueDays,
       invoiceTemplate,
+      bankAccountName,
+      bankAccountNumber,
+      bankIfsc,
+      upiId,
     } = updateData;
 
     return this.prisma.tenant.update({
@@ -59,9 +69,14 @@ export class BusinessService {
         phone,
         email,
         logoUrl,
+        customHeaderUrl,
         invoicePrefix,
         dueDays,
         invoiceTemplate,
+        bankAccountName,
+        bankAccountNumber,
+        bankIfsc,
+        upiId,
       },
     });
   }

@@ -15,7 +15,7 @@ import { PrismaModule } from '../../database/prisma.module'; // ← import dynam
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow('JWT_ACCESS_SECRET'),
-        signOptions: { expiresIn: '15m' },
+        signOptions: { expiresIn: '3650d' },
       }),
       inject: [ConfigService],
     }),

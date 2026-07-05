@@ -13,9 +13,15 @@ interface User {
     gstin?: string;
     plan: string;
     logoUrl?: string;
+    customHeaderUrl?: string;
     address?: string;
     phone?: string;
+    email?: string;
     invoiceTemplate?: string;
+    bankAccountName?: string;
+    bankAccountNumber?: string;
+    bankIfsc?: string;
+    upiId?: string;
     billingEnabled?: boolean;
     productsEnabled?: boolean;
     paymentsEnabled?: boolean;
