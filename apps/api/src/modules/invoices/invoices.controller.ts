@@ -39,6 +39,10 @@ class CreateInvoiceItemDto {
   @IsOptional()
   @IsNumber()
   discountRate?: number;
+
+  @IsOptional()
+  @IsString()
+  hsnCode?: string;
 }
 
 class CreateInvoiceDto {
@@ -65,6 +69,81 @@ class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  // e-Invoice fields
+  @IsOptional()
+  @IsString()
+  irn?: string;
+
+  @IsOptional()
+  @IsString()
+  ackNo?: string;
+
+  @IsOptional()
+  @IsString()
+  ackDate?: string;
+
+  // Consignee details
+  @IsOptional()
+  @IsString()
+  consigneeName?: string;
+
+  @IsOptional()
+  @IsString()
+  consigneeAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  consigneeGstin?: string;
+
+  @IsOptional()
+  @IsString()
+  consigneeState?: string;
+
+  // Dispatch details
+  @IsOptional()
+  @IsString()
+  deliveryNote?: string;
+
+  @IsOptional()
+  @IsString()
+  deliveryNoteDate?: string;
+
+  @IsOptional()
+  @IsString()
+  paymentTerms?: string;
+
+  @IsOptional()
+  @IsString()
+  supplierRef?: string;
+
+  @IsOptional()
+  @IsString()
+  otherReferences?: string;
+
+  @IsOptional()
+  @IsString()
+  buyersOrderNo?: string;
+
+  @IsOptional()
+  @IsString()
+  buyersOrderDate?: string;
+
+  @IsOptional()
+  @IsString()
+  despatchDocNo?: string;
+
+  @IsOptional()
+  @IsString()
+  despatchedThrough?: string;
+
+  @IsOptional()
+  @IsString()
+  destination?: string;
+
+  @IsOptional()
+  @IsString()
+  termsOfDelivery?: string;
 }
 
 class UpdateInvoiceDto {

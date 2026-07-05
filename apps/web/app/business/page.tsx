@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
-import { Save, AlertCircle, CheckCircle, Building, Search } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Building, Search, CreditCard } from 'lucide-react';
 
 export default function BusinessSettingsPage() {
   const { updateUserTenant } = useAuthStore();
@@ -25,6 +25,11 @@ export default function BusinessSettingsPage() {
     invoicePrefix: 'INV',
     dueDays: 30,
     invoiceTemplate: 'CLASSIC',
+    bankAccountName: '',
+    bankAccountNumber: '',
+    bankIfsc: '',
+    upiId: '',
+    customHeaderUrl: '',
   });
 
   useEffect(() => {
@@ -43,6 +48,11 @@ export default function BusinessSettingsPage() {
           invoicePrefix: res.invoicePrefix || 'INV',
           dueDays: res.dueDays ?? 30,
           invoiceTemplate: res.invoiceTemplate || 'CLASSIC',
+          bankAccountName: res.bankAccountName || '',
+          bankAccountNumber: res.bankAccountNumber || '',
+          bankIfsc: res.bankIfsc || '',
+          upiId: res.upiId || '',
+          customHeaderUrl: res.customHeaderUrl || '',
         });
       } catch (err: any) {
         setError(err.message || 'Failed to load business profile.');
@@ -59,6 +69,26 @@ export default function BusinessSettingsPage() {
       ...prev,
       [name]: name === 'dueDays' ? parseInt(value) || 0 : value,
     }));
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm((prev) => ({ ...prev, logoUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleHeaderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm((prev) => ({ ...prev, customHeaderUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleGstSearch = async () => {
@@ -101,6 +131,14 @@ export default function BusinessSettingsPage() {
         gstin: res.gstin,
         logoUrl: res.logoUrl,
         invoiceTemplate: res.invoiceTemplate,
+        bankAccountName: res.bankAccountName,
+        bankAccountNumber: res.bankAccountNumber,
+        bankIfsc: res.bankIfsc,
+        upiId: res.upiId,
+        customHeaderUrl: res.customHeaderUrl,
+        address: res.address,
+        phone: res.phone,
+        email: res.email,
       });
       setSuccess('Business profile updated successfully!');
     } catch (err: any) {
@@ -197,15 +235,57 @@ export default function BusinessSettingsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-zinc-300">Logo URL (White label branding)</label>
-                <input
-                  type="text"
-                  name="logoUrl"
-                  value={form.logoUrl}
-                  onChange={handleChange}
-                  className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
-                  placeholder="e.g. https://domain.com/logo.png"
-                />
+                <label className="block text-sm font-semibold text-zinc-300">Logo (Upload File or Paste URL)</label>
+                <div className="mt-2 flex gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                    id="logo-upload-settings"
+                  />
+                  <label
+                    htmlFor="logo-upload-settings"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-zinc-800 bg-zinc-900 text-zinc-300 text-sm rounded-lg font-semibold cursor-pointer hover:bg-zinc-800 hover:text-white transition shrink-0"
+                  >
+                    Upload File
+                  </label>
+                  <input
+                    type="text"
+                    name="logoUrl"
+                    value={form.logoUrl}
+                    onChange={handleChange}
+                    className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-650 focus:border-emerald-500 focus:outline-none"
+                    placeholder="Or paste image URL..."
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-zinc-300">Custom Header Image (Upload File or Paste URL)</label>
+                <div className="mt-2 flex gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleHeaderUpload}
+                    className="hidden"
+                    id="header-upload-settings"
+                  />
+                  <label
+                    htmlFor="header-upload-settings"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-zinc-800 bg-zinc-900 text-zinc-300 text-sm rounded-lg font-semibold cursor-pointer hover:bg-zinc-800 hover:text-white transition shrink-0"
+                  >
+                    Upload File
+                  </label>
+                  <input
+                    type="text"
+                    name="customHeaderUrl"
+                    value={form.customHeaderUrl}
+                    onChange={handleChange}
+                    className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-650 focus:border-emerald-500 focus:outline-none"
+                    placeholder="Or paste image URL..."
+                  />
+                </div>
               </div>
             </div>
 
@@ -246,6 +326,67 @@ export default function BusinessSettingsPage() {
                     rows={3}
                     className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
                     placeholder="123, Ring Road, Industrial Area, New Delhi"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Payment & Bank Details */}
+            <div className="border-t border-zinc-800 pt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <CreditCard className="h-5 w-5 text-emerald-500" />
+                <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Payment & Bank Details</h3>
+              </div>
+              <p className="text-zinc-400 text-xs mb-6">Enter bank and UPI payment details to render them on invoices along with a dynamic Scan & Pay QR code.</p>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-semibold text-zinc-300">Bank Account Holder Name</label>
+                  <input
+                    type="text"
+                    name="bankAccountName"
+                    value={form.bankAccountName}
+                    onChange={handleChange}
+                    className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-655 focus:border-emerald-500 focus:outline-none"
+                    placeholder="Sharma Traders"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-zinc-300">Bank Account Number</label>
+                  <input
+                    type="text"
+                    name="bankAccountNumber"
+                    value={form.bankAccountNumber}
+                    onChange={handleChange}
+                    className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-655 focus:border-emerald-500 focus:outline-none"
+                    placeholder="e.g. 123456789012"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-zinc-300">Bank IFSC Code</label>
+                  <input
+                    type="text"
+                    name="bankIfsc"
+                    value={form.bankIfsc}
+                    onChange={handleChange}
+                    className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-655 focus:border-emerald-500 focus:outline-none uppercase"
+                    placeholder="e.g. HDFC0000123"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-zinc-350 font-bold text-emerald-450 flex items-center gap-1.5">
+                    <span>UPI ID for QR Code</span>
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded font-normal">Enables QR Pay</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="upiId"
+                    value={form.upiId}
+                    onChange={handleChange}
+                    className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-655 focus:border-emerald-500 focus:outline-none"
+                    placeholder="e.g. sharmatraders@okaxis"
                   />
                 </div>
               </div>

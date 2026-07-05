@@ -34,6 +34,16 @@ async function request(path: string, options: FetchOptions = {}) {
   });
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      // Redirect to login page, avoiding loop if already on login page
+      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+        window.location.href = '/login?expired=true';
+      }
+    }
+
     let errMsg = 'Something went wrong';
     try {
       const errData = await response.json();

@@ -37,6 +37,10 @@ class UpdateBusinessDto {
 
   @IsOptional()
   @IsString()
+  customHeaderUrl?: string;
+
+  @IsOptional()
+  @IsString()
   invoicePrefix?: string;
 
   @IsOptional()
@@ -46,6 +50,22 @@ class UpdateBusinessDto {
   @IsOptional()
   @IsString()
   invoiceTemplate?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
 }
 
 @ApiTags('Business')

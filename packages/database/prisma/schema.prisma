@@ -34,6 +34,12 @@ model Tenant {
   phone     String?
   email     String?
   logoUrl   String?
+  customHeaderUrl String?
+
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankIfsc          String?
+  upiId             String?
 
   invoicePrefix  String @default("INV")
   invoiceCounter Int    @default(0)
@@ -141,6 +147,7 @@ model Product {
   name          String
   sku           String?
   barcode       String?
+  hsnCode       String?
   description   String?
   salesPrice    Float     @default(0)
   purchasePrice Float     @default(0)
@@ -182,6 +189,31 @@ model Invoice {
   amountPaid     Float         @default(0)
   amountDue      Float         @default(0)
   notes          String?
+
+  // e-Invoice fields
+  irn            String?
+  ackNo          String?
+  ackDate        DateTime?
+
+  // Consignee details
+  consigneeName    String?
+  consigneeAddress String?
+  consigneeGstin   String?
+  consigneeState   String?
+
+  // Dispatch details
+  deliveryNote     String?
+  deliveryNoteDate DateTime?
+  paymentTerms     String?
+  supplierRef      String?
+  otherReferences  String?
+  buyersOrderNo    String?
+  buyersOrderDate  DateTime?
+  despatchDocNo    String?
+  despatchedThrough String?
+  destination      String?
+  termsOfDelivery  String?
+
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   deletedAt      DateTime?
@@ -207,6 +239,7 @@ model InvoiceItem {
   discountRate   Float   @default(0)
   discountAmount Float   @default(0)
   total          Float   @default(0)
+  hsnCode        String?
 
   invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id])

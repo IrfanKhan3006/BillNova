@@ -46,7 +46,35 @@ export class InvoicesService {
   }
 
   async create(tenantId: string, data: any) {
-    const { customerId, items, date, notes, discountAmount: directDiscount, status } = data;
+    const {
+      customerId,
+      items,
+      date,
+      notes,
+      discountAmount: directDiscount,
+      status,
+
+      irn,
+      ackNo,
+      ackDate,
+
+      consigneeName,
+      consigneeAddress,
+      consigneeGstin,
+      consigneeState,
+
+      deliveryNote,
+      deliveryNoteDate,
+      paymentTerms,
+      supplierRef,
+      otherReferences,
+      buyersOrderNo,
+      buyersOrderDate,
+      despatchDocNo,
+      despatchedThrough,
+      destination,
+      termsOfDelivery,
+    } = data;
 
     // Verify customer
     const customer = await this.prisma.customer.findFirst({
@@ -116,6 +144,7 @@ export class InvoicesService {
           discountRate,
           discountAmount: itemDiscountAmount,
           total: itemTotal,
+          hsnCode: item.hsnCode || product?.hsnCode || null,
         });
 
         // Deduct from stock if product exists
@@ -164,6 +193,28 @@ export class InvoicesService {
           amountPaid,
           amountDue,
           notes,
+
+          irn,
+          ackNo,
+          ackDate: ackDate ? new Date(ackDate) : null,
+
+          consigneeName,
+          consigneeAddress,
+          consigneeGstin,
+          consigneeState,
+
+          deliveryNote,
+          deliveryNoteDate: deliveryNoteDate ? new Date(deliveryNoteDate) : null,
+          paymentTerms,
+          supplierRef,
+          otherReferences,
+          buyersOrderNo,
+          buyersOrderDate: buyersOrderDate ? new Date(buyersOrderDate) : null,
+          despatchDocNo,
+          despatchedThrough,
+          destination,
+          termsOfDelivery,
+
           items: {
             create: processedItems,
           },
