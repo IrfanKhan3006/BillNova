@@ -39,7 +39,7 @@ export class InvoicesService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice nahi mili.');
+      throw new NotFoundException('Invoice not found.');
     }
 
     return invoice;
@@ -53,11 +53,11 @@ export class InvoicesService {
       where: { id: customerId, tenantId, deletedAt: null },
     });
     if (!customer) {
-      throw new NotFoundException('Customer nahi mila.');
+      throw new NotFoundException('Customer not found.');
     }
 
     if (!items || items.length === 0) {
-      throw new BadRequestException('Invoice items add karo.');
+      throw new BadRequestException('Invoice items are required.');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -66,7 +66,7 @@ export class InvoicesService {
         where: { id: tenantId },
       });
       if (!tenant) {
-        throw new NotFoundException('Tenant nahi mila.');
+        throw new NotFoundException('Tenant profile not found.');
       }
 
       const nextCounter = tenant.invoiceCounter + 1;
@@ -185,7 +185,7 @@ export class InvoicesService {
     });
 
     if (!oldInvoice) {
-      throw new NotFoundException('Invoice nahi mili.');
+      throw new NotFoundException('Invoice not found.');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -231,7 +231,7 @@ export class InvoicesService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice nahi mili.');
+      throw new NotFoundException('Invoice not found.');
     }
 
     return this.prisma.$transaction(async (tx) => {

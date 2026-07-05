@@ -101,13 +101,13 @@ export class InvoicesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Nayi invoice generate karo (GST dynamic calculate hoga)' })
+  @ApiOperation({ summary: 'Generate a new invoice with dynamic GST calculation' })
   async create(@CurrentUser() user: any, @Body() dto: CreateInvoiceDto) {
     return this.invoicesService.create(user.tenantId, dto);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Invoice status (e.g. PAID, VOID) update karo' })
+  @ApiOperation({ summary: 'Update invoice payment status' })
   async update(
     @CurrentUser() user: any,
     @Param('id') id: string,
@@ -117,7 +117,7 @@ export class InvoicesController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Invoice delete/cancel karo' })
+  @ApiOperation({ summary: 'Delete or cancel an invoice' })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     return this.invoicesService.remove(user.tenantId, id);
   }

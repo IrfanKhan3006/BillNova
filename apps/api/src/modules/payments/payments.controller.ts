@@ -72,7 +72,7 @@ export class PaymentsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Naya payment record karo' })
+  @ApiOperation({ summary: 'Record a new payment transaction' })
   async create(@CurrentUser() user: any, @Body() dto: RecordPaymentDto) {
     return this.paymentsService.create(user.tenantId, dto);
   }

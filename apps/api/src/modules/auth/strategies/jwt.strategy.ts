@@ -33,7 +33,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User nahi mila ya inactive hai.');
+      throw new UnauthorizedException('User account not found or is currently inactive.');
     }
 
     return {

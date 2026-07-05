@@ -8,6 +8,6 @@ export class LoginDto {
 
   @ApiProperty({ example: 'MyPass@123' })
   @IsString()
-  @MinLength(1, { message: 'Password empty nahi ho sakta' })
+  @MinLength(1, { message: 'Password cannot be empty.' })
   password: string;
 }

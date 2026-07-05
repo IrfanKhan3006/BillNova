@@ -80,7 +80,7 @@ export class AdminService {
     });
 
     if (!tenant) {
-      throw new NotFoundException('Business nahi mila.');
+      throw new NotFoundException('Business profile not found.');
     }
 
     return this.prisma.tenant.update({
@@ -101,7 +101,7 @@ export class AdminService {
     });
 
     if (!tenant) {
-      throw new NotFoundException('Business nahi mila.');
+      throw new NotFoundException('Business profile not found.');
     }
 
     return this.prisma.invoice.findMany({
@@ -121,7 +121,7 @@ export class AdminService {
     });
 
     if (!tenant) {
-      throw new NotFoundException('Business nahi mila.');
+      throw new NotFoundException('Business profile not found.');
     }
 
     // Toggle suspension or mark deletedAt

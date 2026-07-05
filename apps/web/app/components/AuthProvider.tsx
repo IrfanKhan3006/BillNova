@@ -32,6 +32,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     if (isLoading) return;
 
     const isPublicPath = pathname === '/login' || pathname === '/register';
+    const isLandingPage = pathname === '/';
     const isAdminPath = pathname.startsWith('/admin');
 
     if (isAuthenticated) {
@@ -47,7 +48,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           router.push('/dashboard');
         }
       }
-    } else if (!isPublicPath) {
+    } else if (!isPublicPath && !isLandingPage) {
       router.push('/login');
     }
   }, [isAuthenticated, isLoading, pathname, router]);

@@ -119,7 +119,7 @@ export default function ProductsPage() {
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm('Category delete karne se products delete nahi honge. Delete karein?')) return;
+    if (!confirm('Deleting this category will not delete its associated products. Are you sure you want to delete this category?')) return;
     try {
       await api.delete(`/products/categories/${id}`);
       setCategories((prev) => prev.filter((c) => c.id !== id));

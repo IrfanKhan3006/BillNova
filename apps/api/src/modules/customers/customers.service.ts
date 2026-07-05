@@ -31,7 +31,7 @@ export class CustomersService {
     });
 
     if (!customer) {
-      throw new NotFoundException('Customer nahi mila.');
+      throw new NotFoundException('Customer not found.');
     }
 
     return customer;

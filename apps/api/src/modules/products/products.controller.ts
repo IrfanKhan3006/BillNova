@@ -122,13 +122,13 @@ export class ProductsController {
   }
 
   @Post('categories')
-  @ApiOperation({ summary: 'Nayi category add karo' })
+  @ApiOperation({ summary: 'Create a new category' })
   async createCategory(@CurrentUser() user: any, @Body() dto: CreateCategoryDto) {
     return this.productsService.createCategory(user.tenantId, dto);
   }
 
   @Patch('categories/:id')
-  @ApiOperation({ summary: 'Category update karo' })
+  @ApiOperation({ summary: 'Update category details' })
   async updateCategory(
     @CurrentUser() user: any,
     @Param('id') id: string,
@@ -138,7 +138,7 @@ export class ProductsController {
   }
 
   @Delete('categories/:id')
-  @ApiOperation({ summary: 'Category delete karo' })
+  @ApiOperation({ summary: 'Delete a category' })
   async removeCategory(@CurrentUser() user: any, @Param('id') id: string) {
     return this.productsService.removeCategory(user.tenantId, id);
   }
@@ -161,13 +161,13 @@ export class ProductsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Naya product add karo' })
+  @ApiOperation({ summary: 'Create a new product' })
   async create(@CurrentUser() user: any, @Body() dto: CreateProductDto) {
     return this.productsService.create(user.tenantId, dto);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Product details update karo' })
+  @ApiOperation({ summary: 'Update product details' })
   async update(
     @CurrentUser() user: any,
     @Param('id') id: string,
@@ -177,7 +177,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Product delete karo' })
+  @ApiOperation({ summary: 'Delete a product' })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     return this.productsService.remove(user.tenantId, id);
   }

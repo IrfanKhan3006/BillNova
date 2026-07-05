@@ -26,7 +26,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('Is email se pehle se account hai. Login karo.');
+      throw new ConflictException('An account already exists with this email address. Please login instead.');
     }
 
     const slug = await this.generateUniqueSlug(dto.businessName);
@@ -92,16 +92,16 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Email ya password galat hai.');
+      throw new UnauthorizedException('Incorrect email or password.');
     }
 
     const isPasswordValid = await argon2.verify(user.passwordHash, dto.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Email ya password galat hai.');
+      throw new UnauthorizedException('Incorrect email or password.');
     }
 
     if (user.tenant && user.tenant.deletedAt) {
-      throw new UnauthorizedException('Account inactive kar diya gaya hai.');
+      throw new UnauthorizedException('This account has been deactivated.');
     }
 
     const tokens = await this.generateTokens(user, meta);
@@ -144,11 +144,11 @@ export class AuthService {
     });
 
     if (!storedToken) {
-      throw new UnauthorizedException('Refresh token invalid ya expired. Dobara login karo.');
+      throw new UnauthorizedException('Refresh token is invalid or expired. Please log in again.');
     }
 
     if (!storedToken.user.isActive || storedToken.user.deletedAt) {
-      throw new UnauthorizedException('Account inactive hai.');
+      throw new UnauthorizedException('Account is currently inactive.');
     }
 
     await this.prisma.refreshToken.update({
@@ -206,7 +206,7 @@ export class AuthService {
       },
     });
 
-    if (!user) throw new UnauthorizedException('User nahi mila.');
+    if (!user) throw new UnauthorizedException('User account not found.');
     return user;
   }
 

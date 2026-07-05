@@ -86,13 +86,13 @@ export class CustomersController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Naya customer add karo' })
+  @ApiOperation({ summary: 'Add a new customer' })
   async create(@CurrentUser() user: any, @Body() dto: CreateCustomerDto) {
     return this.customersService.create(user.tenantId, dto);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Customer details update karo' })
+  @ApiOperation({ summary: 'Update customer details' })
   async update(
     @CurrentUser() user: any,
     @Param('id') id: string,
@@ -102,7 +102,7 @@ export class CustomersController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Customer ko delete karo' })
+  @ApiOperation({ summary: 'Delete a customer' })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     return this.customersService.remove(user.tenantId, id);
   }

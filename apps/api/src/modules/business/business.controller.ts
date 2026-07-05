@@ -68,7 +68,7 @@ export class BusinessController {
   }
 
   @Patch()
-  @ApiOperation({ summary: 'Apne business profile ko update karo' })
+  @ApiOperation({ summary: 'Update business profile details' })
   async updateProfile(@CurrentUser() user: any, @Body() dto: UpdateBusinessDto) {
     return this.businessService.updateProfile(user.tenantId, dto);
   }
