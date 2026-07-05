@@ -60,7 +60,14 @@ export default function Home() {
   const [pdfDate, setPdfDate] = useState('');
   const [pdfDueDate, setPdfDueDate] = useState('');
 
-  // 4. Calculate Totals
+  // 4. Custom Alert Modal State
+  const [alertModal, setAlertModal] = useState<{ active: boolean; title: string; message: string } | null>(null);
+
+  const showAlert = (title: string, message: string) => {
+    setAlertModal({ active: true, title, message });
+  };
+
+  // 5. Calculate Totals
   const subtotal = items.reduce((sum, item) => sum + (item.qty * item.price), 0);
   const taxTotal = items.reduce((sum, item) => sum + (item.qty * item.price * (item.tax / 100)), 0);
   const discountAmount = subtotal * 0.10; // Fixed 10% discount in demo
@@ -79,7 +86,7 @@ export default function Home() {
     if (items.length > 1) {
       setItems(items.filter(item => item.id !== id));
     } else {
-      alert('Invoice must contain at least one item!');
+      showAlert('Limit Reached', 'Your invoice must contain at least one item row.');
     }
   };
 
@@ -97,7 +104,7 @@ export default function Home() {
 
   const handleGstFetch = () => {
     if (customerGstin.trim().length < 15) {
-      alert('Please enter a valid 15-character GSTIN code first.');
+      showAlert('Invalid Input', 'Please enter a valid 15-character GSTIN code.');
       return;
     }
 
@@ -114,7 +121,7 @@ export default function Home() {
         setGstButtonText('Auto Fill');
       }, 1500);
 
-      alert(`GSTIN Details Resolved!\n\nEntity Name: Tata Consultancy Services Ltd.\nStatus: Active (Regular Taxpayer)\nState: Maharashtra`);
+      showAlert('GSTIN Resolved', `Entity Name: Tata Consultancy Services Ltd.\nStatus: Active (Regular Taxpayer)\nState: Maharashtra`);
     }, 800);
   };
 
@@ -769,6 +776,36 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* -------------------------------------------------------------
+         CUSTOM ALERT MODAL (DARK THEME)
+      ------------------------------------------------------------- */}
+      {alertModal && alertModal.active && (
+        <div className="modal-overlay active" style={{ zIndex: 1100 }}>
+          <div className="modal-container" style={{ maxWidth: '420px', background: '#18181b', color: '#f4f4f5', border: '1px solid var(--border-color)' }}>
+            <div className="modal-actions" style={{ borderBottom: '1px solid var(--border-color)', background: '#121214' }}>
+              <div className="modal-actions-title" style={{ fontSize: '1rem', color: '#ffffff' }}>
+                {alertModal.title}
+              </div>
+              <button 
+                className="btn-icon-sm" 
+                onClick={() => setAlertModal(null)}
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <X style={{ width: '16px', height: '16px' }} />
+              </button>
+            </div>
+            <div style={{ padding: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6', whiteSpace: 'pre-line' }}>
+              {alertModal.message}
+            </div>
+            <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', background: '#121214' }}>
+              <button className="btn btn-primary" onClick={() => setAlertModal(null)} style={{ padding: '0.4rem 1.2rem', fontSize: '0.85rem' }}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

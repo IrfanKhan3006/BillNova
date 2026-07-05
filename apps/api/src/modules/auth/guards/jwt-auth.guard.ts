@@ -22,7 +22,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest<TUser>(err: Error, user: TUser): TUser {
     if (err || !user) {
-      throw new UnauthorizedException('Valid token provide karo.');
+      throw new UnauthorizedException('Please provide a valid access token.');
     }
     return user;
   }

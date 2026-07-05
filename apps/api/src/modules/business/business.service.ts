@@ -28,7 +28,7 @@ export class BusinessService {
     });
 
     if (!tenant) {
-      throw new NotFoundException('Business profile nahi mila.');
+      throw new NotFoundException('Business profile not found.');
     }
 
     return tenant;

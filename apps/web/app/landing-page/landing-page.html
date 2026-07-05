@@ -2004,7 +2004,7 @@
                 row.remove();
                 calculateTotals();
             } else {
-                alert('Invoice must contain at least one item!');
+                showAlert('Limit Reached', 'Your invoice must contain at least one item row.');
             }
         }
 
@@ -2041,7 +2041,7 @@
         btnGstFetch.addEventListener('click', () => {
             const gstin = document.getElementById('customer-gstin').value.trim();
             if (gstin.length < 15) {
-                alert('Please enter a valid 15-character GSTIN code first.');
+                showAlert('Invalid Input', 'Please enter a valid 15-character GSTIN code.');
                 return;
             }
 
@@ -2062,7 +2062,7 @@
                     btnGstFetch.style.backgroundColor = 'var(--primary-glow)';
                 }, 1500);
 
-                alert(`GSTIN Details Resolved!\n\nEntity Name: Tata Consultancy Services Ltd.\nStatus: Active (Regular Taxpayer)\nState: Maharashtra`);
+                showAlert('GSTIN Resolved', `Entity Name: Tata Consultancy Services Ltd.\nStatus: Active (Regular Taxpayer)\nState: Maharashtra`);
             }, 800);
         });
 
@@ -2153,9 +2153,56 @@
             window.print();
         });
 
+        // Custom Alert Modal variables
+        const alertModal = document.getElementById('alert-modal');
+        const alertTitle = document.getElementById('alert-modal-title');
+        const alertMessage = document.getElementById('alert-modal-message');
+        const btnCloseAlert = document.getElementById('btn-close-alert');
+        const btnDismissAlert = document.getElementById('btn-dismiss-alert');
+
+        function showAlert(title, message) {
+            alertTitle.textContent = title;
+            alertMessage.textContent = message;
+            alertModal.classList.add('active');
+        }
+
+        btnCloseAlert.addEventListener('click', () => alertModal.classList.remove('active'));
+        btnDismissAlert.addEventListener('click', () => alertModal.classList.remove('active'));
+        
+        // Close on overlay click
+        alertModal.addEventListener('click', (e) => {
+            if (e.target === alertModal) {
+                alertModal.classList.remove('active');
+            }
+        });
+
         // Start listeners
         initRecalcListeners();
         calculateTotals();
     </script>
+
+    <!-- -------------------------------------------------------------
+       MODAL: CUSTOM ALERT DIALOG
+    ------------------------------------------------------------- -->
+    <div class="modal-overlay" id="alert-modal" style="z-index: 1100;">
+        <div class="modal-container" style="max-width: 420px; background: #18181b; color: #f4f4f5; border: 1px solid var(--border-color);">
+            <div class="modal-actions" style="border-bottom: 1px solid var(--border-color); background: #121214;">
+                <div class="modal-actions-title" id="alert-modal-title" style="font-size: 1rem; color: #ffffff;">
+                    Alert
+                </div>
+                <button class="btn-icon-sm" id="btn-close-alert" style="color: var(--text-secondary);">
+                    <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                </button>
+            </div>
+            <div id="alert-modal-message" style="padding: 1.5rem; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; white-space: pre-line;">
+                Message content goes here.
+            </div>
+            <div style="padding: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; background: #121214;">
+                <button class="btn btn-primary" id="btn-dismiss-alert" style="padding: 0.4rem 1.2rem; font-size: 0.85rem;">
+                    Dismiss
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

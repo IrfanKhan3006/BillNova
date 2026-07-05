@@ -41,7 +41,7 @@ export class PaymentsService {
       where: { id: customerId, tenantId, deletedAt: null },
     });
     if (!customer) {
-      throw new NotFoundException('Customer nahi mila.');
+      throw new NotFoundException('Customer not found.');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -52,7 +52,7 @@ export class PaymentsService {
         });
 
         if (!invoice) {
-          throw new NotFoundException('Invoice nahi mili.');
+          throw new NotFoundException('Invoice not found.');
         }
 
         const newAmountPaid = invoice.amountPaid + amount;

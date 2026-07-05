@@ -19,7 +19,7 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @ApiOperation({ summary: 'Naya business account banao' })
+  @ApiOperation({ summary: 'Create a new business account' })
   async register(@Body() dto: RegisterDto, @Req() req: any) {
     return this.authService.register(dto, {
       userAgent: req.headers['user-agent'],
@@ -30,7 +30,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login karo' })
+  @ApiOperation({ summary: 'Authenticate user and login' })
   async login(@Body() dto: LoginDto, @Req() req: any) {
     return this.authService.login(dto, {
       userAgent: req.headers['user-agent'],
@@ -41,7 +41,7 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Access token refresh karo' })
+  @ApiOperation({ summary: 'Refresh authentication access token' })
   async refresh(@Body() dto: RefreshDto, @Req() req: any) {
     return this.authService.refreshTokens(dto.refreshToken, {
       userAgent: req.headers['user-agent'],
@@ -52,7 +52,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Is device se logout karo' })
+  @ApiOperation({ summary: 'Sign out from this device' })
   async logout(@CurrentUser() user: any, @Body() dto: RefreshDto) {
     await this.authService.logout(user.id, dto.refreshToken);
     return { message: 'Logout ho gaye.' };
@@ -61,7 +61,7 @@ export class AuthController {
   @Post('logout-all')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Sabhi devices se logout karo' })
+  @ApiOperation({ summary: 'Sign out from all active devices' })
   async logoutAll(@CurrentUser() user: any) {
     await this.authService.logoutAll(user.id);
     return { message: 'Sabhi devices se logout ho gaye.' };
@@ -69,7 +69,7 @@ export class AuthController {
 
   @Get('me')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Apna profile dekho' })
+  @ApiOperation({ summary: 'Retrieve current user profile' })
   async getMe(@CurrentUser() user: any) {
     return this.authService.getMe(user.id);
   }

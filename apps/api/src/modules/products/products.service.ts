@@ -29,7 +29,7 @@ export class ProductsService {
     });
 
     if (!category) {
-      throw new NotFoundException('Category nahi mili.');
+      throw new NotFoundException('Category not found.');
     }
 
     return this.prisma.productCategory.update({
@@ -47,7 +47,7 @@ export class ProductsService {
     });
 
     if (!category) {
-      throw new NotFoundException('Category nahi mili.');
+      throw new NotFoundException('Category not found.');
     }
 
     return this.prisma.productCategory.update({
@@ -89,7 +89,7 @@ export class ProductsService {
     });
 
     if (!product) {
-      throw new NotFoundException('Product nahi mila.');
+      throw new NotFoundException('Product not found.');
     }
 
     return product;
@@ -101,7 +101,7 @@ export class ProductsService {
         where: { id: data.categoryId, tenantId, deletedAt: null },
       });
       if (!category) {
-        throw new NotFoundException('Selected category nahi mili.');
+        throw new NotFoundException('Selected category not found.');
       }
     }
 
@@ -130,7 +130,7 @@ export class ProductsService {
         where: { id: data.categoryId, tenantId, deletedAt: null },
       });
       if (!category) {
-        throw new NotFoundException('Selected category nahi mili.');
+        throw new NotFoundException('Selected category not found.');
       }
     }
 
