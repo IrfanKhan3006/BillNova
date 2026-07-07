@@ -369,7 +369,6 @@ export default function ProductsPage() {
                           </td>
                           <td className="p-4 text-right font-bold text-white">
                             {formatCurrency(p.salesPrice)}
-                            <div className="text-[10px] text-zinc-500 font-medium mt-0.5">Purch: {formatCurrency(p.purchasePrice)}</div>
                           </td>
                           <td className="p-4">{getStockStatus(p.stock)}</td>
                           <td className="p-4 text-right">
@@ -406,7 +405,7 @@ export default function ProductsPage() {
 
         {/* Category Modal */}
         {isCategoryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-md font-bold text-white">Add Product Category</h3>
@@ -487,7 +486,17 @@ export default function ProductsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-300">Category</label>
+                    <div className="flex justify-between items-center">
+                      <label className="block text-xs font-semibold text-zinc-300">Category</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsCategoryModalOpen(true)}
+                        className="text-[11px] text-emerald-450 hover:text-emerald-400 font-bold flex items-center gap-0.5 transition"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>Quick Add</span>
+                      </button>
+                    </div>
                     <select
                       value={productForm.categoryId}
                       onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
@@ -503,14 +512,23 @@ export default function ProductsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-300">Stock Unit (e.g. PCS, KG)</label>
-                    <input
-                      type="text"
+                    <label className="block text-xs font-semibold text-zinc-300">Stock Unit</label>
+                    <select
                       value={productForm.unit}
                       onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })}
-                      className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
-                      placeholder="PCS"
-                    />
+                      className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="PCS">PCS</option>
+                      <option value="SQFT">SQFT (Square Feet)</option>
+                      <option value="SQIN">SQIN (Square Inches)</option>
+                      <option value="SQMTR">SQMTR (Square Meters)</option>
+                      <option value="RFT">RFT (Running Feet)</option>
+                      <option value="RMTR">RMTR (Running Meter)</option>
+                      <option value="BOX">BOX</option>
+                      <option value="KG">KG</option>
+                      <option value="LTR">LTR</option>
+                      <option value="MTR">MTR</option>
+                    </select>
                   </div>
 
                   <div>
@@ -532,17 +550,6 @@ export default function ProductsPage() {
                       onChange={(e) => setProductForm({ ...productForm, barcode: e.target.value })}
                       className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
                       placeholder="e.g. 8901234567890"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-300">Purchase Price (Excl. Tax)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={productForm.purchasePrice}
-                      onChange={(e) => setProductForm({ ...productForm, purchasePrice: parseFloat(e.target.value) || 0 })}
-                      className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
                     />
                   </div>
 
