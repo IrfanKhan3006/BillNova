@@ -45,6 +45,70 @@ interface InvoiceItemInput {
   price: number | string;
   taxRate: number | string;
   hsnCode?: string;
+
+  // Custom size calculation fields
+  useSizeCalc?: boolean;
+  width?: string;
+  height?: string;
+  sizeUnit?: 'FT' | 'IN' | 'MTR';
+  pricingUnit?: 'SQFT' | 'SQIN' | 'SQMTR' | 'RFT' | 'RMTR' | 'PCS';
+  rate?: string;
+  area?: number;
+}
+
+const isSizeUnit = (unit: string) => {
+  const u = (unit || '').toUpperCase();
+  return ['SQFT', 'SQIN', 'SQMTR', 'RFT', 'RMTR', 'FT', 'MTR', 'SFT', 'SQ FT', 'SQ.FT', 'SQ.IN', 'SQ.MTR', 'RUNNING FT', 'RUNNING FEET', 'RUNNING MTR'].includes(u);
+};
+
+const normalizePricingUnit = (unit: string): 'SQFT' | 'SQIN' | 'SQMTR' | 'RFT' | 'RMTR' | 'PCS' => {
+  const u = (unit || '').toUpperCase();
+  if (['SQFT', 'SFT', 'SQ FT', 'SQ.FT'].includes(u)) return 'SQFT';
+  if (['SQIN', 'SQ.IN'].includes(u)) return 'SQIN';
+  if (['SQMTR', 'SQ.MTR'].includes(u)) return 'SQMTR';
+  if (['RFT', 'RUNNING FT', 'RUNNING FEET', 'FT'].includes(u)) return 'RFT';
+  if (['RMTR', 'RUNNING MTR', 'MTR'].includes(u)) return 'RMTR';
+  return 'PCS';
+};
+
+function calculateArea(width: number, height: number, sizeUnit: string, pricingUnit: string): number {
+  if (!width || isNaN(width)) return 0;
+  
+  const upperPricing = pricingUnit.toUpperCase();
+  const isRunning = ['RFT', 'RMTR', 'MTR', 'FT'].includes(upperPricing);
+  const h = isRunning ? 1 : (height && !isNaN(height) ? height : 0);
+  
+  if (!isRunning && h === 0) return 0; // Area is 0 if 2D and height is not specified
+  
+  // Calculate raw product in size units
+  const rawArea = isRunning ? width : (width * h);
+  
+  // Convert based on sizeUnit and pricingUnit
+  if (sizeUnit === 'FT') {
+    if (upperPricing === 'SQFT') return rawArea;
+    if (upperPricing === 'SQIN') return rawArea * 144;
+    if (upperPricing === 'SQMTR') return rawArea / 10.7639;
+    if (upperPricing === 'RFT' || upperPricing === 'FT') return rawArea; // already feet
+    if (upperPricing === 'RMTR' || upperPricing === 'MTR') return rawArea / 3.28084;
+  }
+  
+  if (sizeUnit === 'IN') {
+    if (upperPricing === 'SQFT') return rawArea / 144;
+    if (upperPricing === 'SQIN') return rawArea;
+    if (upperPricing === 'SQMTR') return rawArea / 1550.003;
+    if (upperPricing === 'RFT' || upperPricing === 'FT') return rawArea / 12;
+    if (upperPricing === 'RMTR' || upperPricing === 'MTR') return rawArea / 39.3701;
+  }
+  
+  if (sizeUnit === 'MTR') {
+    if (upperPricing === 'SQFT') return rawArea * 10.76391;
+    if (upperPricing === 'SQIN') return rawArea * 1550.003;
+    if (upperPricing === 'SQMTR') return rawArea;
+    if (upperPricing === 'RFT' || upperPricing === 'FT') return rawArea * 3.28084;
+    if (upperPricing === 'RMTR' || upperPricing === 'MTR') return rawArea; // already meters
+  }
+  
+  return rawArea;
 }
 
 export default function BillingPage() {
@@ -59,7 +123,20 @@ export default function BillingPage() {
   
   // Items array
   const [items, setItems] = useState<InvoiceItemInput[]>([
-    { name: '', qty: 1, price: 0, taxRate: 0, hsnCode: '' },
+    { 
+      name: '', 
+      qty: 1, 
+      price: 0, 
+      taxRate: 0, 
+      hsnCode: '',
+      useSizeCalc: false,
+      width: '',
+      height: '',
+      sizeUnit: 'FT',
+      pricingUnit: 'PCS',
+      rate: '',
+      area: 0
+    },
   ]);
 
   const [showExtraFields, setShowExtraFields] = useState(false);
@@ -204,15 +281,25 @@ export default function BillingPage() {
       setProducts((prev) => [...prev, res]);
 
       if (activeProductItemIndex !== null) {
+        const isSize = isSizeUnit(res.unit);
+        const pricingUnit = normalizePricingUnit(res.unit);
         setItems((prev) => {
           const copy = [...prev];
           copy[activeProductItemIndex] = {
             productId: res.id,
             name: res.name,
             qty: 1,
-            price: res.salesPrice,
+            price: isSize ? 0 : res.salesPrice,
             taxRate: res.taxRate,
             hsnCode: res.hsnCode || '',
+            
+            useSizeCalc: isSize,
+            width: '',
+            height: '',
+            sizeUnit: 'FT',
+            pricingUnit,
+            rate: isSize ? String(res.salesPrice) : '',
+            area: 0,
           };
           return copy;
         });
@@ -302,15 +389,26 @@ export default function BillingPage() {
     const prod = products.find((p) => p.id === productId);
     if (!prod) return;
 
+    const isSize = isSizeUnit(prod.unit);
+    const pricingUnit = normalizePricingUnit(prod.unit);
+
     setItems((prev) => {
       const copy = [...prev];
       copy[index] = {
         productId: prod.id,
         name: prod.name,
         qty: 1,
-        price: prod.salesPrice,
+        price: isSize ? 0 : prod.salesPrice,
         taxRate: prod.taxRate,
         hsnCode: prod.hsnCode || '',
+        
+        useSizeCalc: isSize,
+        width: '',
+        height: '',
+        sizeUnit: 'FT',
+        pricingUnit,
+        rate: isSize ? String(prod.salesPrice) : '',
+        area: 0,
       };
       return copy;
     });
@@ -319,10 +417,60 @@ export default function BillingPage() {
   const handleItemChange = (index: number, field: keyof InvoiceItemInput, value: any) => {
     setItems((prev) => {
       const copy = [...prev];
-      copy[index] = {
+      const item = {
         ...copy[index],
         [field]: value,
       };
+
+      // If we are updating a size-related field, we should recalculate
+      if (
+        [
+          'width',
+          'height',
+          'sizeUnit',
+          'pricingUnit',
+          'rate',
+          'useSizeCalc',
+        ].includes(field as string) ||
+        (field === 'name' && !item.productId)
+      ) {
+        if (item.useSizeCalc) {
+          const w = parseFloat(item.width as string) || 0;
+          const h = parseFloat(item.height as string) || 0;
+          const rateVal = parseFloat(item.rate as string) || 0;
+          const sizeUnitVal = item.sizeUnit || 'FT';
+          const pricingUnitVal = item.pricingUnit || 'SQFT';
+
+          // Calculate area using our helper
+          const area = calculateArea(w, h, sizeUnitVal, pricingUnitVal);
+          item.area = area;
+
+          // Calculate unit price
+          const unitPrice = area * rateVal;
+          item.price = unitPrice > 0 ? Number(unitPrice.toFixed(2)) : 0;
+
+          // Auto-generate name suffix
+          const baseName = products.find((p) => p.id === item.productId)?.name || item.name.split(' (')[0] || 'Item';
+          if (w > 0) {
+            const isRunning = ['RFT', 'RMTR', 'MTR', 'FT'].includes(pricingUnitVal.toUpperCase());
+            const sizeDesc = isRunning || h === 0 ? `${w}` : `${w}x${h}`;
+            const unitLabel = sizeUnitVal.toLowerCase();
+            const areaLabel = pricingUnitVal.toLowerCase();
+            item.name = `${baseName} (${sizeDesc} ${unitLabel} = ${area.toFixed(2)} ${areaLabel})`;
+          } else {
+            item.name = baseName;
+          }
+        } else if (field === 'useSizeCalc' && !value) {
+          // If turned off, restore default sales price and base name
+          const prod = products.find((p) => p.id === item.productId);
+          if (prod) {
+            item.name = prod.name;
+            item.price = prod.salesPrice;
+          }
+        }
+      }
+
+      copy[index] = item;
       return copy;
     });
   };
@@ -330,7 +478,20 @@ export default function BillingPage() {
   const addNewItem = () => {
     setItems((prev) => [
       ...prev,
-      { name: '', qty: 1, price: 0, taxRate: 0, hsnCode: '' },
+      { 
+        name: '', 
+        qty: 1, 
+        price: 0, 
+        taxRate: 0, 
+        hsnCode: '',
+        useSizeCalc: false,
+        width: '',
+        height: '',
+        sizeUnit: 'FT',
+        pricingUnit: 'PCS',
+        rate: '',
+        area: 0
+      },
     ]);
   };
 
@@ -389,7 +550,14 @@ export default function BillingPage() {
 
       const res = await api.post('/invoices', {
         customerId: selectedCustomerId,
-        items: filteredItems,
+        items: filteredItems.map((item) => ({
+          productId: item.productId || undefined,
+          name: item.name,
+          qty: parseInt(item.qty as string, 10) || 0,
+          price: parseFloat(item.price as string) || 0,
+          taxRate: parseFloat(item.taxRate as string) || 0,
+          hsnCode: item.hsnCode || undefined,
+        })),
         date,
         notes,
         status: 'SENT',
@@ -408,7 +576,22 @@ export default function BillingPage() {
   const resetBilling = () => {
     setCreatedInvoice(null);
     setNotes('');
-    setItems([{ name: '', qty: 1, price: 0, taxRate: 0, hsnCode: '' }]);
+    setItems([
+      { 
+        name: '', 
+        qty: 1, 
+        price: 0, 
+        taxRate: 0, 
+        hsnCode: '',
+        useSizeCalc: false,
+        width: '',
+        height: '',
+        sizeUnit: 'FT',
+        pricingUnit: 'PCS',
+        rate: '',
+        area: 0
+      },
+    ]);
     setExtraFields({
       irn: '',
       ackNo: '',
@@ -1219,117 +1402,247 @@ export default function BillingPage() {
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-zinc-800 pb-2">Line Items</h3>
                 
                 {items.map((item, idx) => (
-                  <div key={idx} className="grid gap-3 sm:grid-cols-12 items-end border-b border-zinc-850 pb-4 last:border-0 last:pb-0">
-                    {/* Select Product */}
-                    <div className="sm:col-span-3">
-                      <div className="flex justify-between items-center">
-                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Select Product</label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveProductItemIndex(idx);
-                            setShowProductModal(true);
-                          }}
-                          className="text-[10px] text-emerald-450 hover:text-emerald-400 font-bold flex items-center transition"
+                  <div key={idx} className="border-b border-zinc-850 pb-4 last:border-0 last:pb-0 space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-12 items-end">
+                      {/* Select Product */}
+                      <div className="sm:col-span-3">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Select Product</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveProductItemIndex(idx);
+                              setShowProductModal(true);
+                            }}
+                            className="text-[10px] text-emerald-450 hover:text-emerald-400 font-bold flex items-center transition"
+                          >
+                            <Plus className="h-2.5 w-2.5" />
+                            <span>Quick Add</span>
+                          </button>
+                        </div>
+                        <select
+                          value={item.productId || ''}
+                          onChange={(e) => handleProductSelect(idx, e.target.value)}
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-855 bg-zinc-955 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
                         >
-                          <Plus className="h-2.5 w-2.5" />
-                          <span>Quick Add</span>
+                          <option value="">-- Choose Catalog Item --</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} ({p.unit}) - {formatCurrency(p.salesPrice)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Manual name override */}
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Item Label</label>
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none"
+                          placeholder="Label"
+                        />
+                      </div>
+
+                      {/* HSN/SAC */}
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">HSN/SAC</label>
+                        <input
+                          type="text"
+                          value={item.hsnCode || ''}
+                          onChange={(e) => handleItemChange(idx, 'hsnCode', e.target.value)}
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-955 px-2 py-2 text-xs text-white focus:outline-none text-center"
+                          placeholder="HSN"
+                        />
+                      </div>
+
+                      {/* Price (Calculated read-only or manual input) */}
+                      <div className="sm:col-span-2">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                            {item.useSizeCalc ? 'Price (Calc)' : 'Price'}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleItemChange(idx, 'useSizeCalc', !item.useSizeCalc)}
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
+                              item.useSizeCalc
+                                ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                                : 'text-zinc-550 border-zinc-800 hover:text-zinc-300 hover:bg-zinc-800'
+                            }`}
+                            title="Toggle Size & Dimensions Calculator"
+                          >
+                            📐 Size Calc
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={item.price}
+                          readOnly={item.useSizeCalc}
+                          onChange={(e) => {
+                            if (item.useSizeCalc) return;
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            const parts = val.split('.');
+                            if (parts.length > 2) return;
+                            handleItemChange(idx, 'price', val);
+                          }}
+                          className={`mt-1.5 block w-full rounded-lg border px-3 py-2 text-xs text-white focus:outline-none ${
+                            item.useSizeCalc
+                              ? 'bg-zinc-900 border-zinc-800 text-zinc-400 cursor-not-allowed font-mono'
+                              : 'bg-zinc-955 border-zinc-850'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Qty */}
+                      <div className="sm:col-span-1">
+                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Qty</label>
+                        <input
+                          type="text"
+                          value={item.qty}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            handleItemChange(idx, 'qty', val);
+                          }}
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none text-center"
+                        />
+                      </div>
+
+                      {/* Tax % */}
+                      <div className="sm:col-span-1">
+                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Tax%</label>
+                        <input
+                          type="text"
+                          value={item.taxRate}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            const parts = val.split('.');
+                            if (parts.length > 2) return;
+                            handleItemChange(idx, 'taxRate', val);
+                          }}
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none text-center"
+                        />
+                      </div>
+
+                      {/* Delete Action */}
+                      <div className="sm:col-span-1 flex justify-center">
+                        <button
+                          onClick={() => removeItem(idx)}
+                          disabled={items.length === 1}
+                          className="p-2 rounded bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-zinc-950 transition disabled:opacity-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                      <select
-                        value={item.productId || ''}
-                        onChange={(e) => handleProductSelect(idx, e.target.value)}
-                        className="mt-1.5 block w-full rounded-lg border border-zinc-855 bg-zinc-955 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="">-- Choose Catalog Item --</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.unit}) - {formatCurrency(p.salesPrice)}
-                          </option>
-                        ))}
-                      </select>
                     </div>
 
-                    {/* Manual name override */}
-                    <div className="sm:col-span-3">
-                      <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Item Label</label>
-                      <input
-                        type="text"
-                        value={item.name}
-                        onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                        className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none"
-                        placeholder="Label"
-                      />
-                    </div>
+                    {/* Size & Dimensions Calculator Panel */}
+                    {item.useSizeCalc && (
+                      <div className="mt-2.5 grid gap-3 sm:grid-cols-12 items-end bg-zinc-950/40 border border-zinc-850 rounded-xl p-3.5 shadow-inner">
+                        <div className="sm:col-span-12 -mb-1 flex items-center justify-between border-b border-zinc-850 pb-2">
+                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                            📐 Size & Area Calculator
+                          </span>
+                          <span className="text-[9px] text-zinc-500 uppercase tracking-wider font-semibold">
+                            Pricing Unit: <span className="font-bold text-zinc-400 font-mono">{item.pricingUnit}</span>
+                          </span>
+                        </div>
 
-                    {/* HSN/SAC */}
-                    <div className="sm:col-span-2">
-                      <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">HSN/SAC</label>
-                      <input
-                        type="text"
-                        value={item.hsnCode || ''}
-                        onChange={(e) => handleItemChange(idx, 'hsnCode', e.target.value)}
-                        className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-955 px-2 py-2 text-xs text-white focus:outline-none text-center"
-                        placeholder="HSN"
-                      />
-                    </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Width</label>
+                          <div className="relative mt-1">
+                            <input
+                              type="text"
+                              value={item.width || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9.]/g, '');
+                                const parts = val.split('.');
+                                if (parts.length > 2) return;
+                                handleItemChange(idx, 'width', val);
+                              }}
+                              className="block w-full rounded-lg border border-zinc-800 bg-zinc-900 pr-7 pl-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                              placeholder="Width"
+                            />
+                            <span className="absolute right-2 top-2 text-[9px] text-zinc-500 font-bold uppercase">{item.sizeUnit?.toLowerCase()}</span>
+                          </div>
+                        </div>
 
-                    {/* Price */}
-                    <div className="sm:col-span-1">
-                      <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Price</label>
-                      <input
-                        type="text"
-                        value={item.price}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9.]/g, '');
-                          const parts = val.split('.');
-                          if (parts.length > 2) return;
-                          handleItemChange(idx, 'price', val);
-                        }}
-                        className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none"
-                      />
-                    </div>
+                        {/* Height input (hidden if Running Feet/Meters) */}
+                        {item.pricingUnit !== 'RFT' && item.pricingUnit !== 'RMTR' && (
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Height</label>
+                            <div className="relative mt-1">
+                              <input
+                                type="text"
+                                value={item.height || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9.]/g, '');
+                                  const parts = val.split('.');
+                                  if (parts.length > 2) return;
+                                  handleItemChange(idx, 'height', val);
+                                }}
+                                className="block w-full rounded-lg border border-zinc-800 bg-zinc-900 pr-7 pl-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                                placeholder="Height"
+                              />
+                              <span className="absolute right-2 top-2 text-[9px] text-zinc-500 font-bold uppercase">{item.sizeUnit?.toLowerCase()}</span>
+                            </div>
+                          </div>
+                        )}
 
-                    {/* Qty */}
-                    <div className="sm:col-span-1">
-                      <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Qty</label>
-                      <input
-                        type="text"
-                        value={item.qty}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, '');
-                          handleItemChange(idx, 'qty', val);
-                        }}
-                        className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none text-center"
-                      />
-                    </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Size Unit</label>
+                          <select
+                            value={item.sizeUnit || 'FT'}
+                            onChange={(e) => handleItemChange(idx, 'sizeUnit', e.target.value)}
+                            className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                          >
+                            <option value="FT">Feet (ft)</option>
+                            <option value="IN">Inches (in)</option>
+                            <option value="MTR">Meters (m)</option>
+                          </select>
+                        </div>
 
-                    {/* Tax % */}
-                    <div className="sm:col-span-1">
-                      <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Tax%</label>
-                      <input
-                        type="text"
-                        value={item.taxRate}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9.]/g, '');
-                          const parts = val.split('.');
-                          if (parts.length > 2) return;
-                          handleItemChange(idx, 'taxRate', val);
-                        }}
-                        className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none text-center"
-                      />
-                    </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Pricing Unit</label>
+                          <select
+                            value={item.pricingUnit || 'SQFT'}
+                            onChange={(e) => handleItemChange(idx, 'pricingUnit', e.target.value)}
+                            className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                          >
+                            <option value="SQFT">Sq. Feet (SqFt)</option>
+                            <option value="SQIN">Sq. Inches (SqIn)</option>
+                            <option value="SQMTR">Sq. Meters (SqM)</option>
+                            <option value="RFT">Running Feet (Rft)</option>
+                            <option value="RMTR">Running Meter (Rmtr)</option>
+                          </select>
+                        </div>
 
-                    {/* Delete Action */}
-                    <div className="sm:col-span-1 flex justify-center">
-                      <button
-                        onClick={() => removeItem(idx)}
-                        disabled={items.length === 1}
-                        className="p-2 rounded bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-zinc-950 transition disabled:opacity-50"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Rate per Unit (₹)</label>
+                          <input
+                            type="text"
+                            value={item.rate || ''}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9.]/g, '');
+                              const parts = val.split('.');
+                              if (parts.length > 2) return;
+                              handleItemChange(idx, 'rate', val);
+                            }}
+                            className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold font-mono text-center"
+                            placeholder="Rate"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2 flex flex-col justify-end bg-zinc-900/50 border border-zinc-800/80 rounded-lg px-2.5 py-1 text-right select-none min-h-[34px]">
+                          <span className="text-[8px] text-zinc-550 uppercase font-bold tracking-wider">Total Area</span>
+                          <span className="text-[11px] font-mono font-bold text-emerald-450 text-emerald-400">
+                            {item.area ? item.area.toFixed(2) : '0.00'} <span className="text-[9px] font-normal text-zinc-400">{item.pricingUnit}</span>
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
 
@@ -1753,6 +2066,11 @@ export default function BillingPage() {
                     className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
                   >
                     <option value="PCS">PCS</option>
+                    <option value="SQFT">SQFT (Square Feet)</option>
+                    <option value="SQIN">SQIN (Square Inches)</option>
+                    <option value="SQMTR">SQMTR (Square Meters)</option>
+                    <option value="RFT">RFT (Running Feet)</option>
+                    <option value="RMTR">RMTR (Running Meter)</option>
                     <option value="BOX">BOX</option>
                     <option value="KG">KG</option>
                     <option value="LTR">LTR</option>
