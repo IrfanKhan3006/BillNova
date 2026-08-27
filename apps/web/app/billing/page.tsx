@@ -159,6 +159,7 @@ export default function BillingPage() {
     despatchedThrough: '',
     destination: '',
     termsOfDelivery: '',
+    vehicleNumber: '',
   });
 
   const [customBusinessName, setCustomBusinessName] = useState('');
@@ -367,13 +368,56 @@ export default function BillingPage() {
           setSelectedCustomerId(custData[0].id);
         }
 
-        // Check for invoiceId in search params
+        // Check for invoiceId or cloneInvoiceId in search params
         if (typeof window !== 'undefined') {
           const urlParams = new URLSearchParams(window.location.search);
           const invoiceId = urlParams.get('invoiceId');
+          const cloneInvoiceId = urlParams.get('cloneInvoiceId');
           if (invoiceId) {
             const fullInvoice = await api.get(`/invoices/${invoiceId}`);
             setCreatedInvoice(fullInvoice);
+          } else if (cloneInvoiceId) {
+            const fullInvoice = await api.get(`/invoices/${cloneInvoiceId}`);
+            setSelectedCustomerId(fullInvoice.customerId);
+            setNotes(fullInvoice.notes || '');
+            if (fullInvoice.items && fullInvoice.items.length > 0) {
+              setItems(fullInvoice.items.map((it: any) => ({
+                productId: it.productId || '',
+                name: it.name || '',
+                qty: it.qty,
+                price: it.price,
+                taxRate: it.taxRate,
+                hsnCode: it.hsnCode || '',
+                useSizeCalc: false,
+                width: '',
+                height: '',
+                sizeUnit: 'FT',
+                pricingUnit: 'PCS',
+                rate: '',
+                area: 0
+              })));
+            }
+            setExtraFields({
+              irn: fullInvoice.irn || '',
+              ackNo: fullInvoice.ackNo || '',
+              ackDate: fullInvoice.ackDate || '',
+              consigneeName: fullInvoice.consigneeName || '',
+              consigneeAddress: fullInvoice.consigneeAddress || '',
+              consigneeGstin: fullInvoice.consigneeGstin || '',
+              consigneeState: fullInvoice.consigneeState || '',
+              deliveryNote: fullInvoice.deliveryNote || '',
+              deliveryNoteDate: fullInvoice.deliveryNoteDate || '',
+              paymentTerms: fullInvoice.paymentTerms || '',
+              supplierRef: fullInvoice.supplierRef || '',
+              otherReferences: fullInvoice.otherReferences || '',
+              buyersOrderNo: fullInvoice.buyersOrderNo || '',
+              buyersOrderDate: fullInvoice.buyersOrderDate || '',
+              despatchDocNo: fullInvoice.despatchDocNo || '',
+              despatchedThrough: fullInvoice.despatchedThrough || '',
+              destination: fullInvoice.destination || '',
+              termsOfDelivery: fullInvoice.termsOfDelivery || '',
+              vehicleNumber: fullInvoice.vehicleNumber || '',
+            });
           }
         }
       } catch (err) {
@@ -611,6 +655,7 @@ export default function BillingPage() {
       despatchedThrough: '',
       destination: '',
       termsOfDelivery: '',
+      vehicleNumber: '',
     });
     if (typeof window !== 'undefined') {
       window.history.replaceState({}, '', window.location.pathname);
@@ -1109,7 +1154,7 @@ export default function BillingPage() {
               </div>
 
               {/* Transport & Order Details Box */}
-              {(createdInvoice.deliveryNote || createdInvoice.buyersOrderNo || createdInvoice.despatchDocNo || createdInvoice.termsOfDelivery) && (
+              {(createdInvoice.deliveryNote || createdInvoice.buyersOrderNo || createdInvoice.despatchDocNo || createdInvoice.termsOfDelivery || createdInvoice.vehicleNumber) && (
                 <div className="border border-zinc-200 rounded-xl grid grid-cols-2 sm:grid-cols-4 text-[10px] text-zinc-600 mb-6 overflow-hidden divide-x divide-y divide-zinc-200">
                   <div className="p-2 min-w-0">
                     <span className="font-bold text-zinc-400 block uppercase tracking-wider text-[8px]">Delivery Note</span>
@@ -1135,7 +1180,11 @@ export default function BillingPage() {
                     <span className="font-bold text-zinc-400 block uppercase tracking-wider text-[8px]">Destination</span>
                     <span className="text-zinc-800 font-medium truncate block">{createdInvoice.destination || '-'}</span>
                   </div>
-                  <div className="p-2 min-w-0 border-t border-zinc-200 col-span-2">
+                  <div className="p-2 min-w-0 border-t border-zinc-200">
+                    <span className="font-bold text-zinc-400 block uppercase tracking-wider text-[8px]">Vehicle No.</span>
+                    <span className="text-zinc-800 font-medium truncate block">{createdInvoice.vehicleNumber || '-'}</span>
+                  </div>
+                  <div className="p-2 min-w-0 border-t border-zinc-200">
                     <span className="font-bold text-zinc-400 block uppercase tracking-wider text-[8px]">Terms of Delivery</span>
                     <span className="text-zinc-800 font-medium truncate block">{createdInvoice.termsOfDelivery || '-'}</span>
                   </div>
@@ -1785,7 +1834,18 @@ export default function BillingPage() {
                           placeholder="e.g. Faridabad"
                         />
                       </div>
-                      <div className="sm:col-span-3">
+                      <div>
+                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Vehicle No.</label>
+                        <input
+                          type="text"
+                          name="vehicleNumber"
+                          value={extraFields.vehicleNumber}
+                          onChange={handleExtraFieldsChange}
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                          placeholder="e.g. DL-1CA-1234"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
                         <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Terms of Delivery</label>
                         <input
                           type="text"

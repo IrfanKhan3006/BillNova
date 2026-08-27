@@ -113,8 +113,14 @@ export class CustomersService {
       })),
     ];
 
-    // Sort by date ascending
-    events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Sort by date ascending (using calendar date YYYY-MM-DD, ignoring time)
+    events.sort((a, b) => {
+      const dateStrA = new Date(a.date).toISOString().split('T')[0];
+      const dateStrB = new Date(b.date).toISOString().split('T')[0];
+      const diff = dateStrA.localeCompare(dateStrB);
+      if (diff !== 0) return diff;
+      return a.reference.localeCompare(b.reference);
+    });
 
     // Calculate running balance
     let runningBalance = 0;
@@ -128,6 +134,23 @@ export class CustomersService {
         ...event,
         runningBalance,
       };
+    });
+
+    // Sort the final ledger list so that the latest transactions (strictly sequenced by Reference for invoices, and date/reference tiebreaker for payments) are on top
+    ledger.sort((a, b) => {
+      // If both are invoices, sort strictly by reference number descending (e.g. INV-00058 > INV-00057 > INV-00001)
+      if (a.type === 'INVOICE' && b.type === 'INVOICE') {
+        return b.reference.localeCompare(a.reference);
+      }
+      
+      // Fallback for payment vs invoice / payment vs payment: compare dates descending
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+      
+      return b.reference.localeCompare(a.reference);
     });
 
     return {
