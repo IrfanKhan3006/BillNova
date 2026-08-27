@@ -74,6 +74,7 @@ export class InvoicesService {
       despatchedThrough,
       destination,
       termsOfDelivery,
+      vehicleNumber,
     } = data;
 
     // Verify customer
@@ -214,6 +215,7 @@ export class InvoicesService {
           despatchedThrough,
           destination,
           termsOfDelivery,
+          vehicleNumber,
 
           items: {
             create: processedItems,

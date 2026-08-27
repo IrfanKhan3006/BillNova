@@ -144,6 +144,10 @@ class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   termsOfDelivery?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleNumber?: string;
 }
 
 class UpdateInvoiceDto {

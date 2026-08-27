@@ -16,6 +16,7 @@ import {
   Edit2,
   X,
   AlertCircle,
+  Printer,
 } from 'lucide-react';
 
 interface Customer {
@@ -334,6 +335,7 @@ export default function CustomersPage() {
                               <th className="p-3 text-right">Debit (Inv)</th>
                               <th className="p-3 text-right">Credit (Pmt)</th>
                               <th className="p-3 text-right">Balance</th>
+                              <th className="p-3 text-right">Action</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -371,6 +373,30 @@ export default function CustomersPage() {
                                 </td>
                                 <td className="p-3 text-right font-bold text-white">
                                   {formatCurrency(item.runningBalance)}
+                                </td>
+                                <td className="p-3 text-right">
+                                  {item.type === 'INVOICE' ? (
+                                    <div className="flex justify-end gap-1.5">
+                                      <a
+                                        href={`/billing?cloneInvoiceId=${item.id}`}
+                                        className="inline-flex items-center gap-1 text-[10px] text-zinc-400 hover:text-emerald-400 font-semibold bg-zinc-800/40 hover:bg-zinc-800 border border-zinc-800/60 hover:border-emerald-500/20 px-2 py-0.5 rounded-md transition-all"
+                                        title="Edit (Copy to form)"
+                                      >
+                                        <Edit2 className="h-2.5 w-2.5" />
+                                        <span>Edit</span>
+                                      </a>
+                                      <a
+                                        href={`/billing?invoiceId=${item.id}`}
+                                        className="inline-flex items-center gap-1 text-[10px] text-zinc-400 hover:text-blue-400 font-semibold bg-zinc-800/40 hover:bg-zinc-800 border border-zinc-800/60 hover:border-blue-500/20 px-2 py-0.5 rounded-md transition-all"
+                                        title="Print Invoice"
+                                      >
+                                        <Printer className="h-2.5 w-2.5" />
+                                        <span>Print</span>
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <span className="text-zinc-600">-</span>
+                                  )}
                                 </td>
                               </tr>
                             ))}
