@@ -14,8 +14,18 @@ import {
   Ban,
   RefreshCw,
   Sliders,
+  Key,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
+
+interface TenantUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
 
 interface Tenant {
   id: string;
@@ -32,6 +42,7 @@ interface Tenant {
   reportsEnabled: boolean;
   createdAt: string;
   deletedAt: string | null;
+  users?: TenantUser[];
   _count: {
     users: number;
     invoices: number;
@@ -48,6 +59,12 @@ export default function AdminTenantsPage() {
   // Modals / Status controls
   const [isEditingPlan, setIsEditingPlan] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'>('FREE');
+
+  // Credentials / logins controls
+  const [activeTenantForLogins, setActiveTenantForLogins] = useState<Tenant | null>(null);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   async function loadTenants() {
     try {
@@ -98,6 +115,29 @@ export default function AdminTenantsPage() {
       );
     } catch (err: any) {
       alert(err.message || 'Suspension toggle failed.');
+    }
+  };
+
+  const handlePasswordResetSubmit = async (userId: string) => {
+    if (!newPasswordValue || newPasswordValue.length < 6) {
+      alert('Password must be at least 6 characters long.');
+      return;
+    }
+
+    try {
+      setIsResetting(true);
+      await api.patch(`/admin/users/${userId}/password`, {
+        password: newPasswordValue,
+      });
+      alert('Password updated successfully!');
+      
+      // Clear values
+      setResetPasswordUserId(null);
+      setNewPasswordValue('');
+    } catch (err: any) {
+      alert(err.message || 'Failed to reset password.');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -310,6 +350,13 @@ export default function AdminTenantsPage() {
                           {/* Actions */}
                           <td className="py-5 pr-6 text-right">
                             <div className="flex items-center justify-end gap-3">
+                              <button
+                                onClick={() => setActiveTenantForLogins(t)}
+                                className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
+                              >
+                                <Key className="h-3.5 w-3.5 text-purple-400" /> Logins
+                              </button>
+
                               <Link
                                 href={`/admin/tenants/${t.id}/invoices`}
                                 className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
@@ -341,6 +388,106 @@ export default function AdminTenantsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Logins & Credentials Modal */}
+        {activeTenantForLogins && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-6">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Key className="h-5 w-5 text-purple-400" /> Logins & Credentials
+                </h3>
+                <button
+                  onClick={() => {
+                    setActiveTenantForLogins(null);
+                    setResetPasswordUserId(null);
+                    setNewPasswordValue('');
+                  }}
+                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-xs text-zinc-400">
+                  Registered users/owners for <strong className="text-white">{activeTenantForLogins.name}</strong>. Passwords are cryptographically hashed and cannot be decrypted, but you can set a new password.
+                </p>
+
+                {activeTenantForLogins.users && activeTenantForLogins.users.length > 0 ? (
+                  <div className="space-y-3.5">
+                    {activeTenantForLogins.users.map((u) => (
+                      <div key={u.id} className="rounded-xl border border-zinc-850 bg-zinc-950/40 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-bold text-white">{u.name}</p>
+                            <p className="text-xs text-zinc-400 font-mono mt-0.5">{u.email}</p>
+                          </div>
+                          <span className="rounded bg-zinc-800 px-2 py-0.5 text-[9px] font-extrabold text-zinc-400 uppercase tracking-wider">
+                            {u.role}
+                          </span>
+                        </div>
+
+                        {resetPasswordUserId === u.id ? (
+                          <div className="flex flex-col gap-2 pt-2 border-t border-zinc-900">
+                            <label className="text-[10px] text-purple-400 font-bold uppercase tracking-wider font-mono">New Password</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                placeholder="Min 6 characters (e.g. TempPass@123)"
+                                value={newPasswordValue}
+                                onChange={(e) => setNewPasswordValue(e.target.value)}
+                                className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
+                              />
+                              <button
+                                onClick={() => handlePasswordResetSubmit(u.id)}
+                                disabled={isResetting}
+                                className="rounded-lg bg-purple-600 hover:bg-purple-500 px-3 py-1.5 text-xs font-bold text-white transition disabled:opacity-50"
+                              >
+                                {isResetting ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setResetPasswordUserId(null);
+                                  setNewPasswordValue('');
+                                }}
+                                className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setResetPasswordUserId(u.id)}
+                            className="text-xs text-purple-400 hover:text-purple-300 font-semibold underline underline-offset-4"
+                          >
+                            Reset Password
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-500 text-center py-4">No users associated with this tenant account.</p>
+                )}
+              </div>
+
+              <div className="flex justify-end border-t border-zinc-800 pt-4">
+                <button
+                  onClick={() => {
+                    setActiveTenantForLogins(null);
+                    setResetPasswordUserId(null);
+                    setNewPasswordValue('');
+                  }}
+                  className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-bold text-zinc-300 hover:bg-zinc-850 transition"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

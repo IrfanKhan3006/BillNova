@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UpdateTenantDto } from './admin.controller';
+import * as argon2 from 'argon2';
 
 @Injectable()
 export class AdminService {
@@ -63,6 +64,15 @@ export class AdminService {
     return this.prisma.tenant.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+          },
+        },
         _count: {
           select: {
             users: true,
@@ -140,6 +150,24 @@ export class AdminService {
       });
 
       return updatedTenant;
+    });
+  }
+
+  async changeUserPassword(userId: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const passwordHash = await argon2.hash(newPassword, {
+      type: argon2.argon2id,
+    });
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
     });
   }
 }

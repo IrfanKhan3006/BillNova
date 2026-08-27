@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Role, TenantPlan } from '@prisma/client';
-import { IsEnum, IsBoolean, IsOptional } from 'class-validator';
+import { IsEnum, IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -35,6 +35,12 @@ export class UpdateTenantDto {
   @IsOptional()
   @IsBoolean()
   reportsEnabled?: boolean;
+}
+
+export class ResetUserPasswordDto {
+  @IsString()
+  @MinLength(6)
+  password: string;
 }
 
 @ApiTags('Super Admin Operations')
@@ -73,5 +79,11 @@ export class AdminController {
   @ApiOperation({ summary: 'Kisi business ko suspend/activate kro' })
   async suspendTenant(@Param('id') id: string) {
     return this.adminService.suspendTenant(id);
+  }
+
+  @Patch('users/:id/password')
+  @ApiOperation({ summary: 'Kisi user ka password change/reset kro' })
+  async resetPassword(@Param('id') id: string, @Body() dto: ResetUserPasswordDto) {
+    return this.adminService.changeUserPassword(id, dto.password);
   }
 }
