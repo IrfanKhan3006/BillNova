@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
 import FeatureGate from '../components/FeatureGate';
 import { api } from '../lib/api';
+import { compressImage } from '../lib/imageUtils';
 import { useAuthStore } from '../store/authStore';
 import {
   Plus,
@@ -26,6 +27,7 @@ interface Customer {
   phone?: string;
   address?: string;
   gstin?: string;
+  stateCode?: string;
 }
 
 interface Product {
@@ -139,6 +141,22 @@ export default function BillingPage() {
     },
   ]);
 
+  // Tax Mode: Intra-state (CGST + SGST) vs Inter-state (IGST)
+  const [taxType, setTaxType] = useState<'INTRA' | 'INTER'>('INTRA');
+
+  useEffect(() => {
+    if (selectedCustomerId) {
+      const cust = customers.find((c) => c.id === selectedCustomerId);
+      const custState = cust?.stateCode || cust?.gstin?.slice(0, 2) || '';
+      const myState = user?.tenant?.stateCode || user?.tenant?.gstin?.slice(0, 2) || '';
+      if (custState && myState && custState !== myState) {
+        setTaxType('INTER');
+      } else {
+        setTaxType('INTRA');
+      }
+    }
+  }, [selectedCustomerId, customers, user]);
+
   const [showExtraFields, setShowExtraFields] = useState(false);
   const [extraFields, setExtraFields] = useState({
     irn: '',
@@ -169,24 +187,34 @@ export default function BillingPage() {
   const [customLogoUrlPreview, setCustomLogoUrlPreview] = useState('');
   const [customHeaderUrlPreview, setCustomHeaderUrlPreview] = useState('');
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setCustomLogoUrlPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 800, 800, 0.85);
+      setCustomLogoUrlPreview(compressed);
+    } catch {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCustomLogoUrlPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleHeaderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHeaderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setCustomHeaderUrlPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 1600, 600, 0.85);
+      setCustomHeaderUrlPreview(compressed);
+    } catch {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCustomHeaderUrlPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleExtraFieldsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1275,8 +1303,36 @@ export default function BillingPage() {
                     <span>Subtotal:</span>
                     <span>{formatCurrency(createdInvoice.subTotal)}</span>
                   </div>
+
+                  {(() => {
+                    const myState = user?.tenant?.stateCode || user?.tenant?.gstin?.slice(0, 2) || '';
+                    const custState = createdInvoice.customer?.stateCode || createdInvoice.customer?.gstin?.slice(0, 2) || createdInvoice.consigneeState || '';
+                    const isInter = taxType === 'INTER' || (Boolean(myState && custState && myState !== custState));
+
+                    if (isInter) {
+                      return (
+                        <div className="flex justify-between text-zinc-600">
+                          <span>IGST:</span>
+                          <span className="font-semibold">{formatCurrency(createdInvoice.taxAmount)}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <>
+                        <div className="flex justify-between text-zinc-600">
+                          <span>CGST:</span>
+                          <span className="font-semibold">{formatCurrency(createdInvoice.taxAmount / 2)}</span>
+                        </div>
+                        <div className="flex justify-between text-zinc-600">
+                          <span>SGST:</span>
+                          <span className="font-semibold">{formatCurrency(createdInvoice.taxAmount / 2)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+
                   <div className="flex justify-between text-zinc-550 border-b border-zinc-200 pb-2">
-                    <span>Tax Amount (GST):</span>
+                    <span>Total Tax (GST):</span>
                     <span>{formatCurrency(createdInvoice.taxAmount)}</span>
                   </div>
                   <div className="flex justify-between text-sm font-black text-zinc-950 pt-1">
@@ -1290,55 +1346,79 @@ export default function BillingPage() {
               {createdInvoice.items.some((item: any) => item.hsnCode) && (
                 <div className="mt-8 border border-zinc-200 rounded-xl overflow-hidden text-[10px]">
                   <div className="bg-zinc-50 border-b border-zinc-200 px-3 py-2 font-bold text-zinc-700 uppercase tracking-wider">HSN/SAC Tax Summary</div>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-zinc-50/50 border-b border-zinc-200 text-zinc-500 font-bold">
-                        <th className="p-2">HSN/SAC</th>
-                        <th className="p-2 text-right">Taxable Value</th>
-                        <th className="p-2 text-center">CGST Rate</th>
-                        <th className="p-2 text-right">CGST Amount</th>
-                        <th className="p-2 text-center">SGST Rate</th>
-                        <th className="p-2 text-right">SGST Amount</th>
-                        <th className="p-2 text-right">Total Tax</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const groups: Record<string, { taxable: number; taxRate: number; taxAmt: number }> = {};
-                        createdInvoice.items.forEach((item: any) => {
-                          const hsn = item.hsnCode || 'N/A';
-                          const qty = item.qty || 1;
-                          const price = item.price || 0;
-                          const discRate = item.discountRate || 0;
-                          const taxable = (price * (1 - discRate / 100)) * qty;
-                          const taxRate = item.taxRate || 0;
-                          const taxAmt = taxable * (taxRate / 100);
+                  {(() => {
+                    const myState = user?.tenant?.stateCode || user?.tenant?.gstin?.slice(0, 2) || '';
+                    const custState = createdInvoice.customer?.stateCode || createdInvoice.customer?.gstin?.slice(0, 2) || createdInvoice.consigneeState || '';
+                    const isInter = taxType === 'INTER' || (Boolean(myState && custState && myState !== custState));
 
-                          if (!groups[hsn]) {
-                            groups[hsn] = { taxable: 0, taxRate, taxAmt: 0 };
-                          }
-                          groups[hsn].taxable += taxable;
-                          groups[hsn].taxAmt += taxAmt;
-                        });
+                    const groups: Record<string, { taxable: number; taxRate: number; taxAmt: number }> = {};
+                    createdInvoice.items.forEach((item: any) => {
+                      const hsn = item.hsnCode || 'N/A';
+                      const qty = item.qty || 1;
+                      const price = item.price || 0;
+                      const discRate = item.discountRate || 0;
+                      const taxable = (price * (1 - discRate / 100)) * qty;
+                      const taxRate = item.taxRate || 0;
+                      const taxAmt = taxable * (taxRate / 100);
 
-                        return Object.entries(groups).map(([hsn, data]) => {
-                          const halfRate = data.taxRate / 2;
-                          const halfAmt = data.taxAmt / 2;
-                          return (
-                            <tr key={hsn} className="border-b border-zinc-200 last:border-0 text-zinc-700">
-                              <td className="p-2 font-bold font-mono">{hsn}</td>
-                              <td className="p-2 text-right">{formatCurrency(data.taxable)}</td>
-                              <td className="p-2 text-center">{halfRate}%</td>
-                              <td className="p-2 text-right">{formatCurrency(halfAmt)}</td>
-                              <td className="p-2 text-center">{halfRate}%</td>
-                              <td className="p-2 text-right">{formatCurrency(halfAmt)}</td>
-                              <td className="p-2 text-right font-bold">{formatCurrency(data.taxAmt)}</td>
-                            </tr>
-                          );
-                        });
-                      })()}
-                    </tbody>
-                  </table>
+                      if (!groups[hsn]) {
+                        groups[hsn] = { taxable: 0, taxRate, taxAmt: 0 };
+                      }
+                      groups[hsn].taxable += taxable;
+                      groups[hsn].taxAmt += taxAmt;
+                    });
+
+                    return (
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-zinc-50/50 border-b border-zinc-200 text-zinc-500 font-bold">
+                            <th className="p-2">HSN/SAC</th>
+                            <th className="p-2 text-right">Taxable Value</th>
+                            {isInter ? (
+                              <>
+                                <th className="p-2 text-center">IGST Rate</th>
+                                <th className="p-2 text-right">IGST Amount</th>
+                              </>
+                            ) : (
+                              <>
+                                <th className="p-2 text-center">CGST Rate</th>
+                                <th className="p-2 text-right">CGST Amount</th>
+                                <th className="p-2 text-center">SGST Rate</th>
+                                <th className="p-2 text-right">SGST Amount</th>
+                              </>
+                            )}
+                            <th className="p-2 text-right">Total Tax</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(groups).map(([hsn, data]) => {
+                            const halfRate = data.taxRate / 2;
+                            const halfAmt = data.taxAmt / 2;
+                            return (
+                              <tr key={hsn} className="border-b border-zinc-200 last:border-0 text-zinc-700">
+                                <td className="p-2 font-bold font-mono">{hsn}</td>
+                                <td className="p-2 text-right">{formatCurrency(data.taxable)}</td>
+                                {isInter ? (
+                                  <>
+                                    <td className="p-2 text-center">{data.taxRate}%</td>
+                                    <td className="p-2 text-right">{formatCurrency(data.taxAmt)}</td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="p-2 text-center">{halfRate}%</td>
+                                    <td className="p-2 text-right">{formatCurrency(halfAmt)}</td>
+                                    <td className="p-2 text-center">{halfRate}%</td>
+                                    <td className="p-2 text-right">{formatCurrency(halfAmt)}</td>
+                                  </>
+                                )}
+                                <td className="p-2 text-right font-bold">{formatCurrency(data.taxAmt)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -1441,6 +1521,36 @@ export default function BillingPage() {
                       className="block w-full rounded-lg border border-zinc-805 bg-zinc-950 pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* GST Type Selector */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-950/70 border border-zinc-800 rounded-xl p-3.5 text-xs">
+                <div>
+                  <span className="font-bold text-white block">GST Tax Mode:</span>
+                  <span className="text-[11px] text-zinc-500">
+                    {taxType === 'INTRA' ? 'Intra-State: CGST (50%) + SGST (50%)' : 'Inter-State: IGST (100%)'}
+                  </span>
+                </div>
+                <div className="flex rounded-lg bg-zinc-900 border border-zinc-800 p-1 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setTaxType('INTRA')}
+                    className={`px-3 py-1.5 rounded-md font-bold transition ${
+                      taxType === 'INTRA' ? 'bg-emerald-500 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    Intra-State (CGST + SGST)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaxType('INTER')}
+                    className={`px-3 py-1.5 rounded-md font-bold transition ${
+                      taxType === 'INTER' ? 'bg-emerald-500 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    Inter-State (IGST)
+                  </button>
                 </div>
               </div>
 
@@ -1919,13 +2029,32 @@ export default function BillingPage() {
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 sticky top-24 space-y-6">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Billing Aggregation</h3>
               
-              <div className="space-y-3.5 text-xs text-zinc-400">
+              <div className="space-y-3 text-xs text-zinc-400">
                 <div className="flex justify-between">
                   <span>Item Subtotal:</span>
                   <span className="font-bold text-white">{formatCurrency(summary.subTotal)}</span>
                 </div>
-                <div className="flex justify-between border-b border-zinc-800 pb-3">
-                  <span>GST Collected:</span>
+
+                {taxType === 'INTER' ? (
+                  <div className="flex justify-between text-blue-400">
+                    <span>IGST (Integrated Tax):</span>
+                    <span className="font-bold">{formatCurrency(summary.taxAmount)}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-zinc-400">
+                      <span>CGST (Central Tax 50%):</span>
+                      <span className="font-bold text-white">{formatCurrency(summary.taxAmount / 2)}</span>
+                    </div>
+                    <div className="flex justify-between text-zinc-400">
+                      <span>SGST (State Tax 50%):</span>
+                      <span className="font-bold text-white">{formatCurrency(summary.taxAmount / 2)}</span>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex justify-between border-b border-zinc-800 pb-3 text-zinc-400">
+                  <span>Total Tax (GST):</span>
                   <span className="font-bold text-white">{formatCurrency(summary.taxAmount)}</span>
                 </div>
                 <div className="flex justify-between items-baseline pt-2">

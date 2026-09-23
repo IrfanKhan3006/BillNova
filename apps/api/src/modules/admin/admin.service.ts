@@ -101,6 +101,7 @@ export class AdminService {
         productsEnabled: dto.productsEnabled,
         paymentsEnabled: dto.paymentsEnabled,
         reportsEnabled: dto.reportsEnabled,
+        purchasesEnabled: dto.purchasesEnabled,
       },
     });
   }

@@ -57,7 +57,15 @@ export default function RegisterPage() {
 
         {error && (
           <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
-            {error}
+            {error.includes(',') ? (
+              <ul className="list-disc pl-5 space-y-1">
+                {error.split(',').map((e, idx) => (
+                  <li key={idx}>{e.trim()}</li>
+                ))}
+              </ul>
+            ) : (
+              error
+            )}
           </div>
         )}
 
@@ -99,7 +107,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-300">Phone Number (Indian, e.g. 9876543210)</label>
+            <label className="block text-sm font-medium text-zinc-300">Phone Number (e.g. 9876543210)</label>
             <input
               type="text"
               value={phone}
@@ -118,7 +126,7 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 pl-4 pr-12 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                placeholder="8+ chars, 1 uppercase & 1 digit"
+                placeholder="Minimum 6 characters"
               />
               <button
                 type="button"

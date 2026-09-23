@@ -18,17 +18,15 @@ export class RegisterDto {
   @IsEmail({}, { message: 'Valid email dalo' })
   email: string;
 
-  @ApiProperty({ example: 'MyPass@123' })
+  @ApiProperty({ example: 'password123' })
   @IsString()
-  @MinLength(8)
+  @MinLength(6, { message: 'Password kam se kam 6 characters ka hona chahiye' })
   @MaxLength(100)
-  @Matches(/[A-Z]/, { message: 'Kam se kam ek uppercase letter hona chahiye' })
-  @Matches(/[0-9]/, { message: 'atleast one number required' })
   password: string;
 
   @ApiPropertyOptional({ example: '9876543210' })
   @IsOptional()
   @IsString()
-  @Matches(/^[6-9]\d{9}$/, { message: 'Valid Indian mobile number dalo' })
+  @Matches(/^[0-9+\-\s]{10,15}$/, { message: 'Valid 10-digit phone number dalo' })
   phone?: string;
 }

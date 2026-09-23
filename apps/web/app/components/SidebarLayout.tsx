@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import {
   LayoutDashboard,
   Receipt,
+  ShoppingBag,
   Users,
   Package,
   CreditCard,
@@ -32,13 +33,21 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Create Invoice', href: '/billing', icon: Receipt },
+    { name: 'Create Invoice', href: '/billing', icon: Receipt, featureKey: 'billingEnabled' as const },
+    { name: 'Purchase Invoices', href: '/purchases', icon: ShoppingBag, featureKey: 'purchasesEnabled' as const },
     { name: 'Customers', href: '/customers', icon: Users },
-    { name: 'Products & Inventory', href: '/products', icon: Package },
-    { name: 'Payments', href: '/payments', icon: CreditCard },
-    { name: 'Reports', href: '/reports', icon: BarChart3 },
+    { name: 'Products & Inventory', href: '/products', icon: Package, featureKey: 'productsEnabled' as const },
+    { name: 'Payments', href: '/payments', icon: CreditCard, featureKey: 'paymentsEnabled' as const },
+    { name: 'Reports', href: '/reports', icon: BarChart3, featureKey: 'reportsEnabled' as const },
     { name: 'Business Settings', href: '/business', icon: Settings },
   ];
+
+  // Only show modules enabled on the tenant's plan (Super Admin sees all)
+  const visibleNavItems = navItems.filter((item) => {
+    if (user?.role === 'SUPER_ADMIN') return true;
+    if (!item.featureKey) return true;
+    return user?.tenant?.[item.featureKey] !== false;
+  });
 
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
@@ -58,7 +67,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
           {/* Navigation Links */}
           <nav className="flex flex-col gap-1.5">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
@@ -138,7 +147,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 </div>
 
                 <nav className="flex flex-col gap-1">
-                  {navItems.map((item) => {
+                  {visibleNavItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
                     return (

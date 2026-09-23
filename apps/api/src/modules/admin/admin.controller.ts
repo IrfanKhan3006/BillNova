@@ -35,6 +35,10 @@ export class UpdateTenantDto {
   @IsOptional()
   @IsBoolean()
   reportsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  purchasesEnabled?: boolean;
 }
 
 export class ResetUserPasswordDto {
