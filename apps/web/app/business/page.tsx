@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
 import { api } from '../lib/api';
+import { compressImage } from '../lib/imageUtils';
 import { useAuthStore } from '../store/authStore';
 import { Save, AlertCircle, CheckCircle, Building, Search, CreditCard } from 'lucide-react';
 
@@ -71,24 +72,34 @@ export default function BusinessSettingsPage() {
     }));
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm((prev) => ({ ...prev, logoUrl: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 800, 800, 0.85);
+      setForm((prev) => ({ ...prev, logoUrl: compressed }));
+    } catch {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm((prev) => ({ ...prev, logoUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleHeaderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHeaderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm((prev) => ({ ...prev, customHeaderUrl: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 1600, 600, 0.85);
+      setForm((prev) => ({ ...prev, customHeaderUrl: compressed }));
+    } catch {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm((prev) => ({ ...prev, customHeaderUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleGstSearch = async () => {

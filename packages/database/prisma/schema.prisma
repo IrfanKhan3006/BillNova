@@ -43,14 +43,17 @@ model Tenant {
 
   invoicePrefix  String @default("INV")
   invoiceCounter Int    @default(0)
+  purchasePrefix String @default("PUR")
+  purchaseCounter Int   @default(0)
   dueDays        Int    @default(30)
   invoiceTemplate String @default("CLASSIC")
 
   // Gating Toggles
-  billingEnabled  Boolean @default(true)
-  productsEnabled Boolean @default(true)
-  paymentsEnabled Boolean @default(true)
-  reportsEnabled  Boolean @default(true)
+  billingEnabled   Boolean @default(true)
+  productsEnabled  Boolean @default(true)
+  paymentsEnabled  Boolean @default(true)
+  reportsEnabled   Boolean @default(true)
+  purchasesEnabled Boolean @default(true)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -59,10 +62,13 @@ model Tenant {
   users             User[]
   refreshTokens     RefreshToken[]
   customers         Customer[]
+  vendors           Vendor[]
   productCategories ProductCategory[]
   products          Product[]
   invoices          Invoice[]
   payments          Payment[]
+  purchaseInvoices  PurchaseInvoice[]
+  purchasePayments  PurchasePayment[]
 
   @@map("tenants")
 }
@@ -158,9 +164,10 @@ model Product {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  tenant       Tenant           @relation(fields: [tenantId], references: [id])
-  category     ProductCategory? @relation(fields: [categoryId], references: [id])
-  invoiceItems InvoiceItem[]
+  tenant               Tenant                @relation(fields: [tenantId], references: [id])
+  category             ProductCategory?      @relation(fields: [categoryId], references: [id])
+  invoiceItems         InvoiceItem[]
+  purchaseInvoiceItems PurchaseInvoiceItem[]
 
   @@map("products")
 }
@@ -275,4 +282,109 @@ model Payment {
   invoice  Invoice? @relation(fields: [invoiceId], references: [id])
 
   @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Purchase Invoices & Vendors
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PurchaseStatus {
+  DRAFT
+  RECEIVED
+  PAID
+  PARTIALLY_PAID
+  CANCELLED
+}
+
+model Vendor {
+  id                 String            @id @default(uuid())
+  tenantId           String
+  name               String
+  email              String?
+  phone              String?
+  address            String?
+  gstin              String?
+  stateCode          String?
+  outstandingBalance Float             @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+
+  tenant             Tenant            @relation(fields: [tenantId], references: [id])
+  purchaseInvoices   PurchaseInvoice[]
+  payments           PurchasePayment[]
+
+  @@map("vendors")
+}
+
+model PurchaseInvoice {
+  id             String                @id @default(uuid())
+  tenantId       String
+  vendorId       String
+  purchaseNumber String
+  billNumber     String?
+  date           DateTime              @default(now())
+  dueDate        DateTime?
+  status         PurchaseStatus        @default(RECEIVED)
+  subTotal       Float                 @default(0)
+  taxAmount      Float                 @default(0)
+  discountAmount Float                 @default(0)
+  totalAmount    Float                 @default(0)
+  amountPaid     Float                 @default(0)
+  amountDue      Float                 @default(0)
+  notes          String?
+
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  deletedAt      DateTime?
+
+  tenant         Tenant                @relation(fields: [tenantId], references: [id])
+  vendor         Vendor                @relation(fields: [vendorId], references: [id])
+  items          PurchaseInvoiceItem[]
+  payments       PurchasePayment[]
+
+  @@unique([tenantId, purchaseNumber])
+  @@map("purchase_invoices")
+}
+
+model PurchaseInvoiceItem {
+  id                String          @id @default(uuid())
+  purchaseInvoiceId String
+  productId         String?
+  name              String
+  qty               Int             @default(1)
+  price             Float           @default(0)
+  taxRate           Float           @default(0)
+  taxAmount         Float           @default(0)
+  discountRate      Float           @default(0)
+  discountAmount    Float           @default(0)
+  total             Float           @default(0)
+  hsnCode           String?
+
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  product           Product?        @relation(fields: [productId], references: [id])
+
+  @@map("purchase_invoice_items")
+}
+
+model PurchasePayment {
+  id                String          @id @default(uuid())
+  tenantId          String
+  vendorId          String
+  purchaseInvoiceId String?
+  amount            Float
+  date              DateTime        @default(now())
+  method            PaymentMethod   @default(BANK_TRANSFER)
+  referenceNo       String?
+  notes             String?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deletedAt         DateTime?
+
+  tenant            Tenant          @relation(fields: [tenantId], references: [id])
+  vendor            Vendor          @relation(fields: [vendorId], references: [id])
+  purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+
+  @@map("purchase_payments")
 }

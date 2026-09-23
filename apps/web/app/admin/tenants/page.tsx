@@ -40,6 +40,7 @@ interface Tenant {
   productsEnabled: boolean;
   paymentsEnabled: boolean;
   reportsEnabled: boolean;
+  purchasesEnabled?: boolean;
   createdAt: string;
   deletedAt: string | null;
   users?: TenantUser[];
@@ -307,6 +308,7 @@ export default function AdminTenantsPage() {
                               {[
                                 { label: 'Billing Engine', key: 'billingEnabled', val: t.billingEnabled },
                                 { label: 'Product Catalog', key: 'productsEnabled', val: t.productsEnabled },
+                                { label: 'Purchase Invoices', key: 'purchasesEnabled', val: t.purchasesEnabled !== false },
                                 { label: 'Payments Ledger', key: 'paymentsEnabled', val: t.paymentsEnabled },
                                 { label: 'Reports Console', key: 'reportsEnabled', val: t.reportsEnabled },
                               ].map((f) => (

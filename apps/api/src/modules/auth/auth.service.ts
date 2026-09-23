@@ -83,6 +83,7 @@ export class AuthService {
           productsEnabled: tenant.productsEnabled,
           paymentsEnabled: tenant.paymentsEnabled,
           reportsEnabled: tenant.reportsEnabled,
+          purchasesEnabled: tenant.purchasesEnabled,
         },
       },
       tokens,
@@ -137,6 +138,7 @@ export class AuthService {
               productsEnabled: user.tenant.productsEnabled,
               paymentsEnabled: user.tenant.paymentsEnabled,
               reportsEnabled: user.tenant.reportsEnabled,
+              purchasesEnabled: user.tenant.purchasesEnabled,
             }
           : null,
       },
@@ -216,6 +218,7 @@ export class AuthService {
             productsEnabled: true,
             paymentsEnabled: true,
             reportsEnabled: true,
+            purchasesEnabled: true,
           },
         },
       },

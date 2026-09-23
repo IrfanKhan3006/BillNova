@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
@@ -107,13 +106,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        <p className="mt-8 text-center text-sm text-zinc-400">
-          New to BillNova?{' '}
-          <Link href="/register" className="font-semibold text-emerald-400 hover:text-emerald-300">
-            Register Business
-          </Link>
-        </p>
       </div>
     </div>
   );

@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useAuthStore } from '../store/authStore';
 import { KeyRound } from 'lucide-react';
 
 interface FeatureGateProps {
-  featureKey: 'billingEnabled' | 'productsEnabled' | 'paymentsEnabled' | 'reportsEnabled';
+  featureKey: 'billingEnabled' | 'productsEnabled' | 'paymentsEnabled' | 'reportsEnabled' | 'purchasesEnabled';
   featureName: string;
   children: React.ReactNode;
 }
@@ -40,12 +41,20 @@ export default function FeatureGate({ featureKey, featureName, children }: Featu
               Access to this module has been deactivated under your current organization plan. Contact your platform Super Admin to upgrade.
             </p>
           </div>
-          <a
-            href="mailto:admin@billnova.com?subject=Feature Upgrade: Sharma Traders"
-            className="mt-2 rounded-xl bg-purple-500 px-6 py-3 text-xs font-extrabold text-zinc-950 hover:bg-purple-400 transition duration-150"
-          >
-            Contact Platform Admin
-          </a>
+          <div className="flex items-center gap-3 mt-2">
+            <Link
+              href="/dashboard"
+              className="rounded-xl border border-zinc-700 bg-zinc-900 px-5 py-2.5 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
+            >
+              Back to Dashboard
+            </Link>
+            <a
+              href="mailto:admin@billnova.com?subject=Feature Upgrade"
+              className="rounded-xl bg-purple-500 px-5 py-2.5 text-xs font-extrabold text-zinc-950 hover:bg-purple-400 transition duration-150"
+            >
+              Contact Admin
+            </a>
+          </div>
         </div>
       </div>
     );

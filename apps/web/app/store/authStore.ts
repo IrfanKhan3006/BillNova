@@ -11,6 +11,7 @@ interface User {
     name: string;
     slug: string;
     gstin?: string;
+    stateCode?: string;
     plan: string;
     logoUrl?: string;
     customHeaderUrl?: string;
@@ -26,6 +27,7 @@ interface User {
     productsEnabled?: boolean;
     paymentsEnabled?: boolean;
     reportsEnabled?: boolean;
+    purchasesEnabled?: boolean;
   } | null;
 }
 
