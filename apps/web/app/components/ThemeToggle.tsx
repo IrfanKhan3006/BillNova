@@ -69,7 +69,7 @@ export default function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="h-8 w-8 rounded-lg bg-zinc-800/40 border border-zinc-700/50 animate-pulse" />
+      <div className="h-8 w-24 rounded-xl bg-zinc-200/60 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/50 animate-pulse" />
     );
   }
 

@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import { Eye, EyeOff } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,44 +38,49 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 shadow-2xl backdrop-blur-xl">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-zinc-950 px-4 py-12 transition-colors relative">
+      {/* Theme Toggle */}
+      <div className="absolute top-6 right-6">
+        <ThemeToggle />
+      </div>
+
+      <div className="w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-8 shadow-xl dark:shadow-2xl backdrop-blur-xl transition-colors">
         <div className="mb-8 text-center">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 mb-3">
             <span className="text-2xl font-bold">B</span>
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-white">BillNova</h2>
-          <p className="mt-2 text-sm text-zinc-400">Log in to manage your business invoicing</p>
+          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">BillNova</h2>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Log in to manage your business invoicing</p>
         </div>
 
         {typeof window !== 'undefined' && window.location.search.includes('expired=true') && (
-          <div className="mb-6 rounded-lg bg-amber-500/10 border border-amber-500/20 p-4 text-sm text-amber-400">
+          <div className="mb-6 rounded-lg bg-amber-500/10 border border-amber-500/20 p-4 text-sm text-amber-600 dark:text-amber-400">
             ⚠️ Your session has expired. Please log in again to continue.
           </div>
         )}
 
         {error && (
-          <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
+          <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-600 dark:text-red-400">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-zinc-300">Email Address</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Email Address</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-2 block w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-4 py-3 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:bg-white dark:focus:bg-zinc-950 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
               placeholder="name@business.com"
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-zinc-300">Password</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Password</label>
             </div>
             <div className="relative mt-2">
               <input
@@ -81,13 +88,13 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 pl-4 pr-12 py-3 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 pl-4 pr-12 py-3 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:bg-white dark:focus:bg-zinc-950 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3.5 text-zinc-550 hover:text-white"
+                className="absolute right-3 top-3.5 text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-white transition-colors"
               >
                 {showPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
               </button>
@@ -97,7 +104,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center rounded-lg bg-emerald-500 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50"
+            className="flex w-full items-center justify-center rounded-lg bg-emerald-500 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50 cursor-pointer shadow-sm"
           >
             {loading ? (
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-950 border-t-transparent" />
@@ -106,6 +113,13 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+          Don&apos;t have an account?{' '}
+          <Link href="/register" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+            Register Business
+          </Link>
+        </p>
       </div>
     </div>
   );

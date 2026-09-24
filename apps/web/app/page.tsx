@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from './store/authStore';
 import {
@@ -22,12 +22,10 @@ import {
   CheckCircle,
   Menu,
   ArrowUpRight,
-  X,
-  PlusCircle,
-  FileText,
-  Settings
+  X
 } from 'lucide-react';
 import './landing-page/landing.css';
+import ThemeToggle from './components/ThemeToggle';
 
 interface InvoiceItem {
   id: number;
@@ -185,11 +183,17 @@ export default function Home() {
                 Sign In
               </Link>
             )}
+            <ThemeToggle />
           </div>
 
-          <button className="mobile-menu-btn" onClick={() => window.location.href = '#demo'}>
-            <Menu style={{ width: '20px', height: '20px' }} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="mobile-theme-toggle" style={{ display: 'none' }}>
+              <ThemeToggle />
+            </div>
+            <button className="mobile-menu-btn" onClick={() => window.location.href = '#demo'}>
+              <Menu style={{ width: '20px', height: '20px' }} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -778,13 +782,13 @@ export default function Home() {
       </div>
 
       {/* -------------------------------------------------------------
-         CUSTOM ALERT MODAL (DARK THEME)
+         CUSTOM ALERT MODAL (THEMED)
       ------------------------------------------------------------- */}
       {alertModal && alertModal.active && (
         <div className="modal-overlay active" style={{ zIndex: 1100 }}>
-          <div className="modal-container" style={{ maxWidth: '420px', background: '#18181b', color: '#f4f4f5', border: '1px solid var(--border-color)' }}>
-            <div className="modal-actions" style={{ borderBottom: '1px solid var(--border-color)', background: '#121214' }}>
-              <div className="modal-actions-title" style={{ fontSize: '1rem', color: '#ffffff' }}>
+          <div className="modal-container" style={{ maxWidth: '420px', background: 'var(--bg-surface-card)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div className="modal-actions" style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
+              <div className="modal-actions-title" style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>
                 {alertModal.title}
               </div>
               <button 
@@ -798,7 +802,7 @@ export default function Home() {
             <div style={{ padding: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6', whiteSpace: 'pre-line' }}>
               {alertModal.message}
             </div>
-            <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', background: '#121214' }}>
+            <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', background: 'var(--bg-surface)' }}>
               <button className="btn btn-primary" onClick={() => setAlertModal(null)} style={{ padding: '0.4rem 1.2rem', fontSize: '0.85rem' }}>
                 Dismiss
               </button>
