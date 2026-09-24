@@ -16,6 +16,7 @@ import {
   AlertCircle,
   HelpCircle,
 } from 'lucide-react';
+import { toast } from '../store/uiStore';
 
 interface Payment {
   id: string;
@@ -126,7 +127,7 @@ export default function PaymentsPage() {
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.amount <= 0) {
-      alert('Enter a valid payment amount!');
+      toast.error('Enter a valid payment amount!');
       return;
     }
     try {
@@ -136,9 +137,10 @@ export default function PaymentsPage() {
         invoiceId: form.invoiceId || undefined,
       });
       setIsModalOpen(false);
+      toast.success('Payment recorded successfully!');
       loadData(selectedCustomerIdFilter);
     } catch (err: any) {
-      alert(err.message || 'Failed to record payment.');
+      toast.error(err.message || 'Failed to record payment.');
     } finally {
       setSubmitting(false);
     }

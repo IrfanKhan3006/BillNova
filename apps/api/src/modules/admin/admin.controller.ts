@@ -39,6 +39,18 @@ export class UpdateTenantDto {
   @IsOptional()
   @IsBoolean()
   purchasesEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  businessType?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  trackInventory?: boolean;
+
+  @IsOptional()
+  @IsString()
+  theme?: string;
 }
 
 export class ResetUserPasswordDto {

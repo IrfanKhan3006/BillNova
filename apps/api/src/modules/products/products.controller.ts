@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ProductsService } from './products.service';
@@ -63,6 +63,14 @@ class CreateProductDto {
   @IsOptional()
   @IsNumber()
   stock?: number;
+
+  @IsOptional()
+  @IsString()
+  hsnCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isService?: boolean;
 }
 
 class UpdateProductDto {
@@ -105,6 +113,14 @@ class UpdateProductDto {
   @IsOptional()
   @IsNumber()
   stock?: number;
+
+  @IsOptional()
+  @IsString()
+  hsnCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isService?: boolean;
 }
 
 @ApiTags('Products')

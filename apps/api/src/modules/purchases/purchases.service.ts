@@ -110,6 +110,10 @@ export class PurchasesService {
               gstin: vendorGstin?.trim() || null,
               phone: vendorPhone?.trim() || null,
               address: vendorAddress?.trim() || null,
+              bankAccountName: data.vendorBankAccountName?.trim() || null,
+              bankAccountNumber: data.vendorBankAccountNumber?.trim() || null,
+              bankIfsc: data.vendorBankIfsc?.trim()?.toUpperCase() || null,
+              upiId: data.vendorUpiId?.trim() || null,
             },
           });
           vendorId = newVendor.id;
@@ -128,7 +132,7 @@ export class PurchasesService {
         throw new NotFoundException('Vendor not found.');
       }
 
-      // 2. Generate purchase number
+      // 2. Generate purchase number with retry/max counter fallback
       const tenant = await tx.tenant.findUnique({
         where: { id: tenantId },
       });
@@ -136,10 +140,24 @@ export class PurchasesService {
         throw new NotFoundException('Tenant not found.');
       }
 
-      const nextCounter = (tenant.purchaseCounter || 0) + 1;
-      const formattedCounter = String(nextCounter).padStart(5, '0');
+      const existingPurchasesCount = await tx.purchaseInvoice.count({
+        where: { tenantId },
+      });
+      let nextCounter = Math.max(tenant.purchaseCounter || 0, existingPurchasesCount) + 1;
       const purchasePrefix = tenant.purchasePrefix || 'PUR';
-      const purchaseNumber = `${purchasePrefix}-${formattedCounter}`;
+      let purchaseNumber = `${purchasePrefix}-${String(nextCounter).padStart(5, '0')}`;
+
+      // Check collision
+      let collision = await tx.purchaseInvoice.findUnique({
+        where: { tenantId_purchaseNumber: { tenantId, purchaseNumber } },
+      });
+      while (collision) {
+        nextCounter += 1;
+        purchaseNumber = `${purchasePrefix}-${String(nextCounter).padStart(5, '0')}`;
+        collision = await tx.purchaseInvoice.findUnique({
+          where: { tenantId_purchaseNumber: { tenantId, purchaseNumber } },
+        });
+      }
 
       await tx.tenant.update({
         where: { id: tenantId },
@@ -153,8 +171,9 @@ export class PurchasesService {
       const processedItems: any[] = [];
 
       for (const item of items) {
-        const product = item.productId
-          ? await tx.product.findFirst({ where: { id: item.productId, tenantId, deletedAt: null } })
+        const validProductId = item.productId && String(item.productId).trim() !== '' ? String(item.productId).trim() : null;
+        const product = validProductId
+          ? await tx.product.findFirst({ where: { id: validProductId, tenantId, deletedAt: null } })
           : null;
 
         const price = Number(item.price ?? product?.purchasePrice ?? 0);
@@ -173,9 +192,9 @@ export class PurchasesService {
         discountAmount += itemDiscountAmount;
 
         processedItems.push({
-          productId: item.productId || null,
+          productId: product ? product.id : null,
           name: item.name || product?.name || 'Item',
-          qty,
+          qty: Math.max(1, Math.round(qty)),
           price,
           taxRate,
           taxAmount: itemTaxAmount,
@@ -185,14 +204,21 @@ export class PurchasesService {
           hsnCode: item.hsnCode || product?.hsnCode || null,
         });
 
-        // 4. Auto-restock inventory & update product purchase price
-        if (autoRestock && product) {
+        // 4. Auto-restock inventory ONLY if business tracks inventory and product is not a service
+        const shouldRestock = autoRestock && product && tenant.trackInventory && !product.isService;
+        if (shouldRestock) {
           await tx.product.update({
             where: { id: product.id },
             data: {
-              stock: { increment: qty },
+              stock: { increment: Math.max(1, Math.round(qty)) },
               ...(price > 0 ? { purchasePrice: price } : {}),
             },
+          });
+        } else if (product && price > 0) {
+          // Still update reference purchase price for margins
+          await tx.product.update({
+            where: { id: product.id },
+            data: { purchasePrice: price },
           });
         }
       }
@@ -284,14 +310,20 @@ export class PurchasesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // Revert stock if it was received
+      // Revert stock if it was received and tenant tracks inventory
       if (purchase.status !== 'DRAFT' && purchase.status !== 'CANCELLED') {
-        for (const item of purchase.items) {
-          if (item.productId) {
-            await tx.product.update({
-              where: { id: item.productId },
-              data: { stock: { decrement: item.qty } },
-            });
+        const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
+        if (tenant?.trackInventory) {
+          for (const item of purchase.items) {
+            if (item.productId) {
+              const prod = await tx.product.findUnique({ where: { id: item.productId } });
+              if (prod && !prod.isService) {
+                await tx.product.update({
+                  where: { id: item.productId },
+                  data: { stock: { decrement: item.qty } },
+                });
+              }
+            }
           }
         }
 
@@ -340,7 +372,18 @@ export class PurchasesService {
   }
 
   async createVendor(tenantId: string, data: any) {
-    const { name, email, phone, address, gstin, stateCode } = data;
+    const {
+      name,
+      email,
+      phone,
+      address,
+      gstin,
+      stateCode,
+      bankAccountName,
+      bankAccountNumber,
+      bankIfsc,
+      upiId,
+    } = data;
 
     if (!name || !name.trim()) {
       throw new BadRequestException('Vendor name is required.');
@@ -355,6 +398,49 @@ export class PurchasesService {
         address: address?.trim() || null,
         gstin: gstin?.trim() || null,
         stateCode: stateCode?.trim() || (gstin ? gstin.slice(0, 2) : null),
+        bankAccountName: bankAccountName?.trim() || null,
+        bankAccountNumber: bankAccountNumber?.trim() || null,
+        bankIfsc: bankIfsc?.trim()?.toUpperCase() || null,
+        upiId: upiId?.trim() || null,
+      },
+    });
+  }
+
+  async updateVendor(tenantId: string, id: string, data: any) {
+    const existing = await this.prisma.vendor.findFirst({
+      where: { id, tenantId, deletedAt: null },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Vendor not found.');
+    }
+
+    const {
+      name,
+      email,
+      phone,
+      address,
+      gstin,
+      stateCode,
+      bankAccountName,
+      bankAccountNumber,
+      bankIfsc,
+      upiId,
+    } = data;
+
+    return this.prisma.vendor.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(email !== undefined && { email: email?.trim() || null }),
+        ...(phone !== undefined && { phone: phone?.trim() || null }),
+        ...(address !== undefined && { address: address?.trim() || null }),
+        ...(gstin !== undefined && { gstin: gstin?.trim() || null }),
+        ...(stateCode !== undefined && { stateCode: stateCode?.trim() || null }),
+        ...(bankAccountName !== undefined && { bankAccountName: bankAccountName?.trim() || null }),
+        ...(bankAccountNumber !== undefined && { bankAccountNumber: bankAccountNumber?.trim() || null }),
+        ...(bankIfsc !== undefined && { bankIfsc: bankIfsc?.trim()?.toUpperCase() || null }),
+        ...(upiId !== undefined && { upiId: upiId?.trim() || null }),
       },
     });
   }

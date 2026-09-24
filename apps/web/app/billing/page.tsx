@@ -20,6 +20,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { toast } from '../store/uiStore';
 
 interface Customer {
   id: string;
@@ -115,6 +116,7 @@ function calculateArea(width: number, height: number, sizeUnit: string, pricingU
 
 export default function BillingPage() {
   const { user, updateUserTenant } = useAuthStore();
+  const isTravel = (user as any)?.tenant?.businessType === 'SERVICES_TRAVEL';
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   
@@ -258,7 +260,7 @@ export default function BillingPage() {
   // Quick Add Customer Handler
   const handleSaveCustomer = async () => {
     if (!custForm.name.trim()) {
-      alert('Customer Name is required!');
+      toast.error('Customer Name is required!');
       return;
     }
     try {
@@ -268,8 +270,9 @@ export default function BillingPage() {
       setSelectedCustomerId(res.id);
       setShowCustomerModal(false);
       setCustForm({ name: '', phone: '', email: '', address: '', gstin: '' });
+      toast.success(`Customer "${res.name}" added successfully!`);
     } catch (err: any) {
-      alert(err.message || 'Failed to create customer.');
+      toast.error(err.message || 'Failed to create customer.');
     } finally {
       setCustSaving(false);
     }
@@ -278,7 +281,7 @@ export default function BillingPage() {
   // Quick Add Customer GST Fetch
   const handleCustGstSearch = async () => {
     if (!custForm.gstin || custForm.gstin.trim().length !== 15) {
-      alert('Please enter a valid 15-character GSTIN!');
+      toast.error('Please enter a valid 15-character GSTIN!');
       return;
     }
     try {
@@ -291,8 +294,9 @@ export default function BillingPage() {
         email: res.email || prev.email,
         phone: res.phone || prev.phone,
       }));
+      toast.success('Customer details auto-fetched from GSTIN!');
     } catch (err: any) {
-      alert(err.message || 'Failed to fetch GSTIN details.');
+      toast.error(err.message || 'Failed to fetch GSTIN details.');
     } finally {
       setCustGstLoading(false);
     }
@@ -301,12 +305,21 @@ export default function BillingPage() {
   // Quick Add Product Handler
   const handleSaveProduct = async () => {
     if (!prodForm.name.trim()) {
-      alert('Product Name is required!');
+      toast.error(isTravel ? 'Package / Service Name is required!' : 'Product Name is required!');
       return;
     }
     try {
       setProdSaving(true);
-      const res = await api.post('/products', prodForm);
+      const payload: any = {
+        name: prodForm.name.trim(),
+        salesPrice: Number(prodForm.salesPrice) || 0,
+        purchasePrice: Number(prodForm.purchasePrice) || 0,
+        taxRate: Number(prodForm.taxRate) || 0,
+        unit: prodForm.unit || 'PCS',
+        stock: Number(prodForm.stock) || 0,
+        hsnCode: prodForm.hsnCode?.trim() || undefined,
+      };
+      const res = await api.post('/products', payload);
       setProducts((prev) => [...prev, res]);
 
       if (activeProductItemIndex !== null) {
@@ -345,8 +358,9 @@ export default function BillingPage() {
         hsnCode: '',
       });
       setActiveProductItemIndex(null);
+      toast.success(isTravel ? 'Tour package added successfully!' : 'Product added successfully!');
     } catch (err: any) {
-      alert(err.message || 'Failed to create product.');
+      toast.error(err.message || 'Failed to create product.');
     } finally {
       setProdSaving(false);
     }
@@ -366,8 +380,9 @@ export default function BillingPage() {
         invoiceTemplate: res.invoiceTemplate,
       });
       setShowTemplateModal(false);
+      toast.success('Invoice template updated successfully!');
     } catch (err: any) {
-      alert(err.message || 'Failed to update template.');
+      toast.error(err.message || 'Failed to update template.');
     } finally {
       setSavingTemplate(false);
     }
@@ -603,13 +618,13 @@ export default function BillingPage() {
 
   const handleGenerateInvoice = async () => {
     if (!selectedCustomerId) {
-      alert('Select a customer first!');
+      toast.error('Please select a customer first!');
       return;
     }
 
     const filteredItems = items.filter((item) => item.name.trim() !== '');
     if (filteredItems.length === 0) {
-      alert('Add at least one product!');
+      toast.error(isTravel ? 'Add at least one package / service!' : 'Add at least one product!');
       return;
     }
 
@@ -638,8 +653,9 @@ export default function BillingPage() {
       // Fetch full details (with populated items/customer details) for printing
       const fullInvoice = await api.get(`/invoices/${res.id}`);
       setCreatedInvoice(fullInvoice);
+      toast.success(`Invoice ${res.invoiceNumber || ''} generated successfully!`);
     } catch (err: any) {
-      alert(err.message || 'Failed to create invoice.');
+      toast.error(err.message || 'Failed to create invoice.');
     } finally {
       setSubmitting(false);
     }
@@ -1227,7 +1243,7 @@ export default function BillingPage() {
                     <th className="py-2.5 px-2">Item Description</th>
                     <th className="py-2.5 px-2 text-center w-24">HSN/SAC</th>
                     <th className="py-2.5 px-2 text-right">Price</th>
-                    <th className="py-2.5 px-2 text-center">Qty</th>
+                    <th className="py-2.5 px-2 text-center">{isTravel ? 'Pack' : 'Qty'}</th>
                     <th className="py-2.5 px-2 text-right">GST %</th>
                     <th className="py-2.5 px-2 text-right">Total</th>
                   </tr>
@@ -1239,7 +1255,7 @@ export default function BillingPage() {
                       <td className="py-3 px-2 font-bold text-zinc-900">{item.name}</td>
                       <td className="py-3 px-2 text-center font-semibold font-mono text-zinc-600">{item.hsnCode || '-'}</td>
                       <td className="py-3 px-2 text-right">{formatCurrency(item.price)}</td>
-                      <td className="py-3 px-2 text-center font-semibold">{item.qty}</td>
+                      <td className="py-3 px-2 text-center font-semibold">{item.qty} {isTravel ? 'Pack' : ''}</td>
                       <td className="py-3 px-2 text-right">{item.taxRate}%</td>
                       <td className="py-3 px-2 text-right font-bold text-zinc-900">{formatCurrency(item.total)}</td>
                     </tr>
@@ -1655,9 +1671,11 @@ export default function BillingPage() {
                         />
                       </div>
 
-                      {/* Qty */}
+                      {/* Qty / Pack */}
                       <div className="sm:col-span-1">
-                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Qty</label>
+                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                          {isTravel ? 'Pack' : 'Qty'}
+                        </label>
                         <input
                           type="text"
                           value={item.qty}
@@ -1814,201 +1832,203 @@ export default function BillingPage() {
                 </button>
               </div>
 
-              {/* Additional Invoice Details */}
-              <div className="border border-zinc-800 bg-zinc-950/40 rounded-xl overflow-hidden mt-6">
-                <div className="px-5 py-3.5 border-b border-zinc-800 bg-zinc-900/40 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-emerald-500" />
-                  <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Additional GST, Shipping & e-Invoice Details (Optional)</h3>
+              {/* Additional Invoice Details - Hidden for Travel & Tourism Businesses */}
+              {user?.tenant?.businessType !== 'SERVICES_TRAVEL' && (
+                <div className="border border-zinc-800 bg-zinc-950/40 rounded-xl overflow-hidden mt-6">
+                  <div className="px-5 py-3.5 border-b border-zinc-800 bg-zinc-900/40 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-emerald-500" />
+                    <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Additional GST, Shipping & e-Invoice Details (Optional)</h3>
+                  </div>
+
+                  <div className="p-5 space-y-6 bg-zinc-950/20">
+                    {/* Consignee */}
+                    <div>
+                      <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Consignee Details (Ship To)</h4>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee Name</label>
+                          <input
+                            type="text"
+                            name="consigneeName"
+                            value={extraFields.consigneeName}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. AALA PRINT HUB"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee GSTIN</label>
+                          <input
+                            type="text"
+                            name="consigneeGstin"
+                            value={extraFields.consigneeGstin}
+                            onChange={handleExtraFieldsChange}
+                            maxLength={15}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500 uppercase"
+                            placeholder="e.g. 06HSCPK1608B1Z9"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee State / Code</label>
+                          <input
+                            type="text"
+                            name="consigneeState"
+                            value={extraFields.consigneeState}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. Haryana (Code: 06)"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee Address</label>
+                          <input
+                            type="text"
+                            name="consigneeAddress"
+                            value={extraFields.consigneeAddress}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="Shipping Address"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Dispatch & Delivery Info */}
+                    <div className="border-t border-zinc-850 pt-4">
+                      <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Dispatch & Delivery details</h4>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Delivery Note</label>
+                          <input
+                            type="text"
+                            name="deliveryNote"
+                            value={extraFields.deliveryNote}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="Delivery Note/Terms"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Mode/Terms of Payment</label>
+                          <input
+                            type="text"
+                            name="paymentTerms"
+                            value={extraFields.paymentTerms}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. Cash / Bank Transfer"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Buyer Order No.</label>
+                          <input
+                            type="text"
+                            name="buyersOrderNo"
+                            value={extraFields.buyersOrderNo}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="Order Reference"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Despatch Doc No.</label>
+                          <input
+                            type="text"
+                            name="despatchDocNo"
+                            value={extraFields.despatchDocNo}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="LR / Doc No."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Despatched through</label>
+                          <input
+                            type="text"
+                            name="despatchedThrough"
+                            value={extraFields.despatchedThrough}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. VRL Logistics"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Destination</label>
+                          <input
+                            type="text"
+                            name="destination"
+                            value={extraFields.destination}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. Faridabad"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Vehicle No.</label>
+                          <input
+                            type="text"
+                            name="vehicleNumber"
+                            value={extraFields.vehicleNumber}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. DL-1CA-1234"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Terms of Delivery</label>
+                          <input
+                            type="text"
+                            name="termsOfDelivery"
+                            value={extraFields.termsOfDelivery}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. Goods once sold will not be taken back."
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* e-Invoice details */}
+                    <div className="border-t border-zinc-850 pt-4">
+                      <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">e-Invoice Metadata</h4>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">IRN (Invoice Reference Number)</label>
+                          <input
+                            type="text"
+                            name="irn"
+                            value={extraFields.irn}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="64-char hex IRN string"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Ack No.</label>
+                          <input
+                            type="text"
+                            name="ackNo"
+                            value={extraFields.ackNo}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="Acknowledgement No."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Ack Date</label>
+                          <input
+                            type="date"
+                            name="ackDate"
+                            value={extraFields.ackDate}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="p-5 space-y-6 bg-zinc-950/20">
-                  {/* Consignee */}
-                  <div>
-                    <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Consignee Details (Ship To)</h4>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee Name</label>
-                        <input
-                          type="text"
-                          name="consigneeName"
-                          value={extraFields.consigneeName}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. AALA PRINT HUB"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee GSTIN</label>
-                        <input
-                          type="text"
-                          name="consigneeGstin"
-                          value={extraFields.consigneeGstin}
-                          onChange={handleExtraFieldsChange}
-                          maxLength={15}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500 uppercase"
-                          placeholder="e.g. 06HSCPK1608B1Z9"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee State / Code</label>
-                        <input
-                          type="text"
-                          name="consigneeState"
-                          value={extraFields.consigneeState}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. Haryana (Code: 06)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee Address</label>
-                        <input
-                          type="text"
-                          name="consigneeAddress"
-                          value={extraFields.consigneeAddress}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="Shipping Address"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dispatch & Delivery Info */}
-                  <div className="border-t border-zinc-850 pt-4">
-                    <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Dispatch & Delivery details</h4>
-                    <div className="grid gap-4 sm:grid-cols-3">
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Delivery Note</label>
-                        <input
-                          type="text"
-                          name="deliveryNote"
-                          value={extraFields.deliveryNote}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="Delivery Note/Terms"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Mode/Terms of Payment</label>
-                        <input
-                          type="text"
-                          name="paymentTerms"
-                          value={extraFields.paymentTerms}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. Cash / Bank Transfer"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Buyer Order No.</label>
-                        <input
-                          type="text"
-                          name="buyersOrderNo"
-                          value={extraFields.buyersOrderNo}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="Order Reference"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Despatch Doc No.</label>
-                        <input
-                          type="text"
-                          name="despatchDocNo"
-                          value={extraFields.despatchDocNo}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="LR / Doc No."
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Despatched through</label>
-                        <input
-                          type="text"
-                          name="despatchedThrough"
-                          value={extraFields.despatchedThrough}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. VRL Logistics"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Destination</label>
-                        <input
-                          type="text"
-                          name="destination"
-                          value={extraFields.destination}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. Faridabad"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Vehicle No.</label>
-                        <input
-                          type="text"
-                          name="vehicleNumber"
-                          value={extraFields.vehicleNumber}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. DL-1CA-1234"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Terms of Delivery</label>
-                        <input
-                          type="text"
-                          name="termsOfDelivery"
-                          value={extraFields.termsOfDelivery}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. Goods once sold will not be taken back."
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* e-Invoice details */}
-                  <div className="border-t border-zinc-850 pt-4">
-                    <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">e-Invoice Metadata</h4>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">IRN (Invoice Reference Number)</label>
-                        <input
-                          type="text"
-                          name="irn"
-                          value={extraFields.irn}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="64-char hex IRN string"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Ack No.</label>
-                        <input
-                          type="text"
-                          name="ackNo"
-                          value={extraFields.ackNo}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="Acknowledgement No."
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Ack Date</label>
-                        <input
-                          type="date"
-                          name="ackDate"
-                          value={extraFields.ackDate}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Notes */}
               <div>
@@ -2191,11 +2211,15 @@ export default function BillingPage() {
             >
               <X className="h-5 w-5" />
             </button>
-            <h3 className="text-lg font-bold text-white mb-4">Quick Add Product</h3>
+            <h3 className="text-lg font-bold text-white mb-4">
+              {isTravel ? 'Quick Add Tour Package / Service' : 'Quick Add Product'}
+            </h3>
             <div className="space-y-4">
               <div className="grid gap-4 grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Product Name *</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    {isTravel ? 'Package / Service Name *' : 'Product Name *'}
+                  </label>
                   <input
                     type="text"
                     value={prodForm.name}
@@ -2205,19 +2229,23 @@ export default function BillingPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">HSN/SAC Code</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    HSN/SAC Code <span className="text-zinc-600 font-normal lowercase">(optional)</span>
+                  </label>
                   <input
                     type="text"
                     value={prodForm.hsnCode}
                     onChange={(e) => setProdForm({ ...prodForm, hsnCode: e.target.value })}
                     className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
-                    placeholder="e.g. 39199090"
+                    placeholder="e.g. 39199090 (Optional)"
                   />
                 </div>
               </div>
               <div className="grid gap-4 grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Sales Price (INR) *</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    {isTravel ? 'Package Price (INR) *' : 'Sales Price (INR) *'}
+                  </label>
                   <input
                     type="text"
                     value={prodForm.salesPrice}
@@ -2254,31 +2282,52 @@ export default function BillingPage() {
                     onChange={(e) => setProdForm({ ...prodForm, unit: e.target.value })}
                     className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="PCS">PCS</option>
-                    <option value="SQFT">SQFT (Square Feet)</option>
-                    <option value="SQIN">SQIN (Square Inches)</option>
-                    <option value="SQMTR">SQMTR (Square Meters)</option>
-                    <option value="RFT">RFT (Running Feet)</option>
-                    <option value="RMTR">RMTR (Running Meter)</option>
-                    <option value="BOX">BOX</option>
-                    <option value="KG">KG</option>
-                    <option value="LTR">LTR</option>
-                    <option value="MTR">MTR</option>
+                    {isTravel ? (
+                      <>
+                        <option value="PACK">PACK (Tour Package)</option>
+                        <option value="PERSON">PER PERSON</option>
+                        <option value="TRIP">TRIP</option>
+                        <option value="DAYS">DAYS / NIGHTS</option>
+                        <option value="PCS">PCS</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="PCS">PCS</option>
+                        <option value="SQFT">SQFT (Square Feet)</option>
+                        <option value="SQIN">SQIN (Square Inches)</option>
+                        <option value="SQMTR">SQMTR (Square Meters)</option>
+                        <option value="RFT">RFT (Running Feet)</option>
+                        <option value="RMTR">RMTR (Running Meter)</option>
+                        <option value="BOX">BOX</option>
+                        <option value="KG">KG</option>
+                        <option value="LTR">LTR</option>
+                        <option value="MTR">MTR</option>
+                      </>
+                    )}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Stock Qty</label>
-                  <input
-                    type="text"
-                    value={prodForm.stock}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setProdForm({ ...prodForm, stock: val as any });
-                    }}
-                    className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="e.g. 50"
-                  />
-                </div>
+                {!isTravel ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Stock Qty</label>
+                    <input
+                      type="text"
+                      value={prodForm.stock}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setProdForm({ ...prodForm, stock: val as any });
+                      }}
+                      className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      placeholder="e.g. 50"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Service Mode</label>
+                    <div className="mt-1.5 px-3 py-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                      <span>✈️ Tour Package / No Stock Limit</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button

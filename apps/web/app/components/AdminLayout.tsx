@@ -13,6 +13,7 @@ import {
   X,
   Shield,
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -101,12 +102,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             <h1 className="font-bold tracking-tight text-white text-sm">BillNova Admin</h1>
           </div>
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="text-zinc-400 hover:text-white transition"
-          >
-            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="text-zinc-400 hover:text-white transition"
+            >
+              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
         </header>
 
         {/* Mobile Navigation Drawer */}
@@ -152,6 +156,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
         )}
+
+        {/* Desktop Header */}
+        <header className="hidden md:flex items-center justify-between px-8 py-4 border-b border-zinc-800/80 bg-zinc-900/10 no-print">
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase font-bold tracking-wider px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              Super Admin Console
+            </span>
+          </div>
+          <ThemeToggle />
+        </header>
 
         {/* Main Content Area */}
         <main className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto">

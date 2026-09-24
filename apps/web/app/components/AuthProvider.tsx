@@ -28,6 +28,21 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     }
   }, [isAuthenticated]);
 
+  const user = useAuthStore((state) => state.user);
+
+  useEffect(() => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('billnova_theme') : null;
+    const theme = stored || user?.tenant?.theme || 'DARK';
+    const root = document.documentElement;
+    if (theme === 'LIGHT') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    } else {
+      root.classList.remove('light');
+      root.classList.add('dark');
+    }
+  }, [user?.tenant?.theme]);
+
   useEffect(() => {
     if (isLoading) return;
 

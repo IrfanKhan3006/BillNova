@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -73,6 +74,22 @@ class CreatePurchaseInvoiceDto {
 
   @IsOptional()
   @IsString()
+  vendorBankAccountName?: string;
+
+  @IsOptional()
+  @IsString()
+  vendorBankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  vendorBankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  vendorUpiId?: string;
+
+  @IsOptional()
+  @IsString()
   billNumber?: string;
 
   @IsOptional()
@@ -140,6 +157,64 @@ class CreateVendorDto {
   @IsOptional()
   @IsString()
   stateCode?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
+}
+
+class UpdateVendorDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  gstin?: string;
+
+  @IsOptional()
+  @IsString()
+  stateCode?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
 }
 
 class RecordPurchasePaymentDto {
@@ -200,6 +275,16 @@ export class PurchasesController {
   @ApiOperation({ summary: 'Create a new vendor' })
   async createVendor(@CurrentUser() user: any, @Body() dto: CreateVendorDto) {
     return this.purchasesService.createVendor(user.tenantId, dto);
+  }
+
+  @Patch('vendors/:id')
+  @ApiOperation({ summary: 'Update an existing vendor' })
+  async updateVendor(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateVendorDto,
+  ) {
+    return this.purchasesService.updateVendor(user.tenantId, id, dto);
   }
 
   @Post('payments')

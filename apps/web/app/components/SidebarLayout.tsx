@@ -19,6 +19,7 @@ import {
   User as UserIcon,
   Building,
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -118,12 +119,15 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             </div>
             <h1 className="font-bold tracking-tight text-white text-sm">BillNova</h1>
           </div>
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-1 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white"
-          >
-            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white"
+            >
+              {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
         </header>
 
         {/* Mobile Navigation Drawer */}
@@ -211,8 +215,11 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             )}
           </div>
 
-          <div className="text-sm text-zinc-400 font-medium">
-            Plan: <span className="text-emerald-400 font-semibold capitalize">{user?.tenant?.plan || 'Free'}</span>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-zinc-400 font-medium">
+              Plan: <span className="text-emerald-400 font-semibold capitalize">{user?.tenant?.plan || 'Free'}</span>
+            </div>
+            <ThemeToggle />
           </div>
         </header>
 

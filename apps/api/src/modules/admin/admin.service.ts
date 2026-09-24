@@ -102,6 +102,9 @@ export class AdminService {
         paymentsEnabled: dto.paymentsEnabled,
         reportsEnabled: dto.reportsEnabled,
         purchasesEnabled: dto.purchasesEnabled,
+        businessType: dto.businessType,
+        trackInventory: dto.trackInventory,
+        theme: dto.theme,
       },
     });
   }

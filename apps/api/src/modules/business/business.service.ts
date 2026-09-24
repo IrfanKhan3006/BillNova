@@ -28,6 +28,9 @@ export class BusinessService {
         bankAccountNumber: true,
         bankIfsc: true,
         upiId: true,
+        businessType: true,
+        trackInventory: true,
+        theme: true,
         createdAt: true,
       },
     });
@@ -57,6 +60,7 @@ export class BusinessService {
       bankAccountNumber,
       bankIfsc,
       upiId,
+      theme,
     } = updateData;
 
     return this.prisma.tenant.update({
@@ -77,6 +81,7 @@ export class BusinessService {
         bankAccountNumber,
         bankIfsc,
         upiId,
+        theme,
       },
     });
   }

@@ -18,3 +18,5 @@ coverage
 
 .vscode/settings.json
 /generated/prisma
+.vercel
+.env*

@@ -28,6 +28,9 @@ interface User {
     paymentsEnabled?: boolean;
     reportsEnabled?: boolean;
     purchasesEnabled?: boolean;
+    businessType?: string;
+    trackInventory?: boolean;
+    theme?: string;
   } | null;
 }
 

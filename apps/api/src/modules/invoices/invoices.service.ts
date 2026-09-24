@@ -148,8 +148,8 @@ export class InvoicesService {
           hsnCode: item.hsnCode || product?.hsnCode || null,
         });
 
-        // Deduct from stock if product exists
-        if (product) {
+        // Deduct from stock only if inventory tracking is enabled for this business
+        if (product && tenant.trackInventory && !product.isService) {
           await tx.product.update({
             where: { id: product.id },
             data: { stock: { decrement: qty } },
