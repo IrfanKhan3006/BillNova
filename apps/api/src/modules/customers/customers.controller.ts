@@ -108,7 +108,9 @@ export class CustomersController {
   }
 
   @Get(':id/ledger')
-  @ApiOperation({ summary: 'Customer ka complete ledger (ledger transactions) dekho' })
+  @ApiOperation({
+    summary: 'Customer ka complete ledger (ledger transactions) dekho',
+  })
   async getLedger(@CurrentUser() user: any, @Param('id') id: string) {
     return this.customersService.getLedger(user.tenantId, id);
   }

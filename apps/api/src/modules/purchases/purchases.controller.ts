@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -73,6 +74,22 @@ class CreatePurchaseInvoiceDto {
 
   @IsOptional()
   @IsString()
+  vendorBankAccountName?: string;
+
+  @IsOptional()
+  @IsString()
+  vendorBankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  vendorBankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  vendorUpiId?: string;
+
+  @IsOptional()
+  @IsString()
   billNumber?: string;
 
   @IsOptional()
@@ -140,6 +157,64 @@ class CreateVendorDto {
   @IsOptional()
   @IsString()
   stateCode?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
+}
+
+class UpdateVendorDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  gstin?: string;
+
+  @IsOptional()
+  @IsString()
+  stateCode?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
 }
 
 class RecordPurchasePaymentDto {
@@ -192,7 +267,10 @@ export class PurchasesController {
 
   @Get('vendors')
   @ApiOperation({ summary: 'List all vendors with outstanding balance' })
-  async listVendors(@CurrentUser() user: any, @Query('search') search?: string) {
+  async listVendors(
+    @CurrentUser() user: any,
+    @Query('search') search?: string,
+  ) {
     return this.purchasesService.listVendors(user.tenantId, search);
   }
 
@@ -202,9 +280,22 @@ export class PurchasesController {
     return this.purchasesService.createVendor(user.tenantId, dto);
   }
 
+  @Patch('vendors/:id')
+  @ApiOperation({ summary: 'Update an existing vendor' })
+  async updateVendor(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateVendorDto,
+  ) {
+    return this.purchasesService.updateVendor(user.tenantId, id, dto);
+  }
+
   @Post('payments')
   @ApiOperation({ summary: 'Record a payment made to a vendor' })
-  async recordPayment(@CurrentUser() user: any, @Body() dto: RecordPurchasePaymentDto) {
+  async recordPayment(
+    @CurrentUser() user: any,
+    @Body() dto: RecordPurchasePaymentDto,
+  ) {
     return this.purchasesService.recordPayment(user.tenantId, dto);
   }
 
@@ -216,7 +307,10 @@ export class PurchasesController {
 
   @Post()
   @ApiOperation({ summary: 'Record a new purchase invoice/bill' })
-  async create(@CurrentUser() user: any, @Body() dto: CreatePurchaseInvoiceDto) {
+  async create(
+    @CurrentUser() user: any,
+    @Body() dto: CreatePurchaseInvoiceDto,
+  ) {
     return this.purchasesService.create(user.tenantId, dto);
   }
 

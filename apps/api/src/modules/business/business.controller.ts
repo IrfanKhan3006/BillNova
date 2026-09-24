@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { BusinessService } from './business.service';
 
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean } from 'class-validator';
 
 class UpdateBusinessDto {
   @IsOptional()
@@ -66,6 +66,10 @@ class UpdateBusinessDto {
   @IsOptional()
   @IsString()
   upiId?: string;
+
+  @IsOptional()
+  @IsString()
+  theme?: string;
 }
 
 @ApiTags('Business')
@@ -89,7 +93,10 @@ export class BusinessController {
 
   @Patch()
   @ApiOperation({ summary: 'Update business profile details' })
-  async updateProfile(@CurrentUser() user: any, @Body() dto: UpdateBusinessDto) {
+  async updateProfile(
+    @CurrentUser() user: any,
+    @Body() dto: UpdateBusinessDto,
+  ) {
     return this.businessService.updateProfile(user.tenantId, dto);
   }
 }

@@ -18,8 +18,10 @@ import {
   CheckCircle,
   X,
   Sparkles,
+  Wallet,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { toast } from '../store/uiStore';
 
 interface Customer {
   id: string;
@@ -115,6 +117,7 @@ function calculateArea(width: number, height: number, sizeUnit: string, pricingU
 
 export default function BillingPage() {
   const { user, updateUserTenant } = useAuthStore();
+  const isTravel = (user as any)?.tenant?.businessType === 'SERVICES_TRAVEL';
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   
@@ -229,6 +232,20 @@ export default function BillingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createdInvoice, setCreatedInvoice] = useState<any | null>(null);
 
+  // Payment / Advance Collection States
+  const [paymentType, setPaymentType] = useState<'UNPAID' | 'ADVANCE' | 'PAID'>('UNPAID');
+  const [advanceAmount, setAdvanceAmount] = useState<string | number>('');
+  const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+
+  // Quick Balance Settlement Modal States
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [settleAmount, setSettleAmount] = useState<string | number>('');
+  const [settleMethod, setSettleMethod] = useState('CASH');
+  const [settleRef, setSettleRef] = useState('');
+  const [settling, setSettling] = useState(false);
+
   // Quick Add Modal States
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
@@ -258,7 +275,7 @@ export default function BillingPage() {
   // Quick Add Customer Handler
   const handleSaveCustomer = async () => {
     if (!custForm.name.trim()) {
-      alert('Customer Name is required!');
+      toast.error('Customer Name is required!');
       return;
     }
     try {
@@ -268,8 +285,9 @@ export default function BillingPage() {
       setSelectedCustomerId(res.id);
       setShowCustomerModal(false);
       setCustForm({ name: '', phone: '', email: '', address: '', gstin: '' });
+      toast.success(`Customer "${res.name}" added successfully!`);
     } catch (err: any) {
-      alert(err.message || 'Failed to create customer.');
+      toast.error(err.message || 'Failed to create customer.');
     } finally {
       setCustSaving(false);
     }
@@ -278,7 +296,7 @@ export default function BillingPage() {
   // Quick Add Customer GST Fetch
   const handleCustGstSearch = async () => {
     if (!custForm.gstin || custForm.gstin.trim().length !== 15) {
-      alert('Please enter a valid 15-character GSTIN!');
+      toast.error('Please enter a valid 15-character GSTIN!');
       return;
     }
     try {
@@ -291,8 +309,9 @@ export default function BillingPage() {
         email: res.email || prev.email,
         phone: res.phone || prev.phone,
       }));
+      toast.success('Customer details auto-fetched from GSTIN!');
     } catch (err: any) {
-      alert(err.message || 'Failed to fetch GSTIN details.');
+      toast.error(err.message || 'Failed to fetch GSTIN details.');
     } finally {
       setCustGstLoading(false);
     }
@@ -301,12 +320,21 @@ export default function BillingPage() {
   // Quick Add Product Handler
   const handleSaveProduct = async () => {
     if (!prodForm.name.trim()) {
-      alert('Product Name is required!');
+      toast.error(isTravel ? 'Package / Service Name is required!' : 'Product Name is required!');
       return;
     }
     try {
       setProdSaving(true);
-      const res = await api.post('/products', prodForm);
+      const payload: any = {
+        name: prodForm.name.trim(),
+        salesPrice: Number(prodForm.salesPrice) || 0,
+        purchasePrice: Number(prodForm.purchasePrice) || 0,
+        taxRate: Number(prodForm.taxRate) || 0,
+        unit: prodForm.unit || 'PCS',
+        stock: Number(prodForm.stock) || 0,
+        hsnCode: prodForm.hsnCode?.trim() || undefined,
+      };
+      const res = await api.post('/products', payload);
       setProducts((prev) => [...prev, res]);
 
       if (activeProductItemIndex !== null) {
@@ -345,8 +373,9 @@ export default function BillingPage() {
         hsnCode: '',
       });
       setActiveProductItemIndex(null);
+      toast.success(isTravel ? 'Tour package added successfully!' : 'Product added successfully!');
     } catch (err: any) {
-      alert(err.message || 'Failed to create product.');
+      toast.error(err.message || 'Failed to create product.');
     } finally {
       setProdSaving(false);
     }
@@ -366,8 +395,9 @@ export default function BillingPage() {
         invoiceTemplate: res.invoiceTemplate,
       });
       setShowTemplateModal(false);
+      toast.success('Invoice template updated successfully!');
     } catch (err: any) {
-      alert(err.message || 'Failed to update template.');
+      toast.error(err.message || 'Failed to update template.');
     } finally {
       setSavingTemplate(false);
     }
@@ -603,14 +633,31 @@ export default function BillingPage() {
 
   const handleGenerateInvoice = async () => {
     if (!selectedCustomerId) {
-      alert('Select a customer first!');
+      toast.error('Please select a customer first!');
       return;
     }
 
     const filteredItems = items.filter((item) => item.name.trim() !== '');
     if (filteredItems.length === 0) {
-      alert('Add at least one product!');
+      toast.error(isTravel ? 'Add at least one package / service!' : 'Add at least one product!');
       return;
+    }
+
+    const totalGrand = summary.totalAmount;
+    let finalPaid = 0;
+    if (paymentType === 'PAID') {
+      finalPaid = totalGrand;
+    } else if (paymentType === 'ADVANCE') {
+      const adv = parseFloat(advanceAmount as string) || 0;
+      if (adv <= 0) {
+        toast.error('Please enter an advance amount greater than 0!');
+        return;
+      }
+      if (adv > totalGrand) {
+        toast.error(`Advance cannot be greater than Grand Total (${formatCurrency(totalGrand)})!`);
+        return;
+      }
+      finalPaid = adv;
     }
 
     try {
@@ -632,21 +679,78 @@ export default function BillingPage() {
         })),
         date,
         notes,
-        status: 'SENT',
+        amountPaid: finalPaid,
+        advanceAmount: finalPaid,
+        paymentMethod: finalPaid > 0 ? paymentMethod : undefined,
+        paymentReference: finalPaid > 0 && paymentReference ? paymentReference : undefined,
+        paymentNotes: finalPaid > 0 && paymentNotes ? paymentNotes : undefined,
         ...cleanedExtra,
       });
       // Fetch full details (with populated items/customer details) for printing
       const fullInvoice = await api.get(`/invoices/${res.id}`);
       setCreatedInvoice(fullInvoice);
+      if (finalPaid > 0 && finalPaid < totalGrand) {
+        toast.success(`Advance Invoice ${res.invoiceNumber || ''} created! ₹${finalPaid} collected, ₹${res.amountDue || (totalGrand - finalPaid)} pending.`);
+      } else if (finalPaid >= totalGrand && totalGrand > 0) {
+        toast.success(`Invoice ${res.invoiceNumber || ''} created & marked Completed (Fully Paid)!`);
+      } else {
+        toast.success(`Invoice ${res.invoiceNumber || ''} generated successfully!`);
+      }
     } catch (err: any) {
-      alert(err.message || 'Failed to create invoice.');
+      toast.error(err.message || 'Failed to create invoice.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleSettleRemaining = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createdInvoice) return;
+    const amountToPay = parseFloat(settleAmount as string) || 0;
+    if (amountToPay <= 0) {
+      toast.error('Please enter a valid settlement amount!');
+      return;
+    }
+
+    try {
+      setSettling(true);
+      await api.post('/payments', {
+        customerId: createdInvoice.customerId,
+        invoiceId: createdInvoice.id,
+        amount: amountToPay,
+        date: new Date().toISOString().split('T')[0],
+        method: settleMethod,
+        referenceNo: settleRef || undefined,
+        notes: `Balance settlement for invoice ${createdInvoice.invoiceNumber}`,
+      });
+
+      // Refresh invoice to show updated amountPaid, amountDue, and status (which automatically flips to PAID if 0 due)
+      const updated = await api.get(`/invoices/${createdInvoice.id}`);
+      setCreatedInvoice(updated);
+      setShowSettleModal(false);
+      setSettleAmount('');
+      setSettleRef('');
+
+      if (updated.status === 'PAID') {
+        toast.success(`Full payment settled! Invoice ${updated.invoiceNumber} is now COMPLETED.`);
+      } else {
+        toast.success(`Payment of ₹${amountToPay} recorded! Remaining balance: ₹${updated.amountDue}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to record payment settlement.');
+    } finally {
+      setSettling(false);
+    }
+  };
+
   const resetBilling = () => {
     setCreatedInvoice(null);
+    setPaymentType('UNPAID');
+    setAdvanceAmount('');
+    setPaymentMethod('CASH');
+    setPaymentReference('');
+    setPaymentNotes('');
+    setShowSettleModal(false);
     setNotes('');
     setItems([
       { 
@@ -853,17 +957,41 @@ export default function BillingPage() {
         <FeatureGate featureKey="billingEnabled" featureName="Billing Engine">
           <div className="space-y-6 max-w-4xl mx-auto no-print">
           {/* Action buttons */}
-          <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shrink-0">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 bg-emerald-500/10 text-emerald-500 flex items-center justify-center rounded-xl">
                 <CheckCircle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-sm">Invoice Created Successfully!</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-white text-sm">Invoice Created Successfully!</h3>
+                  <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                    createdInvoice.status === 'PAID'
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      : createdInvoice.status === 'PARTIALLY_PAID'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                      : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                  }`}>
+                    {createdInvoice.status === 'PARTIALLY_PAID' ? 'Advance Bill (Partially Paid)' : createdInvoice.status === 'PAID' ? 'Completed (Fully Paid)' : 'Payment Pending'}
+                  </span>
+                </div>
                 <p className="text-zinc-450 text-[11px] text-zinc-500">Invoice Ref: {createdInvoice.invoiceNumber}</p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {Number(createdInvoice.amountDue || 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettleAmount(createdInvoice.amountDue);
+                    setShowSettleModal(true);
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 px-3.5 py-2 text-xs font-bold text-zinc-950 transition shadow-md shadow-amber-500/10"
+                >
+                  <Wallet className="h-4 w-4" />
+                  <span>Settle Balance ({formatCurrency(createdInvoice.amountDue)})</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -1173,6 +1301,15 @@ export default function BillingPage() {
                   <h3 className={`text-xl font-bold tracking-wider uppercase ${isEmerald ? 'text-emerald-700 font-extrabold' : isBlue ? 'text-slate-900 font-extrabold' : 'text-zinc-950 font-black'}`}>
                     TAX INVOICE
                   </h3>
+                  <span className={`inline-block mt-1 rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                    createdInvoice.status === 'PAID'
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : createdInvoice.status === 'PARTIALLY_PAID'
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-zinc-100 text-zinc-700 border border-zinc-300'
+                  }`}>
+                    {createdInvoice.status === 'PARTIALLY_PAID' ? 'ADVANCE / PARTIALLY PAID' : createdInvoice.status === 'PAID' ? 'PAID IN FULL' : 'PAYMENT PENDING'}
+                  </span>
                   <div className="mt-2 text-xs space-y-1 text-zinc-650">
                     <p>Invoice No: <span className="font-mono font-bold text-zinc-900">{createdInvoice.invoiceNumber}</span></p>
                     <p>Date: <span className="font-medium text-zinc-900">{new Date(createdInvoice.date).toLocaleDateString('en-IN')}</span></p>
@@ -1227,7 +1364,7 @@ export default function BillingPage() {
                     <th className="py-2.5 px-2">Item Description</th>
                     <th className="py-2.5 px-2 text-center w-24">HSN/SAC</th>
                     <th className="py-2.5 px-2 text-right">Price</th>
-                    <th className="py-2.5 px-2 text-center">Qty</th>
+                    <th className="py-2.5 px-2 text-center">{isTravel ? 'Pack' : 'Qty'}</th>
                     <th className="py-2.5 px-2 text-right">GST %</th>
                     <th className="py-2.5 px-2 text-right">Total</th>
                   </tr>
@@ -1239,7 +1376,7 @@ export default function BillingPage() {
                       <td className="py-3 px-2 font-bold text-zinc-900">{item.name}</td>
                       <td className="py-3 px-2 text-center font-semibold font-mono text-zinc-600">{item.hsnCode || '-'}</td>
                       <td className="py-3 px-2 text-right">{formatCurrency(item.price)}</td>
-                      <td className="py-3 px-2 text-center font-semibold">{item.qty}</td>
+                      <td className="py-3 px-2 text-center font-semibold">{item.qty} {isTravel ? 'Pack' : ''}</td>
                       <td className="py-3 px-2 text-right">{item.taxRate}%</td>
                       <td className="py-3 px-2 text-right font-bold text-zinc-900">{formatCurrency(item.total)}</td>
                     </tr>
@@ -1338,6 +1475,22 @@ export default function BillingPage() {
                   <div className="flex justify-between text-sm font-black text-zinc-950 pt-1">
                     <span>Grand Total:</span>
                     <span className={isEmerald ? 'text-emerald-700 text-sm font-black' : isBlue ? 'text-blue-700 text-sm font-black' : ''}>{formatCurrency(createdInvoice.totalAmount)}</span>
+                  </div>
+
+                  {Number(createdInvoice.amountPaid || 0) > 0 && (
+                    <div className="flex justify-between text-xs font-bold text-emerald-700 pt-1.5 border-t border-zinc-200">
+                      <span>Advance Received / Paid:</span>
+                      <span>- {formatCurrency(createdInvoice.amountPaid)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-sm font-black text-zinc-950 pt-1.5 border-t-2 border-zinc-300">
+                    <span className={Number(createdInvoice.amountDue || 0) > 0 ? 'text-amber-800' : 'text-emerald-800'}>
+                      {Number(createdInvoice.amountDue || 0) > 0 ? 'Balance Remaining Due:' : 'Net Balance Due:'}
+                    </span>
+                    <span className={Number(createdInvoice.amountDue || 0) > 0 ? 'text-amber-800' : 'text-emerald-800'}>
+                      {formatCurrency(createdInvoice.amountDue ?? Math.max(0, createdInvoice.totalAmount - (createdInvoice.amountPaid || 0)))}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1470,9 +1623,9 @@ export default function BillingPage() {
               setSelectedTemplate((user as any)?.tenant?.invoiceTemplate || 'CLASSIC');
               setShowTemplateModal(true);
             }}
-            className="flex items-center gap-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 px-4 py-2.5 text-xs font-semibold text-white transition self-start sm:self-center"
+            className="flex items-center gap-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 px-4 py-2.5 text-xs font-semibold text-zinc-800 dark:text-white transition self-start sm:self-center shadow-xs"
           >
-            <Sparkles className="h-4 w-4 text-emerald-450" />
+            <Sparkles className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
             <span>Select Active Template</span>
           </button>
         </div>
@@ -1480,16 +1633,16 @@ export default function BillingPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Form (Left 2 columns) */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 space-y-6">
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 shadow-sm dark:shadow-none p-6 space-y-6">
               {/* Customer Selector & Date */}
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
                   <div className="flex justify-between items-center">
-                    <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider">Select Customer *</label>
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Select Customer *</label>
                     <button
                       type="button"
                       onClick={() => setShowCustomerModal(true)}
-                      className="text-xs text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition animate-pulse"
+                      className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold flex items-center gap-1 transition"
                     >
                       <Plus className="h-3 w-3" />
                       <span>Add Customer</span>
@@ -1498,7 +1651,7 @@ export default function BillingPage() {
                   <select
                     value={selectedCustomerId}
                     onChange={(e) => setSelectedCustomerId(e.target.value)}
-                    className="mt-2 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    className="mt-2 block w-full rounded-lg border border-zinc-200 dark:border-zinc-805 bg-white dark:bg-zinc-950 px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500"
                   >
                     <option value="">-- Choose Customer --</option>
                     {customers.map((c) => (
@@ -1510,34 +1663,34 @@ export default function BillingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider">Invoice Date *</label>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Invoice Date *</label>
                   <div className="relative mt-2">
-                    <Calendar className="absolute left-3 top-3 h-4.5 w-4.5 text-zinc-500" />
+                    <Calendar className="absolute left-3 top-3 h-4.5 w-4.5 text-zinc-400 dark:text-zinc-500" />
                     <input
                       type="date"
                       required
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
-                      className="block w-full rounded-lg border border-zinc-805 bg-zinc-950 pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      className="block w-full rounded-lg border border-zinc-200 dark:border-zinc-805 bg-white dark:bg-zinc-950 pl-10 pr-4 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                 </div>
               </div>
 
               {/* GST Type Selector */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-950/70 border border-zinc-800 rounded-xl p-3.5 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-100 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-800 rounded-xl p-3.5 text-xs">
                 <div>
-                  <span className="font-bold text-white block">GST Tax Mode:</span>
-                  <span className="text-[11px] text-zinc-500">
+                  <span className="font-bold text-zinc-900 dark:text-white block">GST Tax Mode:</span>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
                     {taxType === 'INTRA' ? 'Intra-State: CGST (50%) + SGST (50%)' : 'Inter-State: IGST (100%)'}
                   </span>
                 </div>
-                <div className="flex rounded-lg bg-zinc-900 border border-zinc-800 p-1 text-[11px]">
+                <div className="flex rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 text-[11px]">
                   <button
                     type="button"
                     onClick={() => setTaxType('INTRA')}
                     className={`px-3 py-1.5 rounded-md font-bold transition ${
-                      taxType === 'INTRA' ? 'bg-emerald-500 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'
+                      taxType === 'INTRA' ? 'bg-emerald-500 text-zinc-950 shadow' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                     }`}
                   >
                     Intra-State (CGST + SGST)
@@ -1546,7 +1699,7 @@ export default function BillingPage() {
                     type="button"
                     onClick={() => setTaxType('INTER')}
                     className={`px-3 py-1.5 rounded-md font-bold transition ${
-                      taxType === 'INTER' ? 'bg-emerald-500 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'
+                      taxType === 'INTER' ? 'bg-emerald-500 text-zinc-950 shadow' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                     }`}
                   >
                     Inter-State (IGST)
@@ -1554,11 +1707,9 @@ export default function BillingPage() {
                 </div>
               </div>
 
-
-
               {/* Items List */}
               <div className="space-y-4">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-zinc-800 pb-2">Line Items</h3>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-800 pb-2">Line Items</h3>
                 
                 {items.map((item, idx) => (
                   <div key={idx} className="border-b border-zinc-850 pb-4 last:border-0 last:pb-0 space-y-3">
@@ -1582,7 +1733,7 @@ export default function BillingPage() {
                         <select
                           value={item.productId || ''}
                           onChange={(e) => handleProductSelect(idx, e.target.value)}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-855 bg-zinc-955 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500"
                         >
                           <option value="">-- Choose Catalog Item --</option>
                           {products.map((p) => (
@@ -1595,24 +1746,24 @@ export default function BillingPage() {
 
                       {/* Manual name override */}
                       <div className="sm:col-span-2">
-                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Item Label</label>
+                        <label className="block text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Item Label</label>
                         <input
                           type="text"
                           value={item.name}
                           onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none"
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500"
                           placeholder="Label"
                         />
                       </div>
 
                       {/* HSN/SAC */}
                       <div className="sm:col-span-2">
-                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">HSN/SAC</label>
+                        <label className="block text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">HSN/SAC</label>
                         <input
                           type="text"
                           value={item.hsnCode || ''}
                           onChange={(e) => handleItemChange(idx, 'hsnCode', e.target.value)}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-955 px-2 py-2 text-xs text-white focus:outline-none text-center"
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 text-center"
                           placeholder="HSN"
                         />
                       </div>
@@ -1620,7 +1771,7 @@ export default function BillingPage() {
                       {/* Price (Calculated read-only or manual input) */}
                       <div className="sm:col-span-2">
                         <div className="flex justify-between items-center">
-                          <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                          <label className="block text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                             {item.useSizeCalc ? 'Price (Calc)' : 'Price'}
                           </label>
                           <button
@@ -1628,8 +1779,8 @@ export default function BillingPage() {
                             onClick={() => handleItemChange(idx, 'useSizeCalc', !item.useSizeCalc)}
                             className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
                               item.useSizeCalc
-                                ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
-                                : 'text-zinc-550 border-zinc-800 hover:text-zinc-300 hover:bg-zinc-800'
+                                ? 'text-emerald-700 border-emerald-300 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-500/30 dark:bg-emerald-500/10'
+                                : 'text-zinc-600 border-zinc-200 dark:text-zinc-400 dark:border-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                             }`}
                             title="Toggle Size & Dimensions Calculator"
                           >
@@ -1647,17 +1798,19 @@ export default function BillingPage() {
                             if (parts.length > 2) return;
                             handleItemChange(idx, 'price', val);
                           }}
-                          className={`mt-1.5 block w-full rounded-lg border px-3 py-2 text-xs text-white focus:outline-none ${
+                          className={`mt-1.5 block w-full rounded-lg border px-3 py-2 text-xs focus:outline-none ${
                             item.useSizeCalc
-                              ? 'bg-zinc-900 border-zinc-800 text-zinc-400 cursor-not-allowed font-mono'
-                              : 'bg-zinc-955 border-zinc-850'
+                              ? 'bg-slate-100 border-zinc-200 text-zinc-500 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-400 cursor-not-allowed font-mono'
+                              : 'bg-white border-zinc-200 dark:bg-zinc-950 dark:border-zinc-800 text-zinc-900 dark:text-white focus:border-emerald-500'
                           }`}
                         />
                       </div>
 
-                      {/* Qty */}
+                      {/* Qty / Pack */}
                       <div className="sm:col-span-1">
-                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Qty</label>
+                        <label className="block text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                          {isTravel ? 'Pack' : 'Qty'}
+                        </label>
                         <input
                           type="text"
                           value={item.qty}
@@ -1665,13 +1818,13 @@ export default function BillingPage() {
                             const val = e.target.value.replace(/[^0-9]/g, '');
                             handleItemChange(idx, 'qty', val);
                           }}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none text-center"
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-950 px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 text-center"
                         />
                       </div>
 
                       {/* Tax % */}
                       <div className="sm:col-span-1">
-                        <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Tax%</label>
+                        <label className="block text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Tax%</label>
                         <input
                           type="text"
                           value={item.taxRate}
@@ -1681,7 +1834,7 @@ export default function BillingPage() {
                             if (parts.length > 2) return;
                             handleItemChange(idx, 'taxRate', val);
                           }}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none text-center"
+                          className="mt-1.5 block w-full rounded-lg border border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-950 px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 text-center"
                         />
                       </div>
 
@@ -1814,210 +1967,212 @@ export default function BillingPage() {
                 </button>
               </div>
 
-              {/* Additional Invoice Details */}
-              <div className="border border-zinc-800 bg-zinc-950/40 rounded-xl overflow-hidden mt-6">
-                <div className="px-5 py-3.5 border-b border-zinc-800 bg-zinc-900/40 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-emerald-500" />
-                  <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Additional GST, Shipping & e-Invoice Details (Optional)</h3>
+              {/* Additional Invoice Details - Hidden for Travel & Tourism Businesses */}
+              {user?.tenant?.businessType !== 'SERVICES_TRAVEL' && (
+                <div className="border border-zinc-800 bg-zinc-950/40 rounded-xl overflow-hidden mt-6">
+                  <div className="px-5 py-3.5 border-b border-zinc-800 bg-zinc-900/40 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-emerald-500" />
+                    <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Additional GST, Shipping & e-Invoice Details (Optional)</h3>
+                  </div>
+
+                  <div className="p-5 space-y-6 bg-zinc-950/20">
+                    {/* Consignee */}
+                    <div>
+                      <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Consignee Details (Ship To)</h4>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee Name</label>
+                          <input
+                            type="text"
+                            name="consigneeName"
+                            value={extraFields.consigneeName}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. AALA PRINT HUB"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee GSTIN</label>
+                          <input
+                            type="text"
+                            name="consigneeGstin"
+                            value={extraFields.consigneeGstin}
+                            onChange={handleExtraFieldsChange}
+                            maxLength={15}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500 uppercase"
+                            placeholder="e.g. 06HSCPK1608B1Z9"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee State / Code</label>
+                          <input
+                            type="text"
+                            name="consigneeState"
+                            value={extraFields.consigneeState}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. Haryana (Code: 06)"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee Address</label>
+                          <input
+                            type="text"
+                            name="consigneeAddress"
+                            value={extraFields.consigneeAddress}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="Shipping Address"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Dispatch & Delivery Info */}
+                    <div className="border-t border-zinc-850 pt-4">
+                      <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Dispatch & Delivery details</h4>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Delivery Note</label>
+                          <input
+                            type="text"
+                            name="deliveryNote"
+                            value={extraFields.deliveryNote}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="Delivery Note/Terms"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Mode/Terms of Payment</label>
+                          <input
+                            type="text"
+                            name="paymentTerms"
+                            value={extraFields.paymentTerms}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. Cash / Bank Transfer"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Buyer Order No.</label>
+                          <input
+                            type="text"
+                            name="buyersOrderNo"
+                            value={extraFields.buyersOrderNo}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="Order Reference"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Despatch Doc No.</label>
+                          <input
+                            type="text"
+                            name="despatchDocNo"
+                            value={extraFields.despatchDocNo}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="LR / Doc No."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Despatched through</label>
+                          <input
+                            type="text"
+                            name="despatchedThrough"
+                            value={extraFields.despatchedThrough}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. VRL Logistics"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Destination</label>
+                          <input
+                            type="text"
+                            name="destination"
+                            value={extraFields.destination}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. Faridabad"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Vehicle No.</label>
+                          <input
+                            type="text"
+                            name="vehicleNumber"
+                            value={extraFields.vehicleNumber}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. DL-1CA-1234"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Terms of Delivery</label>
+                          <input
+                            type="text"
+                            name="termsOfDelivery"
+                            value={extraFields.termsOfDelivery}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="e.g. Goods once sold will not be taken back."
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* e-Invoice details */}
+                    <div className="border-t border-zinc-850 pt-4">
+                      <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">e-Invoice Metadata</h4>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">IRN (Invoice Reference Number)</label>
+                          <input
+                            type="text"
+                            name="irn"
+                            value={extraFields.irn}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="64-char hex IRN string"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Ack No.</label>
+                          <input
+                            type="text"
+                            name="ackNo"
+                            value={extraFields.ackNo}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
+                            placeholder="Acknowledgement No."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Ack Date</label>
+                          <input
+                            type="date"
+                            name="ackDate"
+                            value={extraFields.ackDate}
+                            onChange={handleExtraFieldsChange}
+                            className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="p-5 space-y-6 bg-zinc-950/20">
-                  {/* Consignee */}
-                  <div>
-                    <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Consignee Details (Ship To)</h4>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee Name</label>
-                        <input
-                          type="text"
-                          name="consigneeName"
-                          value={extraFields.consigneeName}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. AALA PRINT HUB"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee GSTIN</label>
-                        <input
-                          type="text"
-                          name="consigneeGstin"
-                          value={extraFields.consigneeGstin}
-                          onChange={handleExtraFieldsChange}
-                          maxLength={15}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500 uppercase"
-                          placeholder="e.g. 06HSCPK1608B1Z9"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee State / Code</label>
-                        <input
-                          type="text"
-                          name="consigneeState"
-                          value={extraFields.consigneeState}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. Haryana (Code: 06)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Consignee Address</label>
-                        <input
-                          type="text"
-                          name="consigneeAddress"
-                          value={extraFields.consigneeAddress}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="Shipping Address"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dispatch & Delivery Info */}
-                  <div className="border-t border-zinc-850 pt-4">
-                    <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Dispatch & Delivery details</h4>
-                    <div className="grid gap-4 sm:grid-cols-3">
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Delivery Note</label>
-                        <input
-                          type="text"
-                          name="deliveryNote"
-                          value={extraFields.deliveryNote}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="Delivery Note/Terms"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Mode/Terms of Payment</label>
-                        <input
-                          type="text"
-                          name="paymentTerms"
-                          value={extraFields.paymentTerms}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. Cash / Bank Transfer"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Buyer Order No.</label>
-                        <input
-                          type="text"
-                          name="buyersOrderNo"
-                          value={extraFields.buyersOrderNo}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="Order Reference"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Despatch Doc No.</label>
-                        <input
-                          type="text"
-                          name="despatchDocNo"
-                          value={extraFields.despatchDocNo}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="LR / Doc No."
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Despatched through</label>
-                        <input
-                          type="text"
-                          name="despatchedThrough"
-                          value={extraFields.despatchedThrough}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. VRL Logistics"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Destination</label>
-                        <input
-                          type="text"
-                          name="destination"
-                          value={extraFields.destination}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. Faridabad"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Vehicle No.</label>
-                        <input
-                          type="text"
-                          name="vehicleNumber"
-                          value={extraFields.vehicleNumber}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. DL-1CA-1234"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Terms of Delivery</label>
-                        <input
-                          type="text"
-                          name="termsOfDelivery"
-                          value={extraFields.termsOfDelivery}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="e.g. Goods once sold will not be taken back."
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* e-Invoice details */}
-                  <div className="border-t border-zinc-850 pt-4">
-                    <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">e-Invoice Metadata</h4>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">IRN (Invoice Reference Number)</label>
-                        <input
-                          type="text"
-                          name="irn"
-                          value={extraFields.irn}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="64-char hex IRN string"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Ack No.</label>
-                        <input
-                          type="text"
-                          name="ackNo"
-                          value={extraFields.ackNo}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500"
-                          placeholder="Acknowledgement No."
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-zinc-400 font-semibold uppercase">Ack Date</label>
-                        <input
-                          type="date"
-                          name="ackDate"
-                          value={extraFields.ackDate}
-                          onChange={handleExtraFieldsChange}
-                          className="mt-1.5 block w-full rounded-lg border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Notes */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider">Notes / Special Instructions</label>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Notes / Special Instructions</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
-                  className="mt-2 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                  className="mt-2 block w-full rounded-lg border border-zinc-200 dark:border-zinc-805 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500"
                   placeholder="Notes shown on invoice print sheet"
                 />
               </div>
@@ -2026,54 +2181,163 @@ export default function BillingPage() {
 
           {/* Right sidebar calculation display (1 column) */}
           <div className="lg:col-span-1">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 sticky top-24 space-y-6">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Billing Aggregation</h3>
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 shadow-sm dark:shadow-none p-6 sticky top-24 space-y-6">
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Billing Aggregation</h3>
               
-              <div className="space-y-3 text-xs text-zinc-400">
+              <div className="space-y-3 text-xs text-zinc-600 dark:text-zinc-400">
                 <div className="flex justify-between">
                   <span>Item Subtotal:</span>
-                  <span className="font-bold text-white">{formatCurrency(summary.subTotal)}</span>
+                  <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(summary.subTotal)}</span>
                 </div>
 
                 {taxType === 'INTER' ? (
-                  <div className="flex justify-between text-blue-400">
+                  <div className="flex justify-between text-blue-600 dark:text-blue-400">
                     <span>IGST (Integrated Tax):</span>
                     <span className="font-bold">{formatCurrency(summary.taxAmount)}</span>
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-between text-zinc-400">
+                    <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
                       <span>CGST (Central Tax 50%):</span>
-                      <span className="font-bold text-white">{formatCurrency(summary.taxAmount / 2)}</span>
+                      <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(summary.taxAmount / 2)}</span>
                     </div>
-                    <div className="flex justify-between text-zinc-400">
+                    <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
                       <span>SGST (State Tax 50%):</span>
-                      <span className="font-bold text-white">{formatCurrency(summary.taxAmount / 2)}</span>
+                      <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(summary.taxAmount / 2)}</span>
                     </div>
                   </>
                 )}
 
-                <div className="flex justify-between border-b border-zinc-800 pb-3 text-zinc-400">
+                <div className="flex justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3 text-zinc-600 dark:text-zinc-400">
                   <span>Total Tax (GST):</span>
-                  <span className="font-bold text-white">{formatCurrency(summary.taxAmount)}</span>
+                  <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(summary.taxAmount)}</span>
                 </div>
                 <div className="flex justify-between items-baseline pt-2">
-                  <span className="text-sm font-bold text-white">Grand Total (INR):</span>
-                  <span className="text-xl font-black text-emerald-450 text-emerald-400">{formatCurrency(summary.totalAmount)}</span>
+                  <span className="text-sm font-bold text-zinc-900 dark:text-white">Grand Total (INR):</span>
+                  <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(summary.totalAmount)}</span>
+                </div>
+
+                {/* Advance & Payment Settlement Selection */}
+                <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+                      Payment Collection
+                    </span>
+                    <span className="text-[10px] text-zinc-500 font-medium">Initial settlement</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-805 rounded-xl text-[11px] font-semibold text-center">
+                    <button
+                      type="button"
+                      onClick={() => { setPaymentType('UNPAID'); setAdvanceAmount(''); }}
+                      className={`py-1.5 px-2 rounded-lg transition font-semibold ${paymentType === 'UNPAID' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
+                    >
+                      Unpaid
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { 
+                        setPaymentType('ADVANCE'); 
+                        if (!advanceAmount) setAdvanceAmount('');
+                      }}
+                      className={`py-1.5 px-2 rounded-lg transition font-semibold ${paymentType === 'ADVANCE' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 shadow' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
+                    >
+                      Advance
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPaymentType('PAID'); setAdvanceAmount(summary.totalAmount); }}
+                      className={`py-1.5 px-2 rounded-lg transition font-semibold ${paymentType === 'PAID' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 shadow' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
+                    >
+                      Full Paid
+                    </button>
+                  </div>
+
+                  {paymentType === 'ADVANCE' && (
+                    <div className="space-y-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                            Advance Amount Received (₹) *
+                          </label>
+                          <span className="text-[10px] text-zinc-400">Max: {formatCurrency(summary.totalAmount)}</span>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          max={summary.totalAmount}
+                          value={advanceAmount}
+                          onChange={(e) => setAdvanceAmount(e.target.value)}
+                          placeholder="e.g. 15000"
+                          className="mt-1 block w-full rounded-lg border border-amber-500/30 bg-zinc-950 px-3 py-1.5 text-xs text-white focus:border-amber-400 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] pt-1.5 border-t border-amber-500/15">
+                        <span className="text-zinc-400">Balance Remaining Due:</span>
+                        <span className="font-bold text-amber-300">
+                          {formatCurrency(Math.max(0, summary.totalAmount - (parseFloat(advanceAmount as string) || 0)))}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {(paymentType === 'ADVANCE' || paymentType === 'PAID') && (
+                    <div className="space-y-2 pt-1">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                          Payment Mode
+                        </label>
+                        <select
+                          value={paymentMethod}
+                          onChange={(e) => setPaymentMethod(e.target.value)}
+                          className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
+                        >
+                          <option value="CASH">Cash</option>
+                          <option value="UPI">UPI / QR</option>
+                          <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+                          <option value="CARD">Debit / Credit Card</option>
+                          <option value="OTHER">Cheque / Other</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <input
+                          type="text"
+                          value={paymentReference}
+                          onChange={(e) => setPaymentReference(e.target.value)}
+                          placeholder="Reference No. / Txn ID (Optional)"
+                          className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <button
                 onClick={handleGenerateInvoice}
                 disabled={submitting}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 transition disabled:opacity-50"
+                className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition disabled:opacity-50 ${
+                  paymentType === 'ADVANCE'
+                    ? 'bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-md shadow-amber-500/10'
+                    : paymentType === 'PAID'
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-md shadow-emerald-500/10'
+                    : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950'
+                }`}
               >
                 {submitting ? (
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-950 border-t-transparent" />
                 ) : (
                   <>
                     <Receipt className="h-4.5 w-4.5" />
-                    <span>Generate Invoice</span>
+                    <span>
+                      {paymentType === 'ADVANCE'
+                        ? `Generate Advance Bill (${formatCurrency(parseFloat(advanceAmount as string) || 0)} Paid)`
+                        : paymentType === 'PAID'
+                        ? `Generate Completed Bill (Fully Paid)`
+                        : `Generate Invoice (Unpaid)`}
+                    </span>
                   </>
                 )}
               </button>
@@ -2082,6 +2346,115 @@ export default function BillingPage() {
         </div>
       </div>
       </FeatureGate>
+
+      {/* Settle Balance Modal */}
+      {showSettleModal && createdInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl relative">
+            <button
+              onClick={() => setShowSettleModal(false)}
+              className="absolute right-4 top-4 p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Settle Invoice Balance</h3>
+                <p className="text-xs text-zinc-400">Invoice: {createdInvoice.invoiceNumber}</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 mb-4 space-y-2 text-xs">
+              <div className="flex justify-between text-zinc-300">
+                <span className="text-zinc-400">Client / Customer:</span>
+                <span className="font-bold text-white">{createdInvoice.customer?.name}</span>
+              </div>
+              <div className="flex justify-between text-zinc-300">
+                <span className="text-zinc-400">Total Bill Amount:</span>
+                <span className="font-bold text-white">{formatCurrency(createdInvoice.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between text-zinc-300">
+                <span className="text-zinc-400">Already Paid / Advance:</span>
+                <span className="font-bold text-emerald-400">{formatCurrency(createdInvoice.amountPaid)}</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-amber-500/20 text-sm font-bold">
+                <span className="text-amber-300">Remaining Due:</span>
+                <span className="text-amber-300 font-extrabold">{formatCurrency(createdInvoice.amountDue)}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSettleRemaining} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                  Payment Amount to Settle (₹) *
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min="1"
+                  max={createdInvoice.amountDue}
+                  value={settleAmount}
+                  onChange={(e) => setSettleAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  required
+                  className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                  Payment Mode *
+                </label>
+                <select
+                  value={settleMethod}
+                  onChange={(e) => setSettleMethod(e.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                >
+                  <option value="CASH">Cash</option>
+                  <option value="UPI">UPI / QR Code</option>
+                  <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+                  <option value="CARD">Debit / Credit Card</option>
+                  <option value="OTHER">Cheque / Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                  Reference No. / Txn ID (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={settleRef}
+                  onChange={(e) => setSettleRef(e.target.value)}
+                  placeholder="e.g. UPI Ref / Cheque No."
+                  className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setShowSettleModal(false)}
+                  className="rounded-lg bg-zinc-800 hover:bg-zinc-700 px-4 py-2 text-xs font-semibold text-white border border-zinc-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={settling}
+                  className="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-5 py-2 text-xs font-bold text-zinc-950 transition disabled:opacity-50"
+                >
+                  {settling ? 'Recording...' : 'Record Payment & Settle'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add Customer Modal */}
       {showCustomerModal && (
@@ -2191,11 +2564,15 @@ export default function BillingPage() {
             >
               <X className="h-5 w-5" />
             </button>
-            <h3 className="text-lg font-bold text-white mb-4">Quick Add Product</h3>
+            <h3 className="text-lg font-bold text-white mb-4">
+              {isTravel ? 'Quick Add Tour Package / Service' : 'Quick Add Product'}
+            </h3>
             <div className="space-y-4">
               <div className="grid gap-4 grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Product Name *</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    {isTravel ? 'Package / Service Name *' : 'Product Name *'}
+                  </label>
                   <input
                     type="text"
                     value={prodForm.name}
@@ -2205,19 +2582,23 @@ export default function BillingPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">HSN/SAC Code</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    HSN/SAC Code <span className="text-zinc-600 font-normal lowercase">(optional)</span>
+                  </label>
                   <input
                     type="text"
                     value={prodForm.hsnCode}
                     onChange={(e) => setProdForm({ ...prodForm, hsnCode: e.target.value })}
                     className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
-                    placeholder="e.g. 39199090"
+                    placeholder="e.g. 39199090 (Optional)"
                   />
                 </div>
               </div>
               <div className="grid gap-4 grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Sales Price (INR) *</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    {isTravel ? 'Package Price (INR) *' : 'Sales Price (INR) *'}
+                  </label>
                   <input
                     type="text"
                     value={prodForm.salesPrice}
@@ -2254,31 +2635,52 @@ export default function BillingPage() {
                     onChange={(e) => setProdForm({ ...prodForm, unit: e.target.value })}
                     className="mt-1.5 block w-full rounded-lg border border-zinc-805 bg-zinc-950 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="PCS">PCS</option>
-                    <option value="SQFT">SQFT (Square Feet)</option>
-                    <option value="SQIN">SQIN (Square Inches)</option>
-                    <option value="SQMTR">SQMTR (Square Meters)</option>
-                    <option value="RFT">RFT (Running Feet)</option>
-                    <option value="RMTR">RMTR (Running Meter)</option>
-                    <option value="BOX">BOX</option>
-                    <option value="KG">KG</option>
-                    <option value="LTR">LTR</option>
-                    <option value="MTR">MTR</option>
+                    {isTravel ? (
+                      <>
+                        <option value="PACK">PACK (Tour Package)</option>
+                        <option value="PERSON">PER PERSON</option>
+                        <option value="TRIP">TRIP</option>
+                        <option value="DAYS">DAYS / NIGHTS</option>
+                        <option value="PCS">PCS</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="PCS">PCS</option>
+                        <option value="SQFT">SQFT (Square Feet)</option>
+                        <option value="SQIN">SQIN (Square Inches)</option>
+                        <option value="SQMTR">SQMTR (Square Meters)</option>
+                        <option value="RFT">RFT (Running Feet)</option>
+                        <option value="RMTR">RMTR (Running Meter)</option>
+                        <option value="BOX">BOX</option>
+                        <option value="KG">KG</option>
+                        <option value="LTR">LTR</option>
+                        <option value="MTR">MTR</option>
+                      </>
+                    )}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Stock Qty</label>
-                  <input
-                    type="text"
-                    value={prodForm.stock}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setProdForm({ ...prodForm, stock: val as any });
-                    }}
-                    className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="e.g. 50"
-                  />
-                </div>
+                {!isTravel ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Stock Qty</label>
+                    <input
+                      type="text"
+                      value={prodForm.stock}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setProdForm({ ...prodForm, stock: val as any });
+                      }}
+                      className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      placeholder="e.g. 50"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">Service Mode</label>
+                    <div className="mt-1.5 px-3 py-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                      <span>✈️ Tour Package / No Stock Limit</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button

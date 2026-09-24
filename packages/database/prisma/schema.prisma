@@ -55,6 +55,11 @@ model Tenant {
   reportsEnabled   Boolean @default(true)
   purchasesEnabled Boolean @default(true)
 
+  // Business Type & Inventory Setting
+  businessType     String  @default("RETAIL") // "RETAIL", "SERVICES_TRAVEL", "WHOLESALE", "MANUFACTURING", "SERVICES_GENERAL"
+  trackInventory   Boolean @default(true)
+  theme            String  @default("DARK")   // "DARK", "LIGHT"
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -160,6 +165,7 @@ model Product {
   taxRate       Float     @default(0) // Tax percentage (e.g. 18 for 18% GST)
   unit          String    @default("PCS") // PCS, BOX, KG, LTR etc.
   stock         Int       @default(0)
+  isService     Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
@@ -306,6 +312,10 @@ model Vendor {
   gstin              String?
   stateCode          String?
   outstandingBalance Float             @default(0)
+  bankAccountName    String?
+  bankAccountNumber  String?
+  bankIfsc           String?
+  upiId              String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   deletedAt          DateTime?

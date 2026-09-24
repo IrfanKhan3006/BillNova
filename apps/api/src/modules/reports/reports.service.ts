@@ -97,7 +97,11 @@ export class ReportsService {
     });
   }
 
-  async getPaymentReport(tenantId: string, startDate?: string, endDate?: string) {
+  async getPaymentReport(
+    tenantId: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
     const where: any = {
       tenantId,
       deletedAt: null,
@@ -179,7 +183,10 @@ export class ReportsService {
     });
 
     // Group items by taxRate
-    const groupMap = new Map<number, { taxableValue: number; taxAmount: number }>();
+    const groupMap = new Map<
+      number,
+      { taxableValue: number; taxAmount: number }
+    >();
 
     for (const item of items) {
       const rate = item.taxRate;

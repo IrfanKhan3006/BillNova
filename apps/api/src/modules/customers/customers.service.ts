@@ -142,14 +142,14 @@ export class CustomersService {
       if (a.type === 'INVOICE' && b.type === 'INVOICE') {
         return b.reference.localeCompare(a.reference);
       }
-      
+
       // Fallback for payment vs invoice / payment vs payment: compare dates descending
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       if (dateA !== dateB) {
         return dateB - dateA;
       }
-      
+
       return b.reference.localeCompare(a.reference);
     });
 

@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
+import { toast, showConfirm } from '../../store/uiStore';
 
 interface TenantUser {
   id: string;
@@ -41,6 +42,9 @@ interface Tenant {
   paymentsEnabled: boolean;
   reportsEnabled: boolean;
   purchasesEnabled?: boolean;
+  businessType?: string;
+  trackInventory?: boolean;
+  theme?: string;
   createdAt: string;
   deletedAt: string | null;
   users?: TenantUser[];
@@ -89,8 +93,38 @@ export default function AdminTenantsPage() {
       setTenants((prev) =>
         prev.map((t) => (t.id === tenantId ? { ...t, ...updated } : t))
       );
+      toast.success('Feature gate updated.');
     } catch (err: any) {
-      alert(err.message || 'Failed to update feature gating.');
+      toast.error(err.message || 'Failed to update feature gating.');
+    }
+  };
+
+  const handleBusinessTypeChange = async (tenantId: string, newType: string) => {
+    try {
+      const isServiceType = newType === 'SERVICES_TRAVEL' || newType === 'SERVICES_GENERAL';
+      const payload: any = { businessType: newType };
+      if (isServiceType) {
+        payload.trackInventory = false;
+      }
+      const updated = await api.patch(`/admin/tenants/${tenantId}`, payload);
+      setTenants((prev) =>
+        prev.map((t) => (t.id === tenantId ? { ...t, ...updated } : t))
+      );
+      toast.success('Business model updated.');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update business type.');
+    }
+  };
+
+  const handleThemeChange = async (tenantId: string, theme: string) => {
+    try {
+      const updated = await api.patch(`/admin/tenants/${tenantId}`, { theme });
+      setTenants((prev) =>
+        prev.map((t) => (t.id === tenantId ? { ...t, ...updated } : t))
+      );
+      toast.success('Business theme updated.');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update business theme.');
     }
   };
 
@@ -101,27 +135,36 @@ export default function AdminTenantsPage() {
         prev.map((t) => (t.id === tenantId ? { ...t, ...updated } : t))
       );
       setIsEditingPlan(null);
+      toast.success('Plan changed successfully!');
     } catch (err: any) {
-      alert(err.message || 'Failed to change business plan.');
+      toast.error(err.message || 'Failed to change business plan.');
     }
   };
 
   const handleSuspendToggle = async (tenantId: string, isCurrentlySuspended: boolean) => {
     const actionText = isCurrentlySuspended ? 'reactivate' : 'suspend';
-    if (!confirm(`Are you sure you want to ${actionText} this business?`)) return;
+    const ok = await showConfirm({
+      title: `${isCurrentlySuspended ? 'Reactivate' : 'Suspend'} Business`,
+      message: `Are you sure you want to ${actionText} this business? ${isCurrentlySuspended ? 'They will regain system access.' : 'Their users will be locked out until reactivated.'}`,
+      confirmText: isCurrentlySuspended ? 'Reactivate' : 'Suspend Business',
+      danger: !isCurrentlySuspended,
+    });
+    if (!ok) return;
+
     try {
       const updated = await api.delete(`/admin/tenants/${tenantId}`);
       setTenants((prev) =>
         prev.map((t) => (t.id === tenantId ? { ...t, ...updated } : t))
       );
+      toast.success(`Business ${isCurrentlySuspended ? 'reactivated' : 'suspended'} successfully.`);
     } catch (err: any) {
-      alert(err.message || 'Suspension toggle failed.');
+      toast.error(err.message || 'Suspension toggle failed.');
     }
   };
 
   const handlePasswordResetSubmit = async (userId: string) => {
     if (!newPasswordValue || newPasswordValue.length < 6) {
-      alert('Password must be at least 6 characters long.');
+      toast.error('Password must be at least 6 characters long.');
       return;
     }
 
@@ -130,13 +173,13 @@ export default function AdminTenantsPage() {
       await api.patch(`/admin/users/${userId}/password`, {
         password: newPasswordValue,
       });
-      alert('Password updated successfully!');
+      toast.success('Password updated successfully!');
       
       // Clear values
       setResetPasswordUserId(null);
       setNewPasswordValue('');
     } catch (err: any) {
-      alert(err.message || 'Failed to reset password.');
+      toast.error(err.message || 'Failed to reset password.');
     } finally {
       setIsResetting(false);
     }
@@ -240,6 +283,36 @@ export default function AdminTenantsPage() {
                                 )}
                               </span>
                               <span className="text-xs text-zinc-500 font-mono">slug: {t.slug}</span>
+                              
+                              {/* Business Type Selector */}
+                              <div className="mt-1.5 flex flex-col gap-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Business Model / Type:</label>
+                                <select
+                                  value={t.businessType || 'RETAIL'}
+                                  onChange={(e) => handleBusinessTypeChange(t.id, e.target.value)}
+                                  className="rounded-lg border border-purple-500/30 bg-purple-950/20 px-2 py-1 text-xs text-purple-300 font-medium focus:outline-none focus:border-purple-400"
+                                >
+                                  <option value="RETAIL" className="bg-zinc-950 text-white">🛒 Rashan / Grocery / Retail</option>
+                                  <option value="SERVICES_TRAVEL" className="bg-zinc-950 text-white">✈️ Tourist / Travel / Packages</option>
+                                  <option value="WHOLESALE" className="bg-zinc-950 text-white">📦 Wholesale / Distribution</option>
+                                  <option value="SERVICES_GENERAL" className="bg-zinc-950 text-white">🛠️ General Services / Agency</option>
+                                  <option value="MANUFACTURING" className="bg-zinc-950 text-white">🏭 Manufacturing</option>
+                                </select>
+                              </div>
+
+                              {/* Theme Selector */}
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Theme:</label>
+                                <select
+                                  value={t.theme || 'DARK'}
+                                  onChange={(e) => handleThemeChange(t.id, e.target.value)}
+                                  className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-2 py-0.5 text-xs text-amber-300 font-medium focus:outline-none focus:border-amber-400"
+                                >
+                                  <option value="DARK" className="bg-zinc-950 text-white">🌙 Dark Mode</option>
+                                  <option value="LIGHT" className="bg-zinc-950 text-white">☀️ Light Mode</option>
+                                </select>
+                              </div>
+
                               <div className="flex flex-col gap-1 mt-1 text-xs text-zinc-400">
                                 {t.email && (
                                   <span className="flex items-center gap-1.5">
@@ -304,16 +377,23 @@ export default function AdminTenantsPage() {
 
                           {/* Feature Gating Switches */}
                           <td className="py-5">
-                            <div className="flex flex-col gap-2 max-w-[200px] mx-auto">
+                            <div className="flex flex-col gap-2 max-w-[210px] mx-auto">
                               {[
                                 { label: 'Billing Engine', key: 'billingEnabled', val: t.billingEnabled },
                                 { label: 'Product Catalog', key: 'productsEnabled', val: t.productsEnabled },
                                 { label: 'Purchase Invoices', key: 'purchasesEnabled', val: t.purchasesEnabled !== false },
+                                { 
+                                  label: t.trackInventory !== false ? 'Track Stock / Qty' : 'Stock (Service Mode)', 
+                                  key: 'trackInventory', 
+                                  val: t.trackInventory !== false 
+                                },
                                 { label: 'Payments Ledger', key: 'paymentsEnabled', val: t.paymentsEnabled },
                                 { label: 'Reports Console', key: 'reportsEnabled', val: t.reportsEnabled },
                               ].map((f) => (
                                 <div key={f.key} className="flex items-center justify-between text-xs font-medium">
-                                  <span className="text-zinc-400">{f.label}</span>
+                                  <span className={`text-xs ${f.key === 'trackInventory' ? (f.val ? 'text-emerald-400' : 'text-amber-400 font-semibold') : 'text-zinc-400'}`}>
+                                    {f.label}
+                                  </span>
                                   <button
                                     onClick={() => handleFeatureToggle(t.id, f.key, f.val)}
                                     className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${

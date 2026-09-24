@@ -118,6 +118,8 @@ export class ProductsService {
         taxRate: data.taxRate ?? 0,
         unit: data.unit ?? 'PCS',
         stock: data.stock ?? 0,
+        hsnCode: data.hsnCode?.trim() || null,
+        isService: data.isService ?? false,
       },
     });
   }
@@ -147,6 +149,9 @@ export class ProductsService {
         taxRate: data.taxRate,
         unit: data.unit,
         stock: data.stock,
+        hsnCode:
+          data.hsnCode !== undefined ? data.hsnCode?.trim() || null : undefined,
+        isService: data.isService !== undefined ? data.isService : undefined,
       },
     });
   }

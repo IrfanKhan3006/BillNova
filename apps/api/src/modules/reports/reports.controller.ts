@@ -12,17 +12,25 @@ export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('sales')
-  @ApiOperation({ summary: 'Sales report (subtotal, tax, discount details) dekho' })
+  @ApiOperation({
+    summary: 'Sales report (subtotal, tax, discount details) dekho',
+  })
   async getSalesReport(
     @CurrentUser() user: any,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.reportsService.getSalesReport(user.tenantId, startDate, endDate);
+    return this.reportsService.getSalesReport(
+      user.tenantId,
+      startDate,
+      endDate,
+    );
   }
 
   @Get('customers')
-  @ApiOperation({ summary: 'Customer outstanding aur pending invoice balances dekho' })
+  @ApiOperation({
+    summary: 'Customer outstanding aur pending invoice balances dekho',
+  })
   async getCustomerReport(@CurrentUser() user: any) {
     return this.reportsService.getCustomerReport(user.tenantId);
   }
@@ -34,11 +42,17 @@ export class ReportsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.reportsService.getPaymentReport(user.tenantId, startDate, endDate);
+    return this.reportsService.getPaymentReport(
+      user.tenantId,
+      startDate,
+      endDate,
+    );
   }
 
   @Get('tax')
-  @ApiOperation({ summary: 'Tax rates details breakdown (GSTR-1 data format) dekho' })
+  @ApiOperation({
+    summary: 'Tax rates details breakdown (GSTR-1 data format) dekho',
+  })
   async getTaxReport(
     @CurrentUser() user: any,
     @Query('startDate') startDate?: string,

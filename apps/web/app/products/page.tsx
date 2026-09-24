@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
 import FeatureGate from '../components/FeatureGate';
 import { api } from '../lib/api';
+import { useAuthStore } from '../store/authStore';
 import {
   Search,
   Plus,
@@ -16,6 +17,7 @@ import {
   AlertTriangle,
   X,
 } from 'lucide-react';
+import { toast, showConfirm } from '../store/uiStore';
 
 interface Category {
   id: string;
@@ -39,8 +41,14 @@ interface Product {
 }
 
 export default function ProductsPage() {
+  const { user } = useAuthStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  
+  const isStockTrackingEnabled =
+    user?.tenant?.trackInventory !== false &&
+    user?.tenant?.businessType !== 'SERVICES_TRAVEL' &&
+    user?.tenant?.businessType !== 'SERVICES_GENERAL';
   
   const [search, setSearch] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
@@ -113,13 +121,21 @@ export default function ProductsPage() {
       setCategoryName('');
       setCategoryDesc('');
       setIsCategoryModalOpen(false);
+      toast.success('Category created successfully!');
     } catch (err: any) {
-      alert(err.message || 'Failed to create category.');
+      toast.error(err.message || 'Failed to create category.');
     }
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm('Deleting this category will not delete its associated products. Are you sure you want to delete this category?')) return;
+    const ok = await showConfirm({
+      title: 'Delete Category',
+      message: 'Deleting this category will not delete its associated products. Are you sure you want to delete this category?',
+      confirmText: 'Delete Category',
+      danger: true,
+    });
+    if (!ok) return;
+
     try {
       await api.delete(`/products/categories/${id}`);
       setCategories((prev) => prev.filter((c) => c.id !== id));
@@ -127,8 +143,9 @@ export default function ProductsPage() {
         setSelectedCategoryFilter('');
         loadData(search, '');
       }
+      toast.success('Category deleted successfully.');
     } catch (err: any) {
-      alert(err.message || 'Failed to delete category.');
+      toast.error(err.message || 'Failed to delete category.');
     }
   };
 
@@ -183,19 +200,28 @@ export default function ProductsPage() {
         await api.patch(`/products/${productForm.id}`, payload);
       }
       setIsProductModalOpen(false);
+      toast.success(productModalMode === 'create' ? 'Product created successfully!' : 'Product updated successfully!');
       loadData(search, selectedCategoryFilter);
     } catch (err: any) {
-      alert(err.message || 'Product operation failed.');
+      toast.error(err.message || 'Product operation failed.');
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    const ok = await showConfirm({
+      title: 'Delete Product',
+      message: 'Are you sure you want to delete this product? This action cannot be undone.',
+      confirmText: 'Delete Product',
+      danger: true,
+    });
+    if (!ok) return;
+
     try {
       await api.delete(`/products/${id}`);
       setProducts((prev) => prev.filter((p) => p.id !== id));
+      toast.success('Product deleted successfully.');
     } catch (err: any) {
-      alert(err.message || 'Failed to delete product.');
+      toast.error(err.message || 'Failed to delete product.');
     }
   };
 
@@ -334,7 +360,7 @@ export default function ProductsPage() {
                         <th className="p-4">SKU / Barcode</th>
                         <th className="p-4">Tax (GST)</th>
                         <th className="p-4 text-right">Sales Price</th>
-                        <th className="p-4">Stock</th>
+                        <th className="p-4">{isStockTrackingEnabled ? 'Stock' : 'Type'}</th>
                         <th className="p-4 text-right">Actions</th>
                       </tr>
                     </thead>
@@ -370,7 +396,15 @@ export default function ProductsPage() {
                           <td className="p-4 text-right font-bold text-white">
                             {formatCurrency(p.salesPrice)}
                           </td>
-                          <td className="p-4">{getStockStatus(p.stock)}</td>
+                          <td className="p-4">
+                            {isStockTrackingEnabled ? (
+                              getStockStatus(p.stock)
+                            ) : (
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                Package / Service
+                              </span>
+                            )}
+                          </td>
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button
@@ -579,15 +613,21 @@ export default function ProductsPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-300">Opening Stock Quantity</label>
-                    <input
-                      type="number"
-                      value={productForm.stock}
-                      onChange={(e) => setProductForm({ ...productForm, stock: parseInt(e.target.value) || 0 })}
-                      className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
-                    />
-                  </div>
+                  {isStockTrackingEnabled ? (
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-300">Opening Stock Quantity</label>
+                      <input
+                        type="number"
+                        value={productForm.stock}
+                        onChange={(e) => setProductForm({ ...productForm, stock: parseInt(e.target.value) || 0 })}
+                        className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-xs text-zinc-500 italic mt-6">
+                      * Stock tracking disabled for services / tour packages.
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">

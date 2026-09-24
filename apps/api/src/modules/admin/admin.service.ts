@@ -40,10 +40,13 @@ export class AdminService {
       where: { deletedAt: null },
     });
 
-    const planStats = planGroups.reduce((acc, curr) => {
-      acc[curr.plan] = curr._count.id;
-      return acc;
-    }, {} as Record<string, number>);
+    const planStats = planGroups.reduce(
+      (acc, curr) => {
+        acc[curr.plan] = curr._count.id;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       totalTenants,
@@ -102,6 +105,9 @@ export class AdminService {
         paymentsEnabled: dto.paymentsEnabled,
         reportsEnabled: dto.reportsEnabled,
         purchasesEnabled: dto.purchasesEnabled,
+        businessType: dto.businessType,
+        trackInventory: dto.trackInventory,
+        theme: dto.theme,
       },
     });
   }

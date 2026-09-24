@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { compressImage } from '../lib/imageUtils';
 import { useAuthStore } from '../store/authStore';
 import { Save, AlertCircle, CheckCircle, Building, Search, CreditCard } from 'lucide-react';
+import { toast } from '../store/uiStore';
 
 export default function BusinessSettingsPage() {
   const { updateUserTenant } = useAuthStore();
@@ -106,7 +107,7 @@ export default function BusinessSettingsPage() {
     setError(null);
     setSuccess(null);
     if (!form.gstin || form.gstin.trim().length !== 15) {
-      alert('Please enter a valid 15-character GSTIN!');
+      toast.error('Please enter a valid 15-character GSTIN!');
       return;
     }
     try {
@@ -150,6 +151,9 @@ export default function BusinessSettingsPage() {
         address: res.address,
         phone: res.phone,
         email: res.email,
+        businessType: res.businessType,
+        trackInventory: res.trackInventory,
+        theme: res.theme,
       });
       setSuccess('Business profile updated successfully!');
     } catch (err: any) {

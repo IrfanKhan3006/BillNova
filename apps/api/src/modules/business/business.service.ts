@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
@@ -28,6 +32,9 @@ export class BusinessService {
         bankAccountNumber: true,
         bankIfsc: true,
         upiId: true,
+        businessType: true,
+        trackInventory: true,
+        theme: true,
         createdAt: true,
       },
     });
@@ -57,6 +64,7 @@ export class BusinessService {
       bankAccountNumber,
       bankIfsc,
       upiId,
+      theme,
     } = updateData;
 
     return this.prisma.tenant.update({
@@ -77,6 +85,7 @@ export class BusinessService {
         bankAccountNumber,
         bankIfsc,
         upiId,
+        theme,
       },
     });
   }
@@ -88,18 +97,22 @@ export class BusinessService {
         'x-api-key': process.env.SANDBOX_GST_API_KEY || '',
         'x-api-secret': process.env.SANDBOX_GST_API_SECRET || '',
         'x-api-version': '1.0.0',
-        'accept': 'application/json'
-      }
+        accept: 'application/json',
+      },
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new BadRequestException(`Sandbox Authentication Failed (Status ${response.status}): ${errText}`);
+      throw new BadRequestException(
+        `Sandbox Authentication Failed (Status ${response.status}): ${errText}`,
+      );
     }
 
     const data = await response.json();
     if (!data || !data.access_token) {
-      throw new BadRequestException('Access token missing in Sandbox authentication response.');
+      throw new BadRequestException(
+        'Access token missing in Sandbox authentication response.',
+      );
     }
 
     return data.access_token;
@@ -111,47 +124,72 @@ export class BusinessService {
       throw new BadRequestException('GSTIN must be 15 characters long.');
     }
 
-    if (!process.env.SANDBOX_GST_API_KEY || !process.env.SANDBOX_GST_API_SECRET) {
-      throw new BadRequestException('Sandbox API Key and API Secret must be configured on the server.');
+    if (
+      !process.env.SANDBOX_GST_API_KEY ||
+      !process.env.SANDBOX_GST_API_SECRET
+    ) {
+      throw new BadRequestException(
+        'Sandbox API Key and API Secret must be configured on the server.',
+      );
     }
 
-    const isTestKey = process.env.SANDBOX_GST_API_KEY.includes('test') || process.env.SANDBOX_GST_API_KEY.includes('mock');
-    const baseUrl = isTestKey ? 'https://test-api.sandbox.co.in' : 'https://api.sandbox.co.in';
+    const isTestKey =
+      process.env.SANDBOX_GST_API_KEY.includes('test') ||
+      process.env.SANDBOX_GST_API_KEY.includes('mock');
+    const baseUrl = isTestKey
+      ? 'https://test-api.sandbox.co.in'
+      : 'https://api.sandbox.co.in';
 
     try {
       // Step 1: Authenticate and get temporary access token
       const accessToken = await this.getSandboxToken(baseUrl);
 
       // Step 2: Query the public GST validation endpoint
-      const response = await fetch(`${baseUrl}/gst/compliance/public/gstin/verify`, {
-        method: 'POST',
-        headers: {
-          'x-api-key': process.env.SANDBOX_GST_API_KEY,
-          'authorization': accessToken,
-          'x-api-version': '1.0.0',
-          'content-type': 'application/json',
-          'accept': 'application/json'
+      const response = await fetch(
+        `${baseUrl}/gst/compliance/public/gstin/verify`,
+        {
+          method: 'POST',
+          headers: {
+            'x-api-key': process.env.SANDBOX_GST_API_KEY,
+            authorization: accessToken,
+            'x-api-version': '1.0.0',
+            'content-type': 'application/json',
+            accept: 'application/json',
+          },
+          body: JSON.stringify({
+            gstin: cleanGst,
+          }),
         },
-        body: JSON.stringify({
-          gstin: cleanGst
-        })
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new BadRequestException(`Sandbox API Error (Status ${response.status}): ${errorText}`);
+        throw new BadRequestException(
+          `Sandbox API Error (Status ${response.status}): ${errorText}`,
+        );
       }
 
       const resJson = await response.json();
       if (!resJson || !resJson.data || !resJson.data.data) {
-        throw new NotFoundException('GSTIN details not found in Sandbox response.');
+        throw new NotFoundException(
+          'GSTIN details not found in Sandbox response.',
+        );
       }
 
       const gstData = resJson.data.data;
       const addressObj = gstData.pradr?.addr || {};
       let fullAddress = '';
-      if (addressObj.bno || addressObj.st || addressObj.loc || addressObj.dst || addressObj.pncd) {
-        fullAddress = `${addressObj.bno || ''} ${addressObj.st || ''} ${addressObj.loc || ''} ${addressObj.dst || ''} ${addressObj.stcd || ''} ${addressObj.pncd || ''}`.trim().replace(/\s+/g, ' ');
+      if (
+        addressObj.bno ||
+        addressObj.st ||
+        addressObj.loc ||
+        addressObj.dst ||
+        addressObj.pncd
+      ) {
+        fullAddress =
+          `${addressObj.bno || ''} ${addressObj.st || ''} ${addressObj.loc || ''} ${addressObj.dst || ''} ${addressObj.stcd || ''} ${addressObj.pncd || ''}`
+            .trim()
+            .replace(/\s+/g, ' ');
       } else {
         fullAddress = `Registered business in State of ${gstData.stateName || 'Haryana'}`;
       }
@@ -163,10 +201,13 @@ export class BusinessService {
         stateName: gstData.stateName || 'Haryana',
         address: fullAddress,
         phone: '',
-        email: ''
+        email: '',
       };
     } catch (err: any) {
-      if (err instanceof BadRequestException || err instanceof NotFoundException) {
+      if (
+        err instanceof BadRequestException ||
+        err instanceof NotFoundException
+      ) {
         throw err;
       }
       throw new BadRequestException(`GST Lookup failed: ${err.message}`);

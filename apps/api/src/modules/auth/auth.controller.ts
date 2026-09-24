@@ -1,9 +1,15 @@
 import {
-  Controller, Post, Get, Body,
-  HttpCode, HttpStatus, UseGuards, Req,
+  Controller,
+  Post,
+  Get,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Request } from 'express';  // ye line hatao
+import { Request } from 'express'; // ye line hatao
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';

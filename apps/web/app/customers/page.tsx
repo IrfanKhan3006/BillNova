@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Printer,
 } from 'lucide-react';
+import { toast, showConfirm } from '../store/uiStore';
 
 interface Customer {
   id: string;
@@ -144,27 +145,37 @@ export default function CustomersPage() {
         const newCustomer = await api.post('/customers', payload);
         setCustomers((prev) => [newCustomer, ...prev]);
         setSelectedCustomer(newCustomer);
+        toast.success(`Customer "${newCustomer.name}" created successfully!`);
       } else {
         const updated = await api.patch(`/customers/${form.id}`, payload);
         setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
         setSelectedCustomer(updated);
+        toast.success(`Customer "${updated.name}" updated successfully!`);
       }
       setIsModalOpen(false);
     } catch (err: any) {
-      alert(err.message || 'Action failed.');
+      toast.error(err.message || 'Action failed.');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this customer?')) return;
+    const ok = await showConfirm({
+      title: 'Delete Customer',
+      message: 'Are you sure you want to delete this customer? This will remove customer records.',
+      confirmText: 'Delete Customer',
+      danger: true,
+    });
+    if (!ok) return;
+
     try {
       await api.delete(`/customers/${id}`);
       setCustomers((prev) => prev.filter((c) => c.id !== id));
       if (selectedCustomer?.id === id) {
         setSelectedCustomer(null);
       }
+      toast.success('Customer deleted successfully.');
     } catch (err: any) {
-      alert(err.message || 'Failed to delete customer.');
+      toast.error(err.message || 'Failed to delete customer.');
     }
   };
 

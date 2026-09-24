@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import { Eye, EyeOff } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -45,18 +46,23 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 py-12">
-      <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 shadow-2xl backdrop-blur-xl">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-zinc-950 px-4 py-12 transition-colors relative">
+      {/* Theme Toggle */}
+      <div className="absolute top-6 right-6">
+        <ThemeToggle />
+      </div>
+
+      <div className="w-full max-w-lg rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-8 shadow-xl dark:shadow-2xl backdrop-blur-xl transition-colors">
         <div className="mb-8 text-center">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 mb-3">
             <span className="text-2xl font-bold">B</span>
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-white">Register Business</h2>
-          <p className="mt-2 text-sm text-zinc-400">Launch your white label billing platform</p>
+          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">Register Business</h2>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Launch your white label billing platform</p>
         </div>
 
         {error && (
-          <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
+          <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-600 dark:text-red-400">
             {error.includes(',') ? (
               <ul className="list-disc pl-5 space-y-1">
                 {error.split(',').map((e, idx) => (
@@ -71,67 +77,67 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-zinc-300">Business Name *</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Business Name *</label>
             <input
               type="text"
               required
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-4 py-2.5 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-600 focus:bg-white dark:focus:bg-zinc-950 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
               placeholder="e.g. Sharma Traders"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-300">Owner Full Name *</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Owner Full Name *</label>
             <input
               type="text"
               required
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-4 py-2.5 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-600 focus:bg-white dark:focus:bg-zinc-950 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
               placeholder="e.g. Rajesh Sharma"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-300">Email Address *</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Email Address *</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-4 py-2.5 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-600 focus:bg-white dark:focus:bg-zinc-950 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
               placeholder="name@business.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-300">Phone Number (e.g. 9876543210)</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Phone Number (e.g. 9876543210)</label>
             <input
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-4 py-2.5 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-600 focus:bg-white dark:focus:bg-zinc-950 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
               placeholder="e.g. 9876543210"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-300">Password *</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Password *</label>
             <div className="relative mt-1">
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 pl-4 pr-12 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 pl-4 pr-12 py-2.5 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-600 focus:bg-white dark:focus:bg-zinc-950 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
                 placeholder="Minimum 6 characters"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 text-zinc-550 hover:text-white"
+                className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-white transition-colors"
               >
                 {showPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
               </button>
@@ -141,7 +147,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center rounded-lg bg-emerald-500 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50 mt-2"
+            className="flex w-full items-center justify-center rounded-lg bg-emerald-500 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50 mt-2 cursor-pointer shadow-sm"
           >
             {loading ? (
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-950 border-t-transparent" />
@@ -151,9 +157,9 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-zinc-400">
+        <p className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
           Already registered?{' '}
-          <Link href="/login" className="font-semibold text-emerald-400 hover:text-emerald-300">
+          <Link href="/login" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
             Log In
           </Link>
         </p>

@@ -38,7 +38,57 @@ export class DashboardService {
       _sum: { totalAmount: true },
     });
 
-    // 3. Outstanding Invoices Count
+    // 3. Completed / Fully Paid Invoices
+    const paidInvoicesCount = await this.prisma.invoice.count({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: 'PAID',
+      },
+    });
+
+    const paidInvoicesTotal = await this.prisma.invoice.aggregate({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: 'PAID',
+      },
+      _sum: { totalAmount: true },
+    });
+
+    // 4. Advance / Partially Paid Invoices
+    const advanceInvoicesCount = await this.prisma.invoice.count({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: 'PARTIALLY_PAID',
+      },
+    });
+
+    const advanceMetrics = await this.prisma.invoice.aggregate({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: 'PARTIALLY_PAID',
+      },
+      _sum: {
+        totalAmount: true,
+        amountPaid: true,
+        amountDue: true,
+      },
+    });
+
+    // 5. Unpaid / Fully Pending Invoices (Zero advance received yet)
+    const unpaidInvoicesCount = await this.prisma.invoice.count({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: { in: ['SENT', 'OVERDUE'] },
+        amountPaid: 0,
+      },
+    });
+
+    // 6. Outstanding Invoices Count (any with remaining due)
     const outstandingInvoicesCount = await this.prisma.invoice.count({
       where: {
         tenantId,
@@ -48,7 +98,16 @@ export class DashboardService {
       },
     });
 
-    // 4. Total Customer Outstanding Balance
+    // 7. Total Invoices Count
+    const totalInvoicesCount = await this.prisma.invoice.count({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: { notIn: ['DRAFT', 'VOID'] },
+      },
+    });
+
+    // 8. Total Customer Outstanding Balance
     const totalCustomerOutstanding = await this.prisma.customer.aggregate({
       where: {
         tenantId,
@@ -57,27 +116,67 @@ export class DashboardService {
       _sum: { outstandingBalance: true },
     });
 
-    // 5. Recent Invoices (limit 5)
+    // 9. Recent Invoices (limit 8)
     const recentInvoices = await this.prisma.invoice.findMany({
       where: { tenantId, deletedAt: null },
       include: { customer: true },
       orderBy: { date: 'desc' },
-      take: 5,
+      take: 8,
+    });
+
+    // 10. Recent Advance Invoices (Partially Paid)
+    const recentAdvanceInvoices = await this.prisma.invoice.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: 'PARTIALLY_PAID',
+      },
+      include: { customer: true },
+      orderBy: { date: 'desc' },
+      take: 8,
+    });
+
+    // 11. Recent Pending / Unpaid Invoices (strictly excluding PAID, DRAFT, VOID, and PARTIALLY_PAID)
+    const recentPendingInvoices = await this.prisma.invoice.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: { in: ['SENT', 'OVERDUE'] },
+        amountPaid: 0,
+      },
+      include: { customer: true },
+      orderBy: { date: 'desc' },
+      take: 8,
+    });
+
+    const mapInvoice = (inv: any) => ({
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      customerName: inv.customer?.name || 'Walk-in Customer',
+      date: inv.date,
+      totalAmount: inv.totalAmount,
+      amountPaid: inv.amountPaid,
+      amountDue: inv.amountDue,
+      status: inv.status,
     });
 
     return {
       todaySales: todaySales._sum.totalAmount || 0,
       monthlyRevenue: monthlyRevenue._sum.totalAmount || 0,
+      totalInvoicesCount,
+      paidInvoicesCount,
+      paidInvoicesTotal: paidInvoicesTotal._sum.totalAmount || 0,
+      advanceInvoicesCount,
+      advanceCollectedAmount: advanceMetrics._sum.amountPaid || 0,
+      advancePendingAmount: advanceMetrics._sum.amountDue || 0,
+      advanceTotalAmount: advanceMetrics._sum.totalAmount || 0,
+      unpaidInvoicesCount,
       outstandingInvoicesCount,
-      totalCustomerOutstanding: totalCustomerOutstanding._sum.outstandingBalance || 0,
-      recentInvoices: recentInvoices.map((inv) => ({
-        id: inv.id,
-        invoiceNumber: inv.invoiceNumber,
-        customerName: inv.customer.name,
-        date: inv.date,
-        totalAmount: inv.totalAmount,
-        status: inv.status,
-      })),
+      totalCustomerOutstanding:
+        totalCustomerOutstanding._sum.outstandingBalance || 0,
+      recentInvoices: recentInvoices.map(mapInvoice),
+      recentAdvanceInvoices: recentAdvanceInvoices.map(mapInvoice),
+      recentPendingInvoices: recentPendingInvoices.map(mapInvoice),
     };
   }
 

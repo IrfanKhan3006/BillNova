@@ -16,6 +16,7 @@ import {
   AlertCircle,
   HelpCircle,
 } from 'lucide-react';
+import { toast } from '../store/uiStore';
 
 interface Payment {
   id: string;
@@ -126,7 +127,7 @@ export default function PaymentsPage() {
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.amount <= 0) {
-      alert('Enter a valid payment amount!');
+      toast.error('Enter a valid payment amount!');
       return;
     }
     try {
@@ -136,9 +137,10 @@ export default function PaymentsPage() {
         invoiceId: form.invoiceId || undefined,
       });
       setIsModalOpen(false);
+      toast.success('Payment recorded successfully!');
       loadData(selectedCustomerIdFilter);
     } catch (err: any) {
-      alert(err.message || 'Failed to record payment.');
+      toast.error(err.message || 'Failed to record payment.');
     } finally {
       setSubmitting(false);
     }
@@ -396,7 +398,7 @@ export default function PaymentsPage() {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="rounded-lg bg-zinc-855 text-zinc-300 px-4 py-2 text-xs font-semibold hover:bg-zinc-800"
+                    className="rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 px-4 py-2 text-xs font-semibold transition"
                   >
                     Cancel
                   </button>
