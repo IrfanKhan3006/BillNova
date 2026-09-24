@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
@@ -7,7 +11,12 @@ export class PurchasesService {
 
   // ─── Purchase Invoices ──────────────────────────────────────────────────────
 
-  async list(tenantId: string, vendorId?: string, status?: any, search?: string) {
+  async list(
+    tenantId: string,
+    vendorId?: string,
+    status?: any,
+    search?: string,
+  ) {
     const where: any = {
       tenantId,
       deletedAt: null,
@@ -70,8 +79,8 @@ export class PurchasesService {
   }
 
   async create(tenantId: string, data: any) {
-    let {
-      vendorId,
+    let vendorId = data.vendorId;
+    const {
       vendorName,
       vendorGstin,
       vendorPhone,
@@ -90,14 +99,20 @@ export class PurchasesService {
     } = data;
 
     if (!items || items.length === 0) {
-      throw new BadRequestException('At least one item is required in the purchase invoice.');
+      throw new BadRequestException(
+        'At least one item is required in the purchase invoice.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
       // 1. Resolve or create vendor
       if (!vendorId && vendorName && vendorName.trim()) {
         const existingVendor = await tx.vendor.findFirst({
-          where: { tenantId, name: { equals: vendorName.trim(), mode: 'insensitive' }, deletedAt: null },
+          where: {
+            tenantId,
+            name: { equals: vendorName.trim(), mode: 'insensitive' },
+            deletedAt: null,
+          },
         });
 
         if (existingVendor) {
@@ -121,7 +136,9 @@ export class PurchasesService {
       }
 
       if (!vendorId) {
-        throw new BadRequestException('Vendor is required. Select an existing vendor or enter vendor name.');
+        throw new BadRequestException(
+          'Vendor is required. Select an existing vendor or enter vendor name.',
+        );
       }
 
       const vendor = await tx.vendor.findFirst({
@@ -143,7 +160,8 @@ export class PurchasesService {
       const existingPurchasesCount = await tx.purchaseInvoice.count({
         where: { tenantId },
       });
-      let nextCounter = Math.max(tenant.purchaseCounter || 0, existingPurchasesCount) + 1;
+      let nextCounter =
+        Math.max(tenant.purchaseCounter || 0, existingPurchasesCount) + 1;
       const purchasePrefix = tenant.purchasePrefix || 'PUR';
       let purchaseNumber = `${purchasePrefix}-${String(nextCounter).padStart(5, '0')}`;
 
@@ -171,9 +189,14 @@ export class PurchasesService {
       const processedItems: any[] = [];
 
       for (const item of items) {
-        const validProductId = item.productId && String(item.productId).trim() !== '' ? String(item.productId).trim() : null;
+        const validProductId =
+          item.productId && String(item.productId).trim() !== ''
+            ? String(item.productId).trim()
+            : null;
         const product = validProductId
-          ? await tx.product.findFirst({ where: { id: validProductId, tenantId, deletedAt: null } })
+          ? await tx.product.findFirst({
+              where: { id: validProductId, tenantId, deletedAt: null },
+            })
           : null;
 
         const price = Number(item.price ?? product?.purchasePrice ?? 0);
@@ -205,7 +228,8 @@ export class PurchasesService {
         });
 
         // 4. Auto-restock inventory ONLY if business tracks inventory and product is not a service
-        const shouldRestock = autoRestock && product && tenant.trackInventory && !product.isService;
+        const shouldRestock =
+          autoRestock && product && tenant.trackInventory && !product.isService;
         if (shouldRestock) {
           await tx.product.update({
             where: { id: product.id },
@@ -278,7 +302,7 @@ export class PurchasesService {
             purchaseInvoiceId: purchaseInvoice.id,
             amount: parsedInitialPaid,
             date: purchaseDate,
-            method: paymentMethod as any,
+            method: paymentMethod,
             referenceNo: paymentReference?.trim() || null,
             notes: 'Initial payment upon purchase creation',
           },
@@ -316,7 +340,9 @@ export class PurchasesService {
         if (tenant?.trackInventory) {
           for (const item of purchase.items) {
             if (item.productId) {
-              const prod = await tx.product.findUnique({ where: { id: item.productId } });
+              const prod = await tx.product.findUnique({
+                where: { id: item.productId },
+              });
               if (prod && !prod.isService) {
                 await tx.product.update({
                   where: { id: item.productId },
@@ -436,17 +462,33 @@ export class PurchasesService {
         ...(phone !== undefined && { phone: phone?.trim() || null }),
         ...(address !== undefined && { address: address?.trim() || null }),
         ...(gstin !== undefined && { gstin: gstin?.trim() || null }),
-        ...(stateCode !== undefined && { stateCode: stateCode?.trim() || null }),
-        ...(bankAccountName !== undefined && { bankAccountName: bankAccountName?.trim() || null }),
-        ...(bankAccountNumber !== undefined && { bankAccountNumber: bankAccountNumber?.trim() || null }),
-        ...(bankIfsc !== undefined && { bankIfsc: bankIfsc?.trim()?.toUpperCase() || null }),
+        ...(stateCode !== undefined && {
+          stateCode: stateCode?.trim() || null,
+        }),
+        ...(bankAccountName !== undefined && {
+          bankAccountName: bankAccountName?.trim() || null,
+        }),
+        ...(bankAccountNumber !== undefined && {
+          bankAccountNumber: bankAccountNumber?.trim() || null,
+        }),
+        ...(bankIfsc !== undefined && {
+          bankIfsc: bankIfsc?.trim()?.toUpperCase() || null,
+        }),
         ...(upiId !== undefined && { upiId: upiId?.trim() || null }),
       },
     });
   }
 
   async recordPayment(tenantId: string, data: any) {
-    const { vendorId, purchaseInvoiceId, amount, date, method, referenceNo, notes } = data;
+    const {
+      vendorId,
+      purchaseInvoiceId,
+      amount,
+      date,
+      method,
+      referenceNo,
+      notes,
+    } = data;
 
     const parsedAmount = Number(amount);
     if (!parsedAmount || parsedAmount <= 0) {

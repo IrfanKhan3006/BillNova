@@ -20,13 +20,18 @@ export class AuthService {
   ) {}
 
   // ─── Register ─────────────────────────────────────────────────────────────
-  async register(dto: RegisterDto, meta: { userAgent?: string; ipAddress?: string }) {
+  async register(
+    dto: RegisterDto,
+    meta: { userAgent?: string; ipAddress?: string },
+  ) {
     const existingUser = await this.prisma.user.findFirst({
       where: { email: dto.email },
     });
 
     if (existingUser) {
-      throw new ConflictException('An account already exists with this email address. Please login instead.');
+      throw new ConflictException(
+        'An account already exists with this email address. Please login instead.',
+      );
     }
 
     const slug = await this.generateUniqueSlug(dto.businessName);
@@ -104,7 +109,10 @@ export class AuthService {
       throw new UnauthorizedException('Incorrect email or password.');
     }
 
-    const isPasswordValid = await argon2.verify(user.passwordHash, dto.password);
+    const isPasswordValid = await argon2.verify(
+      user.passwordHash,
+      dto.password,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Incorrect email or password.');
     }
@@ -153,7 +161,10 @@ export class AuthService {
   }
 
   // ─── Refresh ──────────────────────────────────────────────────────────────
-  async refreshTokens(refreshToken: string, meta: { userAgent?: string; ipAddress?: string }) {
+  async refreshTokens(
+    refreshToken: string,
+    meta: { userAgent?: string; ipAddress?: string },
+  ) {
     const tokenHash = this.hashToken(refreshToken);
 
     const storedToken = await this.prisma.refreshToken.findFirst({
@@ -162,7 +173,9 @@ export class AuthService {
     });
 
     if (!storedToken) {
-      throw new UnauthorizedException('Refresh token is invalid or expired. Please log in again.');
+      throw new UnauthorizedException(
+        'Refresh token is invalid or expired. Please log in again.',
+      );
     }
 
     if (!storedToken.user.isActive || storedToken.user.deletedAt) {
@@ -242,7 +255,12 @@ export class AuthService {
     user: { id: string; tenantId: string | null; email: string; role: string },
     meta: { userAgent?: string; ipAddress?: string },
   ) {
-    const payload = { sub: user.id, tenantId: user.tenantId, email: user.email, role: user.role };
+    const payload = {
+      sub: user.id,
+      tenantId: user.tenantId,
+      email: user.email,
+      role: user.role,
+    };
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
@@ -274,7 +292,7 @@ export class AuthService {
   }
 
   private async generateUniqueSlug(businessName: string): Promise<string> {
-    let slug = businessName
+    const slug = businessName
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
@@ -284,7 +302,9 @@ export class AuthService {
     let candidate = slug;
 
     while (true) {
-      const existing = await this.prisma.tenant.findUnique({ where: { slug: candidate } });
+      const existing = await this.prisma.tenant.findUnique({
+        where: { slug: candidate },
+      });
       if (!existing) return candidate;
       candidate = `${slug}-${++counter}`;
     }

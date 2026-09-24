@@ -18,7 +18,9 @@ export class DashboardController {
   }
 
   @Get('top-items')
-  @ApiOperation({ summary: 'Highest selling products aur high outstanding customers dekho' })
+  @ApiOperation({
+    summary: 'Highest selling products aur high outstanding customers dekho',
+  })
   async getTopItems(@CurrentUser() user: any) {
     return this.dashboardService.getTopItems(user.tenantId);
   }

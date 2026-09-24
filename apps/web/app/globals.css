@@ -1,22 +1,15 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #09090b;
+  --foreground: #ededed;
 }
 
 body {
@@ -26,76 +19,166 @@ body {
 }
 
 /* ─── Light Mode Global Overrides ────────────────────────────────────────── */
+html:not(.dark),
+html.light {
+  color-scheme: light;
+}
+
+html:not(.dark) body,
 html.light body {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
-}
-
-html.light .bg-zinc-950 {
   background-color: #ffffff !important;
-  color: #0f172a !important;
+  color: #09090b !important;
 }
 
+/* All Table Headers & Rows */
+html:not(.dark) thead,
+html.light thead {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) thead tr,
+html.light thead tr {
+  background-color: #f1f5f9 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+html:not(.dark) thead th,
+html.light thead th {
+  color: #334155 !important;
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) tbody tr,
+html.light tbody tr {
+  border-color: #f1f5f9 !important;
+}
+
+html:not(.dark) tbody tr:hover,
+html.light tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+/* Convert all black & dark backgrounds to clean white */
+html:not(.dark) .bg-zinc-950,
+html:not(.dark) .bg-zinc-955,
+html:not(.dark) .bg-black,
+html:not(.dark) .bg-zinc-900,
+html:not(.dark) [class*="bg-zinc-950"],
+html:not(.dark) [class*="bg-zinc-900"],
+html:not(.dark) [class*="bg-zinc-850"],
+html:not(.dark) [class*="bg-zinc-800"],
+html.light .bg-zinc-950,
+html.light .bg-zinc-955,
+html.light .bg-black,
 html.light .bg-zinc-900,
+html.light [class*="bg-zinc-950"],
+html.light [class*="bg-zinc-900"],
+html.light [class*="bg-zinc-850"],
+html.light [class*="bg-zinc-800"] {
+  background-color: #ffffff !important;
+}
+
+/* Secondary light surfaces (cards, pill containers) */
+html:not(.dark) .bg-zinc-900\/40,
+html:not(.dark) .bg-zinc-900\/30,
+html:not(.dark) .bg-zinc-900\/20,
+html:not(.dark) .bg-zinc-900\/10,
 html.light .bg-zinc-900\/40,
 html.light .bg-zinc-900\/30,
 html.light .bg-zinc-900\/20,
-html.light .bg-zinc-900\/60 {
-  background-color: #f1f5f9 !important;
-  color: #0f172a !important;
+html.light .bg-zinc-900\/10 {
+  background-color: #f8fafc !important;
 }
 
-html.light .bg-zinc-850,
-html.light .bg-zinc-800 {
-  background-color: #e2e8f0 !important;
-  color: #1e293b !important;
-}
-
-html.light .border-zinc-800,
+/* Convert all dark borders to clean subtle light borders */
+html:not(.dark) [class*="border-zinc-8"],
+html:not(.dark) [class*="border-zinc-7"],
+html:not(.dark) .border-zinc-900,
+html:not(.dark) .border-zinc-850,
+html:not(.dark) .border-zinc-855,
+html:not(.dark) .border-zinc-805,
+html:not(.dark) .border-zinc-800,
+html.light [class*="border-zinc-8"],
+html.light [class*="border-zinc-7"],
+html.light .border-zinc-900,
 html.light .border-zinc-850,
+html.light .border-zinc-855,
 html.light .border-zinc-805,
-html.light .border-zinc-800\/80,
-html.light .border-zinc-800\/60,
-html.light .border-zinc-800\/40 {
+html.light .border-zinc-800 {
   border-color: #e2e8f0 !important;
 }
 
-html.light .text-white {
-  color: #0f172a !important;
-}
-
+/* Convert all white & light text to dark black text */
+html:not(.dark) .text-white,
+html:not(.dark) .text-zinc-100,
+html:not(.dark) .text-zinc-200,
+html:not(.dark) .text-zinc-300,
+html.light .text-white,
 html.light .text-zinc-100,
 html.light .text-zinc-200,
 html.light .text-zinc-300 {
-  color: #1e293b !important;
+  color: #09090b !important;
 }
 
-html.light .text-zinc-400 {
+html:not(.dark) .text-zinc-400,
+html:not(.dark) .text-zinc-500,
+html:not(.dark) .text-zinc-550,
+html.light .text-zinc-400,
+html.light .text-zinc-500,
+html.light .text-zinc-550 {
   color: #475569 !important;
 }
 
-html.light .text-zinc-500,
-html.light .text-zinc-550 {
-  color: #64748b !important;
+/* Solid accent buttons maintain white text */
+html:not(.dark) button.bg-purple-600,
+html:not(.dark) button.bg-purple-600 *,
+html:not(.dark) a.bg-purple-600,
+html:not(.dark) button.bg-rose-600,
+html:not(.dark) button.bg-rose-600 *,
+html:not(.dark) button.bg-blue-600,
+html:not(.dark) button.bg-blue-600 *,
+html.light button.bg-purple-600,
+html.light button.bg-purple-600 *,
+html.light a.bg-purple-600,
+html.light button.bg-rose-600,
+html.light button.bg-rose-600 *,
+html.light button.bg-blue-600,
+html.light button.bg-blue-600 * {
+  color: #ffffff !important;
 }
 
+/* Input, Select, Textarea */
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea,
 html.light input,
 html.light select,
 html.light textarea {
   background-color: #ffffff !important;
-  color: #0f172a !important;
+  color: #09090b !important;
   border-color: #cbd5e1 !important;
 }
 
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder,
 html.light input::placeholder,
 html.light textarea::placeholder {
   color: #94a3b8 !important;
 }
 
+/* Sidebar & Header */
+html:not(.dark) aside,
 html.light aside {
   background-color: #ffffff !important;
   border-right-color: #e2e8f0 !important;
 }
+
+html:not(.dark) header,
+html.light header {
+  background-color: #ffffff !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
 
 /* ─── Media Print Styles ─────────────────────────────────────────────────── */
 @media print {

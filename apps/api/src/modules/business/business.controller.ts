@@ -93,7 +93,10 @@ export class BusinessController {
 
   @Patch()
   @ApiOperation({ summary: 'Update business profile details' })
-  async updateProfile(@CurrentUser() user: any, @Body() dto: UpdateBusinessDto) {
+  async updateProfile(
+    @CurrentUser() user: any,
+    @Body() dto: UpdateBusinessDto,
+  ) {
     return this.businessService.updateProfile(user.tenantId, dto);
   }
 }

@@ -40,10 +40,13 @@ export class AdminService {
       where: { deletedAt: null },
     });
 
-    const planStats = planGroups.reduce((acc, curr) => {
-      acc[curr.plan] = curr._count.id;
-      return acc;
-    }, {} as Record<string, number>);
+    const planStats = planGroups.reduce(
+      (acc, curr) => {
+        acc[curr.plan] = curr._count.id;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       totalTenants,

@@ -99,6 +99,8 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -422,18 +424,28 @@ export default function PurchasesPage() {
         p.vendor.name.toLowerCase().includes(search.toLowerCase());
 
       const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [purchases, search, statusFilter]);
 
-  // Aggregate Metrics
+      // Date Range Filtering (From & To)
+      const pDateStr = p.date ? p.date.slice(0, 10) : '';
+      const matchesFrom = !startDate || (pDateStr && pDateStr >= startDate);
+      const matchesTo = !endDate || (pDateStr && pDateStr <= endDate);
+
+      return matchesSearch && matchesStatus && matchesFrom && matchesTo;
+    });
+  }, [purchases, search, statusFilter, startDate, endDate]);
+
+  // Aggregate Metrics (Reflects filtered results when search, date range, or status filter is applied)
   const metrics = useMemo(() => {
-    const totalPurchases = purchases.reduce((acc, p) => acc + (p.totalAmount || 0), 0);
-    const totalPayable = vendors.reduce((acc, v) => acc + (v.outstandingBalance || 0), 0);
-    const totalBills = purchases.length;
+    const isFiltered = Boolean(search || statusFilter !== 'ALL' || startDate || endDate);
+    const targetPurchases = isFiltered ? filteredPurchases : purchases;
+    const totalPurchases = targetPurchases.reduce((acc, p) => acc + (p.totalAmount || 0), 0);
+    const totalPayable = isFiltered
+      ? targetPurchases.reduce((acc, p) => acc + (p.amountDue || 0), 0)
+      : vendors.reduce((acc, v) => acc + (v.outstandingBalance || 0), 0);
+    const totalBills = targetPurchases.length;
     const totalVendors = vendors.length;
-    return { totalPurchases, totalPayable, totalBills, totalVendors };
-  }, [purchases, vendors]);
+    return { totalPurchases, totalPayable, totalBills, totalVendors, isFiltered };
+  }, [purchases, filteredPurchases, vendors, search, statusFilter, startDate, endDate]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -464,15 +476,15 @@ export default function PurchasesPage() {
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setShowVendorsModal(true)}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-xs transition"
               >
-                <Users className="h-4 w-4 text-zinc-400" />
+                <Users className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                 Vendors ({vendors.length})
               </button>
 
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 text-white hover:bg-purple-500 transition shadow-lg shadow-purple-600/20"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 text-white hover:bg-purple-500 transition shadow-md shadow-purple-600/20"
               >
                 <Plus className="h-4 w-4" />
                 Record Purchase Bill
@@ -482,65 +494,108 @@ export default function PurchasesPage() {
 
           {/* Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
+            <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Total Inward Bills</span>
-                <FileText className="h-4 w-4 text-purple-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Total Inward Bills</span>
+                <FileText className="h-4 w-4 text-purple-500 dark:text-purple-400" />
               </div>
-              <p className="mt-2 text-xl font-black text-white">{metrics.totalBills}</p>
+              <p className="mt-2 text-xl font-black text-zinc-900 dark:text-white">{metrics.totalBills}</p>
               <span className="text-[10px] text-zinc-500 font-medium">Recorded supplier invoices</span>
             </div>
 
-            <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
+            <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Total Purchases</span>
-                <ArrowDownLeft className="h-4 w-4 text-blue-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Total Purchases</span>
+                <ArrowDownLeft className="h-4 w-4 text-blue-500 dark:text-blue-400" />
               </div>
-              <p className="mt-2 text-xl font-black text-blue-400">{formatCurrency(metrics.totalPurchases)}</p>
+              <p className="mt-2 text-xl font-black text-blue-600 dark:text-blue-400">{formatCurrency(metrics.totalPurchases)}</p>
               <span className="text-[10px] text-zinc-500 font-medium">Gross value of purchases</span>
             </div>
 
-            <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
+            <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Due to Vendors</span>
-                <AlertCircle className="h-4 w-4 text-amber-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Due to Vendors</span>
+                <AlertCircle className="h-4 w-4 text-amber-500 dark:text-amber-400" />
               </div>
-              <p className="mt-2 text-xl font-black text-amber-400">{formatCurrency(metrics.totalPayable)}</p>
+              <p className="mt-2 text-xl font-black text-amber-600 dark:text-amber-400">{formatCurrency(metrics.totalPayable)}</p>
               <span className="text-[10px] text-zinc-500 font-medium">Accounts Payable balance</span>
             </div>
 
-            <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm">
+            <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Active Vendors</span>
-                <Building2 className="h-4 w-4 text-emerald-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Active Vendors</span>
+                <Building2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
               </div>
-              <p className="mt-2 text-xl font-black text-emerald-400">{metrics.totalVendors}</p>
+              <p className="mt-2 text-xl font-black text-emerald-600 dark:text-emerald-400">{metrics.totalVendors}</p>
               <span className="text-[10px] text-zinc-500 font-medium">Registered suppliers</span>
             </div>
           </div>
 
-          {/* Search & Filters */}
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-zinc-900/20 p-2.5 rounded-2xl border border-zinc-800/80">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
+          {/* Search, Date Range Filter & Status Filters */}
+          <div className="flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between bg-white dark:bg-zinc-900/30 p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-xs">
+            {/* Search Input */}
+            <div className="relative w-full xl:w-72 shrink-0">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
               <input
                 type="text"
-                placeholder="Search by PUR #, Bill #, or Vendor..."
+                placeholder="Search by PUR #, Bill #, Vendor..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 transition"
+                className="w-full bg-slate-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-purple-500 transition"
               />
             </div>
 
-            <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+            {/* Date Range Filter (From Date & To Date) */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1 text-xs">
+                <Calendar className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">From</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-transparent text-xs text-zinc-900 dark:text-white font-medium focus:outline-none cursor-pointer"
+                  title="Filter bills starting from this date"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1 text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">To</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-transparent text-xs text-zinc-900 dark:text-white font-medium focus:outline-none cursor-pointer"
+                  title="Filter bills up to this date"
+                />
+              </div>
+
+              {(startDate || endDate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                  }}
+                  title="Clear Date Filter"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 transition shrink-0 cursor-pointer"
+                >
+                  <X className="h-3 w-3" />
+                  <span>Reset Dates</span>
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
               {['ALL', 'RECEIVED', 'PAID', 'PARTIALLY_PAID', 'DRAFT'].map((st) => (
                 <button
                   key={st}
                   onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition ${
+                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap ${
                     statusFilter === st
-                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                      ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-500/30'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
                   }`}
                 >
                   {st.replace('_', ' ')}
@@ -550,11 +605,11 @@ export default function PurchasesPage() {
           </div>
 
           {/* Purchases Table */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 overflow-hidden">
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 shadow-sm dark:shadow-none overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-zinc-800 bg-zinc-900/60 text-zinc-400 font-semibold uppercase tracking-wider text-[10px]">
+                  <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 font-bold uppercase tracking-wider text-[10px]">
                     <th className="py-3 px-4">Purchase #</th>
                     <th className="py-3 px-4">Supplier / Vendor</th>
                     <th className="py-3 px-4">Bill / Ref #</th>
@@ -565,60 +620,78 @@ export default function PurchasesPage() {
                     <th className="py-3 px-4 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60">
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-zinc-500">
+                      <td colSpan={8} className="py-12 text-center text-zinc-400">
                         Loading purchase invoices...
                       </td>
                     </tr>
                   ) : filteredPurchases.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-12 text-center">
-                        <ShoppingBag className="mx-auto h-8 w-8 text-zinc-600 mb-2" />
-                        <p className="text-zinc-400 font-semibold">No purchase invoices found</p>
-                        <p className="text-zinc-600 text-[11px] mt-0.5">Click "Record Purchase Bill" to log incoming supplier inventory.</p>
+                        <ShoppingBag className="mx-auto h-8 w-8 text-zinc-400 mb-2" />
+                        <p className="text-zinc-700 dark:text-zinc-300 font-semibold">No purchase invoices found</p>
+                        <p className="text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5">
+                          {startDate || endDate || search || statusFilter !== 'ALL'
+                            ? 'No bills match your selected date range or search filters.'
+                            : 'Click "Record Purchase Bill" to log incoming supplier inventory.'}
+                        </p>
+                        {(startDate || endDate || search || statusFilter !== 'ALL') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStartDate('');
+                              setEndDate('');
+                              setSearch('');
+                              setStatusFilter('ALL');
+                            }}
+                            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-100 hover:bg-purple-200 text-purple-800 dark:bg-purple-500/20 dark:hover:bg-purple-500/30 dark:text-purple-300 border border-purple-300 dark:border-purple-500/30 transition cursor-pointer"
+                          >
+                            <span>Clear All Filters</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
                     filteredPurchases.map((p) => (
-                      <tr key={p.id} className="hover:bg-zinc-800/30 transition">
-                        <td className="py-3.5 px-4 font-bold text-white flex items-center gap-1.5">
-                          <FileText className="h-3.5 w-3.5 text-purple-400" />
+                      <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition">
+                        <td className="py-3.5 px-4 font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                          <FileText className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
                           {p.purchaseNumber}
                         </td>
                         <td className="py-3.5 px-4">
-                          <p className="font-semibold text-zinc-200">{p.vendor?.name}</p>
+                          <p className="font-semibold text-zinc-900 dark:text-zinc-200">{p.vendor?.name}</p>
                           {p.vendor?.gstin && (
                             <p className="text-[10px] text-zinc-500 font-mono">GSTIN: {p.vendor.gstin}</p>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 font-mono text-zinc-400">
-                          {p.billNumber || <span className="text-zinc-600 italic">None</span>}
+                        <td className="py-3.5 px-4 font-mono text-zinc-600 dark:text-zinc-400">
+                          {p.billNumber || <span className="text-zinc-400 italic">None</span>}
                         </td>
-                        <td className="py-3.5 px-4 text-zinc-400">
+                        <td className="py-3.5 px-4 text-zinc-600 dark:text-zinc-400">
                           {new Date(p.date).toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',
                           })}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-bold text-zinc-100">
+                        <td className="py-3.5 px-4 text-right font-bold text-zinc-900 dark:text-zinc-100">
                           {formatCurrency(p.totalAmount)}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-medium text-amber-400">
-                          {p.amountDue > 0 ? formatCurrency(p.amountDue) : <span className="text-emerald-400">Settled</span>}
+                        <td className="py-3.5 px-4 text-right font-bold text-amber-600 dark:text-amber-400">
+                          {p.amountDue > 0 ? formatCurrency(p.amountDue) : <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Settled</span>}
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               p.status === 'PAID'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
                                 : p.status === 'PARTIALLY_PAID'
-                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
                                 : p.status === 'DRAFT'
-                                ? 'bg-zinc-800 text-zinc-400 border border-zinc-700'
-                                : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                                ? 'bg-zinc-100 text-zinc-700 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+                                : 'bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
                             }`}
                           >
                             {p.status.replace('_', ' ')}
@@ -628,14 +701,14 @@ export default function PurchasesPage() {
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setSelectedInvoice(p)}
-                              className="p-1.5 rounded-lg bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-zinc-700 border border-zinc-200 dark:bg-zinc-800/80 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-700 dark:border-transparent transition"
                               title="View & Print Voucher"
                             >
                               <Printer className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeletePurchase(p.id, p.purchaseNumber)}
-                              className="p-1.5 rounded-lg bg-zinc-800/80 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition"
+                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-zinc-800/80 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-500/10 dark:border-transparent transition"
                               title="Delete Purchase"
                             >
                               <Trash2 className="h-3.5 w-3.5" />

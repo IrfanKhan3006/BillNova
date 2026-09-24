@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
@@ -30,7 +34,8 @@ export class PaymentsService {
   }
 
   async create(tenantId: string, data: any) {
-    const { customerId, invoiceId, amount, date, method, referenceNo, notes } = data;
+    const { customerId, invoiceId, amount, date, method, referenceNo, notes } =
+      data;
 
     if (amount <= 0) {
       throw new BadRequestException('Payment amount 0 se zyada hona chahiye.');

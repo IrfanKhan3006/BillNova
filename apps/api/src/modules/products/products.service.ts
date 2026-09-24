@@ -149,7 +149,8 @@ export class ProductsService {
         taxRate: data.taxRate,
         unit: data.unit,
         stock: data.stock,
-        hsnCode: data.hsnCode !== undefined ? (data.hsnCode?.trim() || null) : undefined,
+        hsnCode:
+          data.hsnCode !== undefined ? data.hsnCode?.trim() || null : undefined,
         isService: data.isService !== undefined ? data.isService : undefined,
       },
     });

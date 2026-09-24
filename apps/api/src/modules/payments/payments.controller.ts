@@ -58,7 +58,10 @@ export class PaymentsController {
 
   @Get()
   @ApiOperation({ summary: 'Sabhi payments ki history dekho' })
-  async list(@CurrentUser() user: any, @Query('customerId') customerId?: string) {
+  async list(
+    @CurrentUser() user: any,
+    @Query('customerId') customerId?: string,
+  ) {
     return this.paymentsService.list(user.tenantId, customerId);
   }
 

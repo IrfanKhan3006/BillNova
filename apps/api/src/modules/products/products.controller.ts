@@ -139,7 +139,10 @@ export class ProductsController {
 
   @Post('categories')
   @ApiOperation({ summary: 'Create a new category' })
-  async createCategory(@CurrentUser() user: any, @Body() dto: CreateCategoryDto) {
+  async createCategory(
+    @CurrentUser() user: any,
+    @Body() dto: CreateCategoryDto,
+  ) {
     return this.productsService.createCategory(user.tenantId, dto);
   }
 

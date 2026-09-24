@@ -267,7 +267,10 @@ export class PurchasesController {
 
   @Get('vendors')
   @ApiOperation({ summary: 'List all vendors with outstanding balance' })
-  async listVendors(@CurrentUser() user: any, @Query('search') search?: string) {
+  async listVendors(
+    @CurrentUser() user: any,
+    @Query('search') search?: string,
+  ) {
     return this.purchasesService.listVendors(user.tenantId, search);
   }
 
@@ -289,7 +292,10 @@ export class PurchasesController {
 
   @Post('payments')
   @ApiOperation({ summary: 'Record a payment made to a vendor' })
-  async recordPayment(@CurrentUser() user: any, @Body() dto: RecordPurchasePaymentDto) {
+  async recordPayment(
+    @CurrentUser() user: any,
+    @Body() dto: RecordPurchasePaymentDto,
+  ) {
     return this.purchasesService.recordPayment(user.tenantId, dto);
   }
 
@@ -301,7 +307,10 @@ export class PurchasesController {
 
   @Post()
   @ApiOperation({ summary: 'Record a new purchase invoice/bill' })
-  async create(@CurrentUser() user: any, @Body() dto: CreatePurchaseInvoiceDto) {
+  async create(
+    @CurrentUser() user: any,
+    @Body() dto: CreatePurchaseInvoiceDto,
+  ) {
     return this.purchasesService.create(user.tenantId, dto);
   }
 

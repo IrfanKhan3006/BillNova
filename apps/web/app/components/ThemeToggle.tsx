@@ -10,6 +10,18 @@ export default function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<'DARK' | 'LIGHT'>('DARK');
 
+  const applyTheme = (t: 'DARK' | 'LIGHT') => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (t === 'LIGHT') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    } else {
+      root.classList.remove('light');
+      root.classList.add('dark');
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
     const stored = typeof window !== 'undefined' ? localStorage.getItem('billnova_theme') : null;
@@ -25,18 +37,6 @@ export default function ThemeToggle() {
       setTheme(detected);
     }
   }, [user?.tenant?.theme]);
-
-  const applyTheme = (t: 'DARK' | 'LIGHT') => {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    if (t === 'LIGHT') {
-      root.classList.remove('dark');
-      root.classList.add('light');
-    } else {
-      root.classList.remove('light');
-      root.classList.add('dark');
-    }
-  };
 
   const toggleTheme = async () => {
     const nextTheme: 'DARK' | 'LIGHT' = theme === 'DARK' ? 'LIGHT' : 'DARK';
@@ -81,13 +81,13 @@ export default function ThemeToggle() {
       onClick={toggleTheme}
       title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
       aria-label="Toggle theme"
-      className="group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-700/70 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all duration-200 shadow-sm backdrop-blur-md cursor-pointer select-none active:scale-95"
+      className="group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700/70 bg-white dark:bg-zinc-900/60 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-all duration-200 shadow-xs cursor-pointer select-none active:scale-95"
     >
       <div className="relative flex items-center justify-center h-4 w-4">
         {isDark ? (
-          <Sun className="h-4 w-4 text-amber-400 transition-transform duration-300 group-hover:rotate-45" />
+          <Sun className="h-4 w-4 text-amber-500 dark:text-amber-400 transition-transform duration-300 group-hover:rotate-45" />
         ) : (
-          <Moon className="h-4 w-4 text-indigo-400 transition-transform duration-300 group-hover:-rotate-12" />
+          <Moon className="h-4 w-4 text-indigo-500 dark:text-indigo-400 transition-transform duration-300 group-hover:-rotate-12" />
         )}
       </div>
       <span className="text-xs font-semibold tracking-wide">

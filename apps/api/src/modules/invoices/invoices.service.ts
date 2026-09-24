@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
@@ -117,7 +121,9 @@ export class InvoicesService {
 
       for (const item of items) {
         const product = item.productId
-          ? await tx.product.findFirst({ where: { id: item.productId, tenantId, deletedAt: null } })
+          ? await tx.product.findFirst({
+              where: { id: item.productId, tenantId, deletedAt: null },
+            })
           : null;
 
         const price = item.price ?? product?.salesPrice ?? 0;
@@ -129,7 +135,7 @@ export class InvoicesService {
         const itemSubTotal = rateAfterDiscount * qty;
         const itemTaxAmount = itemSubTotal * (taxRate / 100);
         const itemTotal = itemSubTotal + itemTaxAmount;
-        const itemDiscountAmount = (price * (discountRate / 100)) * qty;
+        const itemDiscountAmount = price * (discountRate / 100) * qty;
 
         subTotal += itemSubTotal;
         taxAmount += itemTaxAmount;
@@ -158,11 +164,25 @@ export class InvoicesService {
       }
 
       const totalAmount = subTotal + taxAmount;
-      const amountPaid = 0; // initial invoice payments happen separately or as recorded payment
-      const amountDue = totalAmount - amountPaid;
+      const initialPaid = Math.min(
+        totalAmount,
+        Math.max(0, Number(data.amountPaid ?? data.advanceAmount ?? 0)),
+      );
+      const amountPaid = initialPaid;
+      const amountDue = Math.max(0, totalAmount - amountPaid);
 
-      // Invoice status determines whether outstanding balance is adjusted
-      const finalStatus = status || 'SENT';
+      // Determine final invoice status
+      let finalStatus = status || 'SENT';
+      if (finalStatus !== 'DRAFT' && finalStatus !== 'VOID') {
+        if (amountDue === 0 && totalAmount > 0) {
+          finalStatus = 'PAID';
+        } else if (amountPaid > 0) {
+          finalStatus = 'PARTIALLY_PAID';
+        } else {
+          finalStatus = status || 'SENT';
+        }
+      }
+
       const isDraft = finalStatus === 'DRAFT';
       const isVoid = finalStatus === 'VOID';
 
@@ -205,7 +225,9 @@ export class InvoicesService {
           consigneeState,
 
           deliveryNote,
-          deliveryNoteDate: deliveryNoteDate ? new Date(deliveryNoteDate) : null,
+          deliveryNoteDate: deliveryNoteDate
+            ? new Date(deliveryNoteDate)
+            : null,
           paymentTerms,
           supplierRef,
           otherReferences,
@@ -225,6 +247,31 @@ export class InvoicesService {
           items: true,
         },
       });
+
+      // If advance payment was made at invoice creation, record initial Payment
+      if (amountPaid > 0 && !isDraft && !isVoid) {
+        const validMethods = ['CASH', 'BANK_TRANSFER', 'CARD', 'UPI', 'OTHER'];
+        const method = validMethods.includes(data.paymentMethod)
+          ? data.paymentMethod
+          : 'CASH';
+
+        await tx.payment.create({
+          data: {
+            tenantId,
+            customerId,
+            invoiceId: invoice.id,
+            amount: amountPaid,
+            date: invoiceDate,
+            method: method,
+            referenceNo: data.paymentReference || 'Advance at Billing',
+            notes:
+              data.paymentNotes ||
+              (amountDue === 0
+                ? 'Full payment received at invoice creation'
+                : `Advance payment of ₹${amountPaid} received at invoice creation`),
+          },
+        });
+      }
 
       return invoice;
     });
@@ -247,7 +294,8 @@ export class InvoicesService {
         finalStatus = status;
 
         // Recalculate customer balance
-        const wasOutstanding = oldInvoice.status !== 'DRAFT' && oldInvoice.status !== 'VOID';
+        const wasOutstanding =
+          oldInvoice.status !== 'DRAFT' && oldInvoice.status !== 'VOID';
         const isOutstanding = finalStatus !== 'DRAFT' && finalStatus !== 'VOID';
 
         let balanceChange = 0;

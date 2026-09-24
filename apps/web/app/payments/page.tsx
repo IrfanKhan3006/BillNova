@@ -398,7 +398,7 @@ export default function PaymentsPage() {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="rounded-lg bg-zinc-855 text-zinc-300 px-4 py-2 text-xs font-semibold hover:bg-zinc-800"
+                    className="rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 px-4 py-2 text-xs font-semibold transition"
                   >
                     Cancel
                   </button>

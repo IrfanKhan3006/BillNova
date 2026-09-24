@@ -10,7 +10,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -69,6 +75,26 @@ class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsNumber()
+  amountPaid?: number;
+
+  @IsOptional()
+  @IsNumber()
+  advanceAmount?: number;
+
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+
+  @IsOptional()
+  @IsString()
+  paymentReference?: string;
+
+  @IsOptional()
+  @IsString()
+  paymentNotes?: string;
 
   // e-Invoice fields
   @IsOptional()
@@ -184,7 +210,9 @@ export class InvoicesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Generate a new invoice with dynamic GST calculation' })
+  @ApiOperation({
+    summary: 'Generate a new invoice with dynamic GST calculation',
+  })
   async create(@CurrentUser() user: any, @Body() dto: CreateInvoiceDto) {
     return this.invoicesService.create(user.tenantId, dto);
   }
