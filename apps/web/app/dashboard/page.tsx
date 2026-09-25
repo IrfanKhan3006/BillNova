@@ -16,8 +16,13 @@ import {
   Clock,
   Wallet,
   FileCheck,
+  Pencil,
+  Plus,
+  Printer,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from '../store/uiStore';
 
 interface DashboardData {
   todaySales: number;
@@ -85,24 +90,92 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [dashRes, topRes] = await Promise.all([
-          api.get('/dashboard/metrics'),
-          api.get('/dashboard/top-items'),
-        ]);
-        setDashboard(dashRes);
-        setTopItems(topRes);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load dashboard metrics.');
-      } finally {
-        setLoading(false);
-      }
+  // Advance Installment Modal state
+  const [selectedAdvanceInvoice, setSelectedAdvanceInvoice] = useState<any | null>(null);
+  const [installmentAmount, setInstallmentAmount] = useState<string>('');
+  const [installmentDate, setInstallmentDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  );
+  const [paymentMethod, setPaymentMethod] = useState<string>('CASH');
+  const [paymentRef, setPaymentRef] = useState<string>('');
+  const [paymentNotes, setPaymentNotes] = useState<string>('');
+  const [submittingPayment, setSubmittingPayment] = useState<boolean>(false);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [dashRes, topRes] = await Promise.all([
+        api.get('/dashboard/metrics'),
+        api.get('/dashboard/top-items'),
+      ]);
+      setDashboard(dashRes);
+      setTopItems(topRes);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load dashboard metrics.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadData();
   }, []);
+
+  const openAdvanceModal = (inv: any) => {
+    setSelectedAdvanceInvoice(inv);
+    setInstallmentAmount('');
+    setInstallmentDate(new Date().toISOString().split('T')[0]);
+    setPaymentMethod('CASH');
+    setPaymentRef('');
+    setPaymentNotes('');
+  };
+
+  const handleRecordInstallment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAdvanceInvoice) return;
+
+    const amt = parseFloat(installmentAmount);
+    if (isNaN(amt) || amt <= 0) {
+      toast.error('Please enter a valid installment amount.');
+      return;
+    }
+
+    const currentDue = Number(
+      selectedAdvanceInvoice.amountDue ??
+        (selectedAdvanceInvoice.totalAmount - (selectedAdvanceInvoice.amountPaid || 0))
+    );
+
+    if (amt > currentDue) {
+      toast.error(`Installment cannot exceed remaining balance of ₹${currentDue}`);
+      return;
+    }
+
+    try {
+      setSubmittingPayment(true);
+      const res = await api.patch(`/invoices/${selectedAdvanceInvoice.id}`, {
+        newAdvanceAmount: amt,
+        advanceDate: installmentDate,
+        advanceMethod: paymentMethod,
+        advanceReference: paymentRef,
+        advanceNotes: paymentNotes,
+      });
+
+      if (res.advanceConverted) {
+        toast.success(
+          `Bill fully settled! Automatically converted to final Tax Invoice #${res.invoiceNumber}`
+        );
+      } else {
+        toast.success(`Advance installment of ₹${amt} successfully recorded!`);
+      }
+
+      setSelectedAdvanceInvoice(null);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to record advance installment.');
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -392,6 +465,13 @@ export default function DashboardPage() {
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Invoices with partial advance received</p>
                   </div>
                 </div>
+                <Link
+                  href="/advance-bills"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition px-2.5 py-1 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-500/10"
+                >
+                  <span>View All Advance Bills</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
 
               {dashboard?.recentAdvanceInvoices && dashboard.recentAdvanceInvoices.length > 0 ? (
@@ -422,17 +502,22 @@ export default function DashboardPage() {
                             <td className="py-3 px-2 font-bold text-amber-700 dark:text-amber-300 text-xs">{formatCurrency(dueAmt)}</td>
                             <td className="py-3 px-2 text-right">
                               <div className="flex items-center justify-end gap-1.5">
-                                <Link
-                                  href={`/payments`}
-                                  className="rounded px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-[11px] font-bold text-amber-900 border border-amber-300 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-400 dark:border-transparent transition"
+                                <button
+                                  type="button"
+                                  onClick={() => openAdvanceModal(inv)}
+                                  title="Add next advance installment"
+                                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-[11px] font-bold text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:hover:bg-purple-500/25 dark:text-purple-300 dark:border-purple-500/30 transition shadow-xs cursor-pointer"
                                 >
-                                  Settle
-                                </Link>
+                                  <Pencil className="h-3 w-3" />
+                                  <span>Edit</span>
+                                </button>
                                 <Link
                                   href={`/billing?invoiceId=${inv.id}`}
-                                  className="text-[11px] font-bold text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition"
+                                  title="Print or view invoice sheet"
+                                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 bg-zinc-100 hover:bg-zinc-200 text-[11px] font-bold text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 transition"
                                 >
-                                  Print
+                                  <Printer className="h-3 w-3" />
+                                  <span>Print</span>
                                 </Link>
                               </div>
                             </td>
@@ -588,6 +673,182 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* MODAL: Record Next Advance Installment from Dashboard */}
+        {selectedAdvanceInvoice && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in">
+            <div className="w-full max-w-lg rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl space-y-5 text-left">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
+                    <Pencil className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">Record Advance Installment</h3>
+                    <p className="text-xs text-zinc-400">
+                      Bill #{selectedAdvanceInvoice.invoiceNumber} • {selectedAdvanceInvoice.customerName}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAdvanceInvoice(null)}
+                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Balance Summary Box */}
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-zinc-400 block">Total Bill:</span>
+                  <span className="font-bold text-white text-sm">
+                    {formatCurrency(selectedAdvanceInvoice.totalAmount)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block">Paid So Far:</span>
+                  <span className="font-bold text-emerald-400 text-sm">
+                    {formatCurrency(selectedAdvanceInvoice.amountPaid || 0)}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-amber-300 block font-semibold">Remaining Due:</span>
+                  <span className="font-extrabold text-amber-400 text-base">
+                    {formatCurrency(
+                      selectedAdvanceInvoice.amountDue ??
+                        (selectedAdvanceInvoice.totalAmount - (selectedAdvanceInvoice.amountPaid || 0))
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <form onSubmit={handleRecordInstallment} className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-zinc-300">
+                      New Advance Amount (₹) <span className="text-amber-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const due =
+                          selectedAdvanceInvoice.amountDue ??
+                          (selectedAdvanceInvoice.totalAmount - (selectedAdvanceInvoice.amountPaid || 0));
+                        setInstallmentAmount(String(due));
+                      }}
+                      className="text-[11px] font-bold text-amber-400 hover:underline"
+                    >
+                      Fill Full Remaining
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-2.5 text-zinc-400 font-bold">₹</span>
+                    <input
+                      type="number"
+                      step="any"
+                      min="1"
+                      max={
+                        selectedAdvanceInvoice.amountDue ??
+                        (selectedAdvanceInvoice.totalAmount - (selectedAdvanceInvoice.amountPaid || 0))
+                      }
+                      required
+                      placeholder="0.00"
+                      value={installmentAmount}
+                      onChange={(e) => setInstallmentAmount(e.target.value)}
+                      className="w-full rounded-xl bg-zinc-950 pl-8 pr-4 py-2.5 text-sm font-bold text-white border border-zinc-700 focus:outline-hidden focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-zinc-300 mb-1.5 block">
+                      Installment Date <span className="text-amber-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={installmentDate}
+                      onChange={(e) => setInstallmentDate(e.target.value)}
+                      className="w-full rounded-xl bg-zinc-950 px-3 py-2 text-xs font-medium text-white border border-zinc-700 focus:outline-hidden focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-zinc-300 mb-1.5 block">
+                      Payment Mode
+                    </label>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-full rounded-xl bg-zinc-950 px-3 py-2 text-xs font-medium text-white border border-zinc-700 focus:outline-hidden focus:border-amber-500"
+                    >
+                      <option value="CASH">Cash</option>
+                      <option value="UPI">UPI / QR</option>
+                      <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+                      <option value="CHEQUE">Cheque</option>
+                      <option value="CARD">Card</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 mb-1.5 block">
+                    Reference / Transaction ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. UPI Ref / Cheque No."
+                    value={paymentRef}
+                    onChange={(e) => setPaymentRef(e.target.value)}
+                    className="w-full rounded-xl bg-zinc-950 px-3.5 py-2 text-xs text-white border border-zinc-700 focus:outline-hidden focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 mb-1.5 block">
+                    Installment Note (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 2nd advance before dispatch"
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    className="w-full rounded-xl bg-zinc-950 px-3.5 py-2 text-xs text-white border border-zinc-700 focus:outline-hidden focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-between">
+                  <Link
+                    href={`/billing?editInvoiceId=${selectedAdvanceInvoice.id}`}
+                    className="text-[11px] font-semibold text-purple-400 hover:text-purple-300 underline"
+                  >
+                    Edit Line Items on Canvas →
+                  </Link>
+
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAdvanceInvoice(null)}
+                      className="rounded-xl px-4 py-2.5 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingPayment}
+                      className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-2.5 text-xs font-bold text-zinc-950 shadow-lg shadow-amber-500/20 transition active:scale-95 disabled:opacity-50"
+                    >
+                      {submittingPayment ? 'Saving Installment...' : 'Confirm Advance Installment'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </SidebarLayout>
   );

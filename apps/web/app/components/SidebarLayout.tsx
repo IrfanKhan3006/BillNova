@@ -23,6 +23,8 @@ import {
   Zap,
   CheckCircle2,
   AlertTriangle,
+  Clock,
+  Wallet,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
@@ -47,6 +49,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Create Invoice', href: '/billing', icon: Receipt, featureKey: 'billingEnabled' as const },
+    { name: 'Advance Bills', href: '/advance-bills', icon: Clock, featureKey: 'billingEnabled' as const },
     { name: 'Purchase Invoices', href: '/purchases', icon: ShoppingBag, featureKey: 'purchasesEnabled' as const },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Products & Inventory', href: '/products', icon: Package, featureKey: 'productsEnabled' as const },

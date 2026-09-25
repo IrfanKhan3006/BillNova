@@ -54,6 +54,8 @@ model Tenant {
   invoiceCounter Int    @default(0)
   purchasePrefix String @default("PUR")
   purchaseCounter Int   @default(0)
+  advancePrefix  String @default("ADV")
+  advanceCounter Int    @default(0)
   dueDays        Int    @default(30)
   invoiceTemplate String @default("CLASSIC")
 
@@ -211,6 +213,12 @@ model Invoice {
   amountPaid     Float         @default(0)
   amountDue      Float         @default(0)
   notes          String?
+
+  // Advance Bill tracking & Auto-conversion
+  isAdvance                  Boolean   @default(false)
+  advanceConverted           Boolean   @default(false)
+  convertedInvoiceId         String?
+  convertedFromAdvanceNumber String?
 
   // e-Invoice fields
   irn            String?

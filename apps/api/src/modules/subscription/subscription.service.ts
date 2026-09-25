@@ -53,7 +53,11 @@ export class SubscriptionService {
     }
 
     const invoicesCount = await this.prisma.invoice.count({
-      where: { tenantId, deletedAt: null },
+      where: {
+        tenantId,
+        deletedAt: null,
+        advanceConverted: false, // Converted advance bills are succeeded by the final bill and not double-counted
+      },
     });
 
     const now = new Date();

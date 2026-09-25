@@ -132,12 +132,19 @@ export default function PaymentsPage() {
     }
     try {
       setSubmitting(true);
-      await api.post('/payments', {
+      const res = await api.post('/payments', {
         ...form,
         invoiceId: form.invoiceId || undefined,
       });
       setIsModalOpen(false);
-      toast.success('Payment recorded successfully!');
+      if (res?.convertedInvoice) {
+        toast.success(
+          `🎉 Payment recorded! Advance Bill settled and Final Tax Bill ${res.convertedInvoice.invoiceNumber} has been automatically created!`,
+          6000
+        );
+      } else {
+        toast.success('Payment recorded successfully!');
+      }
       loadData(selectedCustomerIdFilter);
     } catch (err: any) {
       toast.error(err.message || 'Failed to record payment.');
