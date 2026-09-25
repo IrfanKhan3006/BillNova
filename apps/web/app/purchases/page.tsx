@@ -225,6 +225,21 @@ export default function PurchasesPage() {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: val };
 
+      // If user enters a name, check if it matches an existing product in inventory
+      if (field === 'name') {
+        const query = String(val || '').trim().toLowerCase();
+        const matched = products.find((p) => p.name.trim().toLowerCase() === query);
+        if (matched) {
+          updated[index].productId = matched.id;
+          if (matched.purchasePrice) updated[index].price = matched.purchasePrice;
+          if (matched.taxRate !== undefined) updated[index].taxRate = matched.taxRate;
+          if (matched.hsnCode) updated[index].hsnCode = matched.hsnCode;
+        } else {
+          // Free text purchase item / expense (rent, stationery, salary, etc.)
+          updated[index].productId = undefined;
+        }
+      }
+
       // Auto-fill product info if product selected
       if (field === 'productId') {
         const prod = products.find((p) => p.id === val);
@@ -990,29 +1005,37 @@ export default function PurchasesPage() {
                         key={idx}
                         className="grid grid-cols-12 gap-2 bg-zinc-900/50 p-2.5 rounded-xl border border-zinc-800 items-center"
                       >
-                        {/* Product Picker or Custom Name */}
-                        <div className="col-span-12 sm:col-span-5 space-y-1">
-                          <select
-                            value={it.productId || ''}
-                            onChange={(e) => handleItemChange(idx, 'productId', e.target.value)}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
-                          >
-                            <option value="">-- Custom Item or Choose Product --</option>
-                            {products.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                                {isStockTrackingEnabled && !p.isService ? ` (Stock: ${p.stock})` : ''} - ₹{p.purchasePrice}
-                              </option>
-                            ))}
-                          </select>
+                        {/* Free Text Item / Expense Name */}
+                        <div className="col-span-12 sm:col-span-5">
+                          <label className="text-[10px] text-zinc-400 block mb-0.5">Item / Expense Name *</label>
                           <input
                             type="text"
-                            placeholder="Item / Product Name *"
+                            list={`item-suggestions-${idx}`}
+                            placeholder="e.g. Stationery, Printer, Office Rent, Salary..."
                             value={it.name}
                             onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
                             className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500"
                             required
                           />
+                          <datalist id={`item-suggestions-${idx}`}>
+                            {products.map((p) => (
+                              <option key={p.id} value={p.name}>
+                                Product ({p.purchasePrice ? `₹${p.purchasePrice}` : 'Catalog'})
+                              </option>
+                            ))}
+                            <option value="Stationery" />
+                            <option value="Office Rent" />
+                            <option value="Printer" />
+                            <option value="Employee Salary" />
+                            <option value="Advertisement Charges" />
+                            <option value="Electricity Bill" />
+                            <option value="Internet Charges" />
+                            <option value="Travel Expense" />
+                            <option value="Hotel Booking" />
+                            <option value="Flight Tickets" />
+                            <option value="Office Supplies" />
+                            <option value="Maintenance & Repairs" />
+                          </datalist>
                         </div>
 
                         {/* Qty / Pack */}
