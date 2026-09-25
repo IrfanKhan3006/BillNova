@@ -14,6 +14,7 @@ import {
   IsString,
   IsOptional,
   IsNumber,
+  IsBoolean,
   IsArray,
   ValidateNested,
 } from 'class-validator';
@@ -83,6 +84,10 @@ class CreateInvoiceDto {
   @IsOptional()
   @IsNumber()
   advanceAmount?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isAdvance?: boolean;
 
   @IsOptional()
   @IsString()
@@ -184,6 +189,36 @@ class UpdateInvoiceDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  date?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateInvoiceItemDto)
+  items?: CreateInvoiceItemDto[];
+
+  @IsOptional()
+  @IsNumber()
+  newAdvanceAmount?: number;
+
+  @IsOptional()
+  @IsString()
+  advanceDate?: string;
+
+  @IsOptional()
+  @IsString()
+  advanceMethod?: string;
+
+  @IsOptional()
+  @IsString()
+  advanceReference?: string;
+
+  @IsOptional()
+  @IsString()
+  advanceNotes?: string;
 }
 
 @ApiTags('Invoices')
@@ -199,8 +234,10 @@ export class InvoicesController {
     @CurrentUser() user: any,
     @Query('customerId') customerId?: string,
     @Query('status') status?: string,
+    @Query('isAdvance') isAdvance?: string,
   ) {
-    return this.invoicesService.list(user.tenantId, customerId, status);
+    const isAdv = isAdvance !== undefined ? isAdvance === 'true' : undefined;
+    return this.invoicesService.list(user.tenantId, customerId, status, isAdv);
   }
 
   @Get(':id')

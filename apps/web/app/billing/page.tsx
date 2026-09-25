@@ -21,6 +21,7 @@ import {
   Wallet,
   Zap,
   AlertTriangle,
+  Pencil,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from '../store/uiStore';
@@ -246,9 +247,21 @@ export default function BillingPage() {
   // Quick Balance Settlement Modal States
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [settleAmount, setSettleAmount] = useState<string | number>('');
+  const [settleDate, setSettleDate] = useState(new Date().toISOString().split('T')[0]);
   const [settleMethod, setSettleMethod] = useState('CASH');
   const [settleRef, setSettleRef] = useState('');
   const [settling, setSettling] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [editingInvoiceNumber, setEditingInvoiceNumber] = useState<string>('');
+  const [editingAdvancePaid, setEditingAdvancePaid] = useState<number>(0);
+  const [editingPaymentsHistory, setEditingPaymentsHistory] = useState<any[]>([]);
+  const [additionalAdvanceAmount, setAdditionalAdvanceAmount] = useState<string>('');
+  const [additionalAdvanceDate, setAdditionalAdvanceDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  );
+  const [additionalPaymentMethod, setAdditionalPaymentMethod] = useState<string>('CASH');
+  const [additionalPaymentRef, setAdditionalPaymentRef] = useState<string>('');
+  const [additionalPaymentNotes, setAdditionalPaymentNotes] = useState<string>('');
 
   // Quick Add Modal States
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -430,12 +443,47 @@ export default function BillingPage() {
           setSelectedCustomerId(custData[0].id);
         }
 
-        // Check for invoiceId or cloneInvoiceId in search params
+        // Check for invoiceId, cloneInvoiceId, or editInvoiceId in search params
         if (typeof window !== 'undefined') {
           const urlParams = new URLSearchParams(window.location.search);
           const invoiceId = urlParams.get('invoiceId');
           const cloneInvoiceId = urlParams.get('cloneInvoiceId');
-          if (invoiceId) {
+          const editInvoiceId = urlParams.get('editInvoiceId');
+
+          if (editInvoiceId) {
+            const inv = await api.get(`/invoices/${editInvoiceId}`);
+            setEditingInvoiceId(inv.id);
+            setEditingInvoiceNumber(inv.invoiceNumber);
+            setEditingAdvancePaid(Number(inv.amountPaid || 0));
+            setEditingPaymentsHistory(inv.payments || []);
+            setSelectedCustomerId(inv.customerId);
+            setNotes(inv.notes || '');
+            if (inv.date) {
+              setDate(new Date(inv.date).toISOString().split('T')[0]);
+            }
+            if (inv.items && inv.items.length > 0) {
+              setItems(
+                inv.items.map((it: any) => ({
+                  productId: it.productId || '',
+                  name: it.name || '',
+                  qty: it.qty,
+                  price: it.price,
+                  taxRate: it.taxRate,
+                  hsnCode: it.hsnCode || '',
+                  useSizeCalc: false,
+                  width: '',
+                  height: '',
+                  sizeUnit: 'FT',
+                  pricingUnit: 'PCS',
+                  rate: '',
+                  area: 0,
+                }))
+              );
+            }
+            setPaymentType('ADVANCE');
+            setAdvanceAmount('');
+            setCreatedInvoice(null);
+          } else if (invoiceId) {
             const fullInvoice = await api.get(`/invoices/${invoiceId}`);
             setCreatedInvoice(fullInvoice);
           } else if (cloneInvoiceId) {
@@ -647,6 +695,69 @@ export default function BillingPage() {
       return;
     }
 
+    // If we are currently editing an existing bill (e.g. advance bill items update or adding advance)
+    if (editingInvoiceId) {
+      const addAmt = parseFloat(additionalAdvanceAmount);
+      const remainingDue = Math.max(0, summary.totalAmount - editingAdvancePaid);
+
+      if (!isNaN(addAmt) && addAmt < 0) {
+        toast.error('Additional advance amount cannot be negative!');
+        return;
+      }
+
+      if (!isNaN(addAmt) && addAmt > remainingDue) {
+        toast.error(`Additional advance cannot exceed remaining balance of ${formatCurrency(remainingDue)}!`);
+        return;
+      }
+
+      try {
+        setSubmitting(true);
+        const patchData: any = {
+          items: filteredItems.map((item) => ({
+            productId: item.productId || undefined,
+            name: item.name,
+            qty: parseInt(item.qty as string, 10) || 0,
+            price: parseFloat(item.price as string) || 0,
+            taxRate: parseFloat(item.taxRate as string) || 0,
+            hsnCode: item.hsnCode || undefined,
+          })),
+          notes,
+          date,
+        };
+
+        if (!isNaN(addAmt) && addAmt > 0) {
+          patchData.newAdvanceAmount = addAmt;
+          patchData.advanceDate = additionalAdvanceDate;
+          patchData.advanceMethod = additionalPaymentMethod;
+          patchData.advanceReference = additionalPaymentRef;
+          patchData.advanceNotes = additionalPaymentNotes;
+        }
+
+        await api.patch(`/invoices/${editingInvoiceId}`, patchData);
+
+        const fullInvoice = await api.get(`/invoices/${editingInvoiceId}`);
+        setEditingInvoiceId(null);
+        setEditingInvoiceNumber('');
+        setEditingAdvancePaid(0);
+        setEditingPaymentsHistory([]);
+        setAdditionalAdvanceAmount('');
+        setCreatedInvoice(fullInvoice);
+
+        if (fullInvoice.advanceConverted || fullInvoice.convertedFromAdvanceNumber) {
+          toast.success(
+            `Bill fully settled! Automatically converted to regular Tax Invoice #${fullInvoice.invoiceNumber}`
+          );
+        } else {
+          toast.success(`Advance Bill #${fullInvoice.invoiceNumber} updated successfully!`);
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to update advance bill');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     const totalGrand = summary.totalAmount;
     let finalPaid = 0;
     if (paymentType === 'PAID') {
@@ -689,6 +800,7 @@ export default function BillingPage() {
         })),
         date,
         notes,
+        isAdvance: paymentType === 'ADVANCE',
         amountPaid: finalPaid,
         advanceAmount: finalPaid,
         paymentMethod: finalPaid > 0 ? paymentMethod : undefined,
@@ -700,8 +812,8 @@ export default function BillingPage() {
       const fullInvoice = await api.get(`/invoices/${res.id}`);
       setCreatedInvoice(fullInvoice);
       fetchPlanStatus(); // Refresh plan usage metrics in real-time
-      if (finalPaid > 0 && finalPaid < totalGrand) {
-        toast.success(`Advance Invoice ${res.invoiceNumber || ''} created! ₹${finalPaid} collected, ₹${res.amountDue || (totalGrand - finalPaid)} pending.`);
+      if (paymentType === 'ADVANCE' || (finalPaid > 0 && finalPaid < totalGrand)) {
+        toast.success(`Advance Bill ${res.invoiceNumber || ''} created! ₹${finalPaid} collected, ₹${res.amountDue || (totalGrand - finalPaid)} pending.`);
       } else if (finalPaid >= totalGrand && totalGrand > 0) {
         toast.success(`Invoice ${res.invoiceNumber || ''} created & marked Completed (Fully Paid)!`);
       } else {
@@ -719,43 +831,108 @@ export default function BillingPage() {
     if (!createdInvoice) return;
     const amountToPay = parseFloat(settleAmount as string) || 0;
     if (amountToPay <= 0) {
-      toast.error('Please enter a valid settlement amount!');
+      toast.error('Please enter a valid amount!');
       return;
     }
 
     try {
       setSettling(true);
+      const pCount = (createdInvoice.payments?.length || 0) + 1;
+      const ordinal =
+        pCount === 1
+          ? '1st Advance'
+          : pCount === 2
+          ? '2nd Advance'
+          : pCount === 3
+          ? '3rd Advance'
+          : `${pCount}th Advance`;
+
+      const paymentNote = settleRef
+        ? `${ordinal} payment - Ref: ${settleRef}`
+        : `${ordinal} payment received`;
+
       await api.post('/payments', {
         customerId: createdInvoice.customerId,
         invoiceId: createdInvoice.id,
         amount: amountToPay,
-        date: new Date().toISOString().split('T')[0],
+        date: settleDate ? new Date(settleDate).toISOString() : new Date().toISOString(),
         method: settleMethod,
         referenceNo: settleRef || undefined,
-        notes: `Balance settlement for invoice ${createdInvoice.invoiceNumber}`,
+        notes: paymentNote,
       });
 
-      // Refresh invoice to show updated amountPaid, amountDue, and status (which automatically flips to PAID if 0 due)
+      // Refresh invoice to show updated amountPaid, amountDue, and payments history
       const updated = await api.get(`/invoices/${createdInvoice.id}`);
-      setCreatedInvoice(updated);
       setShowSettleModal(false);
       setSettleAmount('');
       setSettleRef('');
 
       if (updated.status === 'PAID') {
-        toast.success(`Full payment settled! Invoice ${updated.invoiceNumber} is now COMPLETED.`);
+        if (updated.convertedInvoiceId) {
+          // Advance bill was settled and automatically converted to a new Final Tax Bill!
+          const finalInvoice = await api.get(`/invoices/${updated.convertedInvoiceId}`);
+          setCreatedInvoice(finalInvoice);
+          toast.success(
+            `🎉 Advance Bill ${updated.invoiceNumber} fully settled! Final Tax Bill ${finalInvoice.invoiceNumber} has been automatically generated!`,
+            6000
+          );
+        } else {
+          setCreatedInvoice(updated);
+          toast.success(`Full payment settled! Invoice ${updated.invoiceNumber} is now COMPLETED.`);
+        }
       } else {
-        toast.success(`Payment of ₹${amountToPay} recorded! Remaining balance: ₹${updated.amountDue}`);
+        setCreatedInvoice(updated);
+        toast.success(`New advance entry of ₹${amountToPay} recorded! Remaining balance: ₹${updated.amountDue}`);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to record payment settlement.');
+      toast.error(err.message || 'Failed to record advance payment.');
     } finally {
       setSettling(false);
     }
   };
 
+  const handleEditAdvanceBill = (inv: any) => {
+    setEditingInvoiceId(inv.id);
+    setEditingInvoiceNumber(inv.invoiceNumber);
+    setEditingAdvancePaid(Number(inv.amountPaid || 0));
+    setEditingPaymentsHistory(inv.payments || []);
+    setSelectedCustomerId(inv.customerId);
+    setNotes(inv.notes || '');
+    if (inv.date) {
+      setDate(new Date(inv.date).toISOString().split('T')[0]);
+    }
+    if (inv.items && inv.items.length > 0) {
+      setItems(
+        inv.items.map((it: any) => ({
+          productId: it.productId || '',
+          name: it.name || '',
+          qty: it.qty,
+          price: it.price,
+          taxRate: it.taxRate,
+          hsnCode: it.hsnCode || '',
+          useSizeCalc: false,
+          width: '',
+          height: '',
+          sizeUnit: 'FT',
+          pricingUnit: 'PCS',
+          rate: '',
+          area: 0,
+        }))
+      );
+    }
+    setPaymentType('ADVANCE');
+    setAdvanceAmount('');
+    setCreatedInvoice(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const resetBilling = () => {
     setCreatedInvoice(null);
+    setEditingInvoiceId(null);
+    setEditingInvoiceNumber('');
+    setEditingAdvancePaid(0);
+    setEditingPaymentsHistory([]);
+    setAdditionalAdvanceAmount('');
     setPaymentType('UNPAID');
     setAdvanceAmount('');
     setPaymentMethod('CASH');
@@ -974,8 +1151,24 @@ export default function BillingPage() {
                 <CheckCircle className="h-5 w-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-white text-sm">Invoice Created Successfully!</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-bold text-white text-sm">
+                    {createdInvoice.convertedFromAdvanceNumber
+                      ? 'Final Tax Bill Generated!'
+                      : createdInvoice.isAdvance
+                      ? 'Advance Bill Created!'
+                      : 'Invoice Created Successfully!'}
+                  </h3>
+                  {createdInvoice.isAdvance && (
+                    <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Advance Bill
+                    </span>
+                  )}
+                  {createdInvoice.convertedFromAdvanceNumber && (
+                    <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Final Tax Bill (from #{createdInvoice.convertedFromAdvanceNumber})
+                    </span>
+                  )}
                   <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                     createdInvoice.status === 'PAID'
                       ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
@@ -986,21 +1179,42 @@ export default function BillingPage() {
                     {createdInvoice.status === 'PARTIALLY_PAID' ? 'Advance Bill (Partially Paid)' : createdInvoice.status === 'PAID' ? 'Completed (Fully Paid)' : 'Payment Pending'}
                   </span>
                 </div>
-                <p className="text-zinc-450 text-[11px] text-zinc-500">Invoice Ref: {createdInvoice.invoiceNumber}</p>
+                <p className="text-zinc-450 text-[11px] text-zinc-500">
+                  Invoice Ref: <span className="font-semibold text-zinc-300">{createdInvoice.invoiceNumber}</span>
+                  {createdInvoice.convertedFromAdvanceNumber && (
+                    <span className="ml-2 text-purple-400 font-medium">
+                      (Auto-generated upon full settlement of Advance Bill #{createdInvoice.convertedFromAdvanceNumber})
+                    </span>
+                  )}
+                </p>
+                {createdInvoice.advanceConverted && createdInvoice.convertedInvoiceId && (
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-[11px] font-medium text-emerald-400">
+                      ✓ Advance settled. Final Tax Bill generated:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const finalInv = await api.get(`/invoices/${createdInvoice.convertedInvoiceId}`);
+                        setCreatedInvoice(finalInv);
+                      }}
+                      className="text-[11px] font-bold text-emerald-300 underline hover:text-emerald-200"
+                    >
+                      View Final Bill →
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
-              {Number(createdInvoice.amountDue || 0) > 0 && (
+              {createdInvoice.isAdvance && !createdInvoice.advanceConverted && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSettleAmount(createdInvoice.amountDue);
-                    setShowSettleModal(true);
-                  }}
-                  className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 px-3.5 py-2 text-xs font-bold text-zinc-950 transition shadow-md shadow-amber-500/10"
+                  onClick={() => handleEditAdvanceBill(createdInvoice)}
+                  className="flex items-center gap-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 px-3.5 py-2 text-xs font-bold text-purple-200 border border-purple-500/40 shadow-sm transition"
                 >
-                  <Wallet className="h-4 w-4" />
-                  <span>Settle Balance ({formatCurrency(createdInvoice.amountDue)})</span>
+                  <Pencil className="h-4 w-4 text-purple-400" />
+                  <span>✏️ Edit Bill Items & Rates</span>
                 </button>
               )}
               <button
@@ -1323,6 +1537,11 @@ export default function BillingPage() {
                   </span>
                   <div className="mt-2 text-xs space-y-1 text-zinc-650">
                     <p>Invoice No: <span className="font-mono font-bold text-zinc-900">{createdInvoice.invoiceNumber}</span></p>
+                    {createdInvoice.convertedFromAdvanceNumber && (
+                      <p className="text-[11px] font-semibold text-emerald-700 no-print">
+                        Advance Ref: <span className="font-mono">{createdInvoice.convertedFromAdvanceNumber}</span>
+                      </p>
+                    )}
                     <p>Date: <span className="font-medium text-zinc-900">{new Date(createdInvoice.date).toLocaleDateString('en-IN')}</span></p>
                     <p>Due Date: <span className="font-medium text-zinc-900">{new Date(createdInvoice.dueDate).toLocaleDateString('en-IN')}</span></p>
                   </div>
@@ -1490,8 +1709,31 @@ export default function BillingPage() {
 
                   {Number(createdInvoice.amountPaid || 0) > 0 && (
                     <div className="flex justify-between text-xs font-bold text-emerald-700 pt-1.5 border-t border-zinc-200">
-                      <span>Advance Received / Paid:</span>
+                      <span>Total Advance Received / Paid:</span>
                       <span>- {formatCurrency(createdInvoice.amountPaid)}</span>
+                    </div>
+                  )}
+
+                  {/* Advance / Installments Schedule Breakdown */}
+                  {createdInvoice.payments && createdInvoice.payments.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-dashed border-zinc-300 space-y-1 bg-zinc-50/90 p-2.5 rounded-lg border border-zinc-200">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 mb-1">
+                        Advance Installments Breakdown:
+                      </div>
+                      {createdInvoice.payments.map((p: any, pIdx: number) => {
+                        const ordinal = pIdx === 0 ? '1st Advance' : pIdx === 1 ? '2nd Advance' : pIdx === 2 ? '3rd Advance' : `${pIdx + 1}th Advance`;
+                        const dateFormatted = p.date ? new Date(p.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                        return (
+                          <div key={p.id || pIdx} className="flex justify-between text-[11px] text-zinc-700">
+                            <span className="font-medium">
+                              {ordinal} ({dateFormatted})
+                              {p.method ? ` • ${p.method}` : ''}
+                              {p.referenceNo ? ` [${p.referenceNo}]` : ''}:
+                            </span>
+                            <span className="font-semibold text-emerald-700">{formatCurrency(p.amount)}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -1643,6 +1885,39 @@ export default function BillingPage() {
               className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition shrink-0"
             >
               <Zap className="h-4 w-4 fill-current" /> Select Plan (₹3,000/yr)
+            </button>
+          </div>
+        )}
+
+        {/* Editing Advance Bill Alert Banner */}
+        {editingInvoiceId && (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <span className="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm shrink-0">
+                ✏️
+              </span>
+              <div>
+                <p className="font-bold text-white text-sm">
+                  Editing Advance Bill #{editingInvoiceNumber}
+                </p>
+                <p className="text-zinc-300 text-xs mt-0.5">
+                  Advance Paid:{' '}
+                  <strong className="text-emerald-400 font-bold">
+                    {formatCurrency(editingAdvancePaid)}
+                  </strong>{' '}
+                  • Remaining Due:{' '}
+                  <strong className="text-amber-400 font-bold">
+                    {formatCurrency(Math.max(0, summary.totalAmount - editingAdvancePaid))}
+                  </strong>
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={resetBilling}
+              className="py-1.5 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs border border-zinc-700 transition self-start sm:self-auto cursor-pointer"
+            >
+              Cancel Edit
             </button>
           </div>
         )}
@@ -2256,108 +2531,252 @@ export default function BillingPage() {
                 </div>
 
                 {/* Advance & Payment Settlement Selection */}
-                <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
-                      Payment Collection
-                    </span>
-                    <span className="text-[10px] text-zinc-500 font-medium">Initial settlement</span>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-805 rounded-xl text-[11px] font-semibold text-center">
-                    <button
-                      type="button"
-                      onClick={() => { setPaymentType('UNPAID'); setAdvanceAmount(''); }}
-                      className={`py-1.5 px-2 rounded-lg transition font-semibold ${paymentType === 'UNPAID' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
-                    >
-                      Unpaid
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { 
-                        setPaymentType('ADVANCE'); 
-                        if (!advanceAmount) setAdvanceAmount('');
-                      }}
-                      className={`py-1.5 px-2 rounded-lg transition font-semibold ${paymentType === 'ADVANCE' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 shadow' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
-                    >
-                      Advance
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setPaymentType('PAID'); setAdvanceAmount(summary.totalAmount); }}
-                      className={`py-1.5 px-2 rounded-lg transition font-semibold ${paymentType === 'PAID' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 shadow' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
-                    >
-                      Full Paid
-                    </button>
-                  </div>
-
-                  {paymentType === 'ADVANCE' && (
-                    <div className="space-y-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-                      <div>
-                        <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                            Advance Amount Received (₹) *
-                          </label>
-                          <span className="text-[10px] text-zinc-400">Max: {formatCurrency(summary.totalAmount)}</span>
-                        </div>
-                        <input
-                          type="number"
-                          min="0"
-                          max={summary.totalAmount}
-                          value={advanceAmount}
-                          onChange={(e) => setAdvanceAmount(e.target.value)}
-                          placeholder="e.g. 15000"
-                          className="mt-1 block w-full rounded-lg border border-amber-500/30 bg-zinc-950 px-3 py-1.5 text-xs text-white focus:border-amber-400 focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="flex justify-between items-center text-[11px] pt-1.5 border-t border-amber-500/15">
-                        <span className="text-zinc-400">Balance Remaining Due:</span>
-                        <span className="font-bold text-amber-300">
-                          {formatCurrency(Math.max(0, summary.totalAmount - (parseFloat(advanceAmount as string) || 0)))}
+                {editingInvoiceId ? (
+                  <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-3.5">
+                    {/* Advance Status Card */}
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-2 text-xs">
+                      <div className="flex justify-between items-center text-zinc-700 dark:text-zinc-300">
+                        <span className="font-semibold">Advance Already Paid:</span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                          {formatCurrency(editingAdvancePaid)}
                         </span>
                       </div>
-                    </div>
-                  )}
-
-                  {(paymentType === 'ADVANCE' || paymentType === 'PAID') && (
-                    <div className="space-y-2 pt-1">
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                          Payment Mode
-                        </label>
-                        <select
-                          value={paymentMethod}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                        >
-                          <option value="CASH">Cash</option>
-                          <option value="UPI">UPI / QR</option>
-                          <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
-                          <option value="CARD">Debit / Credit Card</option>
-                          <option value="OTHER">Cheque / Other</option>
-                        </select>
+                      <div className="flex justify-between items-center text-zinc-700 dark:text-zinc-300">
+                        <span className="font-semibold">Balance Remaining Due:</span>
+                        <span className="font-bold text-amber-700 dark:text-amber-400 text-sm">
+                          {formatCurrency(
+                            Math.max(
+                              0,
+                              summary.totalAmount -
+                                editingAdvancePaid -
+                                (parseFloat(additionalAdvanceAmount as string) || 0)
+                            )
+                          )}
+                        </span>
                       </div>
-
-                      <div>
-                        <input
-                          type="text"
-                          value={paymentReference}
-                          onChange={(e) => setPaymentReference(e.target.value)}
-                          placeholder="Reference No. / Txn ID (Optional)"
-                          className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                        />
-                      </div>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 italic">
+                        * Balance automatically recalculates as you add/edit line items.
+                      </p>
                     </div>
-                  )}
-                </div>
+
+                    {/* Previous Installments Breakdown */}
+                    {editingPaymentsHistory.length > 0 && (
+                      <div className="space-y-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-3 text-[11px]">
+                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+                          <span>Previous Installments ({editingPaymentsHistory.length}):</span>
+                        </div>
+                        {editingPaymentsHistory.map((p: any, idx: number) => {
+                          const ordinal =
+                            idx === 0
+                              ? '1st Advance'
+                              : idx === 1
+                              ? '2nd Advance'
+                              : idx === 2
+                              ? '3rd Advance'
+                              : `${idx + 1}th Installment`;
+                          const pDate = p.date ? new Date(p.date).toLocaleDateString('en-IN') : '—';
+                          return (
+                            <div
+                              key={p.id || idx}
+                              className="flex justify-between items-center py-1 border-b border-zinc-200/60 dark:border-zinc-800/60 last:border-0 text-zinc-700 dark:text-zinc-300"
+                            >
+                              <span>
+                                <strong className="text-zinc-900 dark:text-white">{ordinal}</strong>{' '}
+                                ({pDate}){p.method ? ` • ${p.method}` : ''}
+                              </span>
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {formatCurrency(p.amount)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Record Additional Advance Payment (Optional) */}
+                    {Math.max(0, summary.totalAmount - editingAdvancePaid) > 0 && (
+                      <div className="rounded-xl border border-amber-500/20 bg-zinc-50 dark:bg-zinc-950 p-3 space-y-2.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                            Add New Advance Payment (Optional)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAdditionalAdvanceAmount(
+                                String(Math.max(0, summary.totalAmount - editingAdvancePaid))
+                              )
+                            }
+                            className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                          >
+                            Fill Full Remaining
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-zinc-400 text-xs font-bold">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={Math.max(0, summary.totalAmount - editingAdvancePaid)}
+                            value={additionalAdvanceAmount}
+                            onChange={(e) => setAdditionalAdvanceAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 pl-7 pr-3 py-1.5 text-xs font-bold text-zinc-900 dark:text-white focus:outline-hidden focus:border-amber-500"
+                          />
+                        </div>
+
+                        {parseFloat(additionalAdvanceAmount) > 0 && (
+                          <div className="space-y-2 pt-1 border-t border-zinc-200 dark:border-zinc-800 animate-in fade-in">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[9px] font-bold uppercase text-zinc-500 block mb-1">
+                                  Date
+                                </label>
+                                <input
+                                  type="date"
+                                  value={additionalAdvanceDate}
+                                  onChange={(e) => setAdditionalAdvanceDate(e.target.value)}
+                                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-xs text-zinc-900 dark:text-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold uppercase text-zinc-500 block mb-1">
+                                  Mode
+                                </label>
+                                <select
+                                  value={additionalPaymentMethod}
+                                  onChange={(e) => setAdditionalPaymentMethod(e.target.value)}
+                                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-xs text-zinc-900 dark:text-white"
+                                >
+                                  <option value="CASH">Cash</option>
+                                  <option value="UPI">UPI</option>
+                                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                                  <option value="CHEQUE">Cheque</option>
+                                  <option value="CARD">Card</option>
+                                </select>
+                              </div>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Ref No. / Notes (Optional)"
+                              value={additionalPaymentRef}
+                              onChange={(e) => setAdditionalPaymentRef(e.target.value)}
+                              className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1 text-xs text-zinc-900 dark:text-white"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+                        Payment Collection
+                      </span>
+                      <span className="text-[10px] text-zinc-500 font-medium">Initial settlement</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-805 rounded-xl text-[11px] font-semibold text-center">
+                      <button
+                        type="button"
+                        onClick={() => { setPaymentType('UNPAID'); setAdvanceAmount(''); }}
+                        className={`py-1.5 px-2 rounded-lg transition font-semibold ${paymentType === 'UNPAID' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-xs' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
+                      >
+                        Unpaid
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { 
+                          setPaymentType('ADVANCE'); 
+                          if (!advanceAmount) setAdvanceAmount('');
+                        }}
+                        className={`py-1.5 px-2 rounded-lg transition font-semibold ${paymentType === 'ADVANCE' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 shadow-xs' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
+                      >
+                        Advance
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setPaymentType('PAID'); setAdvanceAmount(summary.totalAmount); }}
+                        className={`py-1.5 px-2 rounded-lg transition font-semibold ${paymentType === 'PAID' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 shadow-xs' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
+                      >
+                        Full Paid
+                      </button>
+                    </div>
+
+                    {paymentType === 'ADVANCE' && (
+                      <div className="space-y-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+                        <div>
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                              Advance Amount Received (₹) *
+                            </label>
+                            <span className="text-[10px] text-zinc-400">Max: {formatCurrency(summary.totalAmount)}</span>
+                          </div>
+                          <input
+                            type="number"
+                            min="0"
+                            max={summary.totalAmount}
+                            value={advanceAmount}
+                            onChange={(e) => setAdvanceAmount(e.target.value)}
+                            placeholder="e.g. 15000"
+                            className="mt-1 block w-full rounded-lg border border-amber-500/30 bg-zinc-950 px-3 py-1.5 text-xs text-white focus:border-amber-400 focus:outline-hidden"
+                          />
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px] pt-1.5 border-t border-amber-500/15">
+                          <span className="text-zinc-400">Balance Remaining Due:</span>
+                          <span className="font-bold text-amber-300">
+                            {formatCurrency(Math.max(0, summary.totalAmount - (parseFloat(advanceAmount as string) || 0)))}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {(paymentType === 'ADVANCE' || paymentType === 'PAID') && (
+                      <div className="space-y-2 pt-1">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                            Payment Mode
+                          </label>
+                          <select
+                            value={paymentMethod}
+                            onChange={(e) => setPaymentMethod(e.target.value)}
+                            className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-hidden"
+                          >
+                            <option value="CASH">Cash</option>
+                            <option value="UPI">UPI / QR</option>
+                            <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+                            <option value="CARD">Debit / Credit Card</option>
+                            <option value="OTHER">Cheque / Other</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <input
+                            type="text"
+                            value={paymentReference}
+                            onChange={(e) => setPaymentReference(e.target.value)}
+                            placeholder="Reference No. / Txn ID (Optional)"
+                            className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-hidden"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <button
                 onClick={handleGenerateInvoice}
                 disabled={submitting}
-                className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition disabled:opacity-50 ${
-                  paymentType === 'ADVANCE'
+                className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition disabled:opacity-50 cursor-pointer ${
+                  editingInvoiceId
+                    ? parseFloat(additionalAdvanceAmount) >=
+                      Math.max(0, summary.totalAmount - editingAdvancePaid)
+                      ? 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-md shadow-emerald-500/15'
+                      : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-md shadow-amber-500/15'
+                    : paymentType === 'ADVANCE'
                     ? 'bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-md shadow-amber-500/10'
                     : paymentType === 'PAID'
                     ? 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-md shadow-emerald-500/10'
@@ -2370,7 +2789,15 @@ export default function BillingPage() {
                   <>
                     <Receipt className="h-4.5 w-4.5" />
                     <span>
-                      {paymentType === 'ADVANCE'
+                      {editingInvoiceId
+                        ? parseFloat(additionalAdvanceAmount) >=
+                            Math.max(0, summary.totalAmount - editingAdvancePaid) &&
+                          Math.max(0, summary.totalAmount - editingAdvancePaid) > 0
+                          ? `Settle & Convert to Final Tax Bill (₹0 Due)`
+                          : parseFloat(additionalAdvanceAmount) > 0
+                          ? `Update Bill & Add ₹${additionalAdvanceAmount} Advance`
+                          : `Update Advance Bill #${editingInvoiceNumber}`
+                        : paymentType === 'ADVANCE'
                         ? `Generate Advance Bill (${formatCurrency(parseFloat(advanceAmount as string) || 0)} Paid)`
                         : paymentType === 'PAID'
                         ? `Generate Completed Bill (Fully Paid)`
@@ -2385,7 +2812,7 @@ export default function BillingPage() {
       </div>
       </FeatureGate>
 
-      {/* Settle Balance Modal */}
+      {/* Settle / Add Advance Installment Modal */}
       {showSettleModal && createdInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl relative">
@@ -2401,12 +2828,24 @@ export default function BillingPage() {
                 <Wallet className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Settle Invoice Balance</h3>
-                <p className="text-xs text-zinc-400">Invoice: {createdInvoice.invoiceNumber}</p>
+                <h3 className="text-base font-bold text-white">
+                  {createdInvoice.isAdvance
+                    ? `Add Advance Installment (${createdInvoice.payments?.length === 1 ? '2nd Advance' : createdInvoice.payments?.length === 2 ? '3rd Advance' : 'Next Advance'})`
+                    : 'Settle Invoice Balance'}
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Invoice: <span className="font-semibold text-zinc-200">{createdInvoice.invoiceNumber}</span>
+                  {createdInvoice.isAdvance && (
+                    <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold">
+                      Advance Bill
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
 
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 mb-4 space-y-2 text-xs">
+            {/* Bill Summary */}
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3.5 mb-3 space-y-1.5 text-xs">
               <div className="flex justify-between text-zinc-300">
                 <span className="text-zinc-400">Client / Customer:</span>
                 <span className="font-bold text-white">{createdInvoice.customer?.name}</span>
@@ -2419,28 +2858,95 @@ export default function BillingPage() {
                 <span className="text-zinc-400">Already Paid / Advance:</span>
                 <span className="font-bold text-emerald-400">{formatCurrency(createdInvoice.amountPaid)}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-amber-500/20 text-sm font-bold">
-                <span className="text-amber-300">Remaining Due:</span>
+              <div className="flex justify-between pt-1.5 border-t border-amber-500/20 text-sm font-bold">
+                <span className="text-amber-300">Current Balance Due:</span>
                 <span className="text-amber-300 font-extrabold">{formatCurrency(createdInvoice.amountDue)}</span>
               </div>
             </div>
 
-            <form onSubmit={handleSettleRemaining} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                  Payment Amount to Settle (₹) *
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  min="1"
-                  max={createdInvoice.amountDue}
-                  value={settleAmount}
-                  onChange={(e) => setSettleAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  required
-                  className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none"
-                />
+            {/* Existing Advance Installments History */}
+            {createdInvoice.payments && createdInvoice.payments.length > 0 && (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-3 mb-3 space-y-1.5 max-h-36 overflow-y-auto">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">
+                  Recorded Advance History:
+                </span>
+                {createdInvoice.payments.map((p: any, idx: number) => {
+                  const ordinal =
+                    idx === 0
+                      ? '1st Advance'
+                      : idx === 1
+                      ? '2nd Advance'
+                      : idx === 2
+                      ? '3rd Advance'
+                      : `${idx + 1}th Advance`;
+                  const dateFormatted = p.date
+                    ? new Date(p.date).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : '';
+                  return (
+                    <div
+                      key={p.id || idx}
+                      className="flex justify-between items-center text-xs text-zinc-300 py-1 border-b border-zinc-800/60 last:border-0"
+                    >
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-white">{ordinal}:</span>
+                        <span className="text-zinc-400">{dateFormatted}</span>
+                        {p.method && (
+                          <span className="text-[10px] bg-zinc-800 px-1.5 py-0.2 rounded text-zinc-300 font-mono">
+                            {p.method}
+                          </span>
+                        )}
+                        {p.referenceNo && (
+                          <span className="text-[10px] text-zinc-500 font-mono truncate max-w-[120px]">
+                            {p.referenceNo}
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-bold text-emerald-400 shrink-0">
+                        {formatCurrency(p.amount)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <form onSubmit={handleSettleRemaining} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    {createdInvoice.isAdvance
+                      ? `${createdInvoice.payments?.length === 1 ? '2nd Advance' : createdInvoice.payments?.length === 2 ? '3rd Advance' : 'New Advance'} (₹) *`
+                      : 'Payment Amount (₹) *'}
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="1"
+                    max={createdInvoice.amountDue}
+                    value={settleAmount}
+                    onChange={(e) => setSettleAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    required
+                    className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    Payment Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={settleDate}
+                    onChange={(e) => setSettleDate(e.target.value)}
+                    required
+                    className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div>
@@ -2462,16 +2968,58 @@ export default function BillingPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                  Reference No. / Txn ID (Optional)
+                  Reference No. / Note (Optional)
                 </label>
                 <input
                   type="text"
                   value={settleRef}
                   onChange={(e) => setSettleRef(e.target.value)}
-                  placeholder="e.g. UPI Ref / Cheque No."
+                  placeholder="e.g. UPI Ref / GPay / Cheque No."
                   className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none"
                 />
               </div>
+
+              {/* Live Settlement Math Breakdown */}
+              {settleAmount && parseFloat(settleAmount as string) > 0 && (
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-2.5 space-y-1 text-xs">
+                  <div className="flex justify-between text-zinc-400">
+                    <span>This Installment:</span>
+                    <span className="font-bold text-emerald-400">
+                      +{formatCurrency(parseFloat(settleAmount as string) || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-zinc-400">
+                    <span>New Total Advance:</span>
+                    <span className="font-bold text-white">
+                      {formatCurrency(
+                        Number(createdInvoice.amountPaid || 0) +
+                          (parseFloat(settleAmount as string) || 0)
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-bold pt-1 border-t border-zinc-800 text-amber-300">
+                    <span>Balance Remaining:</span>
+                    <span>
+                      {formatCurrency(
+                        Math.max(
+                          0,
+                          createdInvoice.amountDue -
+                            (parseFloat(settleAmount as string) || 0)
+                        )
+                      )}
+                    </span>
+                  </div>
+                  {Math.max(
+                    0,
+                    createdInvoice.amountDue -
+                      (parseFloat(settleAmount as string) || 0)
+                  ) === 0 && (
+                    <p className="text-[11px] font-semibold text-emerald-400 pt-0.5">
+                      🎉 Full balance settled! Final Tax Bill will be automatically generated.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-3 border-t border-zinc-800">
                 <button
@@ -2486,7 +3034,17 @@ export default function BillingPage() {
                   disabled={settling}
                   className="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-5 py-2 text-xs font-bold text-zinc-950 transition disabled:opacity-50"
                 >
-                  {settling ? 'Recording...' : 'Record Payment & Settle'}
+                  {settling
+                    ? 'Recording...'
+                    : createdInvoice.isAdvance
+                    ? `Save ${
+                        createdInvoice.payments?.length === 1
+                          ? '2nd Advance'
+                          : createdInvoice.payments?.length === 2
+                          ? '3rd Advance'
+                          : 'Advance'
+                      } Entry`
+                    : 'Record Payment & Settle'}
                 </button>
               </div>
             </form>

@@ -5,9 +5,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
+import { InvoicesService } from '../invoices/invoices.service';
+
 @Injectable()
 export class PaymentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private invoicesService: InvoicesService,
+  ) {}
 
   async list(tenantId: string, customerId?: string) {
     const where: any = {
@@ -50,6 +55,8 @@ export class PaymentsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      let convertedInvoice: any = null;
+
       // 1. If invoiceId is provided, apply to invoice
       if (invoiceId) {
         const invoice = await tx.invoice.findFirst({
@@ -78,6 +85,16 @@ export class PaymentsService {
             status: newStatus,
           },
         });
+
+        // If this is an Advance Bill and the remaining due amount is now 100% fulfilled,
+        // automatically generate a regular new Final Tax Invoice!
+        if (newAmountDue <= 0 && invoice.isAdvance && !invoice.advanceConverted) {
+          convertedInvoice = await this.invoicesService.convertAdvanceInvoiceToFinalBill(
+            tx,
+            tenantId,
+            invoice.id,
+          );
+        }
       }
 
       // 2. Reduce Customer Outstanding Balance
@@ -102,7 +119,16 @@ export class PaymentsService {
         },
       });
 
-      return payment;
+      return {
+        ...payment,
+        convertedInvoice: convertedInvoice
+          ? {
+              id: convertedInvoice.id,
+              invoiceNumber: convertedInvoice.invoiceNumber,
+              totalAmount: convertedInvoice.totalAmount,
+            }
+          : null,
+      };
     });
   }
 }

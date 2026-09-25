@@ -56,11 +56,12 @@ export class DashboardService {
       _sum: { totalAmount: true },
     });
 
-    // 4. Advance / Partially Paid Invoices
+    // 4. Advance / Partially Paid Invoices (Active, not yet converted to final bill)
     const advanceInvoicesCount = await this.prisma.invoice.count({
       where: {
         tenantId,
         deletedAt: null,
+        advanceConverted: false,
         status: 'PARTIALLY_PAID',
       },
     });
@@ -69,6 +70,7 @@ export class DashboardService {
       where: {
         tenantId,
         deletedAt: null,
+        advanceConverted: false,
         status: 'PARTIALLY_PAID',
       },
       _sum: {
@@ -124,11 +126,12 @@ export class DashboardService {
       take: 8,
     });
 
-    // 10. Recent Advance Invoices (Partially Paid)
+    // 10. Recent Advance Invoices (Active & Partially Paid)
     const recentAdvanceInvoices = await this.prisma.invoice.findMany({
       where: {
         tenantId,
         deletedAt: null,
+        advanceConverted: false,
         status: 'PARTIALLY_PAID',
       },
       include: { customer: true },

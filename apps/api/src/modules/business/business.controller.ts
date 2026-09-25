@@ -44,6 +44,10 @@ class UpdateBusinessDto {
   invoicePrefix?: string;
 
   @IsOptional()
+  @IsString()
+  advancePrefix?: string;
+
+  @IsOptional()
   @IsNumber()
   dueDays?: number;
 

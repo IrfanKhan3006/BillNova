@@ -27,6 +27,7 @@ export default function BusinessSettingsPage() {
     email: '',
     logoUrl: '',
     invoicePrefix: 'INV',
+    advancePrefix: 'ADV',
     dueDays: 30,
     invoiceTemplate: 'CLASSIC',
     bankAccountName: '',
@@ -50,6 +51,7 @@ export default function BusinessSettingsPage() {
           email: res.email || '',
           logoUrl: res.logoUrl || '',
           invoicePrefix: res.invoicePrefix || 'INV',
+          advancePrefix: res.advancePrefix || 'ADV',
           dueDays: res.dueDays ?? 30,
           invoiceTemplate: res.invoiceTemplate || 'CLASSIC',
           bankAccountName: res.bankAccountName || '',
@@ -498,6 +500,21 @@ export default function BusinessSettingsPage() {
                     className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none uppercase"
                     placeholder="e.g. INV"
                   />
+                  <p className="mt-1 text-[11px] text-zinc-500">Regular Tax Invoice sequence (e.g. {form.invoicePrefix || 'INV'}-00001)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-zinc-300">Advance Bill Prefix</label>
+                  <input
+                    type="text"
+                    name="advancePrefix"
+                    required
+                    value={form.advancePrefix}
+                    onChange={handleChange}
+                    className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-amber-500 focus:outline-none uppercase"
+                    placeholder="e.g. ADV"
+                  />
+                  <p className="mt-1 text-[11px] text-zinc-500">Advance / Provisional bill sequence (e.g. {form.advancePrefix || 'ADV'}-00001). Converted to regular Tax Bill on full settlement.</p>
                 </div>
 
                 <div>

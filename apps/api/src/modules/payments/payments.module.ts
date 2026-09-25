@@ -3,8 +3,10 @@ import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PrismaModule } from '../../database/prisma.module';
 
+import { InvoicesModule } from '../invoices/invoices.module';
+
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, InvoicesModule],
   controllers: [PaymentsController],
   providers: [PaymentsService],
   exports: [PaymentsService],
