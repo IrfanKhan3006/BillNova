@@ -5,11 +5,13 @@ import SidebarLayout from '../components/SidebarLayout';
 import { api } from '../lib/api';
 import { compressImage } from '../lib/imageUtils';
 import { useAuthStore } from '../store/authStore';
-import { Save, AlertCircle, CheckCircle, Building, Search, CreditCard } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Building, Search, CreditCard, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 import { toast } from '../store/uiStore';
+import { useSubscriptionStore } from '../store/subscriptionStore';
 
 export default function BusinessSettingsPage() {
   const { updateUserTenant } = useAuthStore();
+  const { planStatus, openUpgradeModal, fetchPlanStatus } = useSubscriptionStore();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [gstLoading, setGstLoading] = useState(false);
@@ -179,6 +181,80 @@ export default function BusinessSettingsPage() {
         <div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">Business Settings</h1>
           <p className="mt-1 text-zinc-400 text-sm">Configure your white-label business settings, GSTIN, and default payment terms.</p>
+        </div>
+
+        {/* Subscription Plan & Limits Card */}
+        <div className="rounded-3xl border border-zinc-800 bg-gradient-to-r from-zinc-900/80 via-zinc-900/40 to-zinc-950 p-6 shadow-xl backdrop-blur-xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" /> Subscription Plan
+                </span>
+                {planStatus?.plan === 'BASIC' ? (
+                  <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-300 border border-emerald-500/30 uppercase">
+                    Active (1 Year)
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-300 border border-amber-500/30 uppercase">
+                    Free Trial ({planStatus?.invoicesCount ?? 0}/{planStatus?.maxFreeInvoices ?? 7} Bills)
+                  </span>
+                )}
+              </div>
+
+              <h3 className="text-xl font-extrabold text-white">
+                {planStatus?.plan === 'BASIC' ? 'BillNova Basic Plan — ₹3,000 / Year' : 'Free Trial Tier — 7 Free Bills'}
+              </h3>
+
+              <p className="text-xs text-zinc-400 max-w-xl">
+                {planStatus?.plan === 'BASIC'
+                  ? `Your annual subscription is active and valid until ${planStatus.planExpiresAt ? new Date(planStatus.planExpiresAt).toLocaleDateString('en-IN') : '1 Year'}. Enjoy unlimited sales invoices and purchase bills!`
+                  : `You get 7 free sales invoices on registration. Once 7 bills are created, select our Basic Plan (₹3,000/year) to unlock unlimited bills and continue operations without interruption.`}
+              </p>
+
+              {/* Free bills progress bar */}
+              {planStatus?.plan === 'FREE' && (
+                <div className="space-y-1.5 pt-2 max-w-md">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-zinc-400">Free Invoices Used</span>
+                    <span className="text-white font-mono font-bold">
+                      {planStatus.invoicesCount} of {planStatus.maxFreeInvoices} Bills
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-zinc-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        planStatus.isLimitReached ? 'bg-rose-500' : 'bg-emerald-500'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, ((planStatus.invoicesCount || 0) / (planStatus.maxFreeInvoices || 7)) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+              {planStatus?.plan !== 'BASIC' ? (
+                <button
+                  type="button"
+                  onClick={() => openUpgradeModal()}
+                  className="flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+                >
+                  <Zap className="h-4 w-4 fill-current" /> Select Basic Plan (₹3,000/yr)
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openUpgradeModal()}
+                  className="flex items-center justify-center gap-2 py-3 px-6 rounded-2xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold text-xs transition cursor-pointer"
+                >
+                  <Sparkles className="h-4 w-4 text-emerald-400" /> View Plan Benefits & Receipt
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {error && (

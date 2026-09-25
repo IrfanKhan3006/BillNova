@@ -13,6 +13,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PurchasesModule } from './modules/purchases/purchases.module';
       ignoreEnvFile: process.env.NODE_ENV === 'production',
       envFilePath: '../../.env',
     }),
+    SubscriptionModule,
     HealthModule,
     AuthModule,
     UsersModule,

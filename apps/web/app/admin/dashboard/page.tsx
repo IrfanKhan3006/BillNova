@@ -29,10 +29,12 @@ interface DashboardStats {
   }>;
   planStats: {
     FREE: number;
+    BASIC?: number;
     STARTER: number;
     PRO: number;
     ENTERPRISE: number;
   };
+  upgradeRequestsPending?: number;
 }
 
 export default function AdminDashboardPage() {
@@ -216,7 +218,8 @@ export default function AdminDashboardPage() {
 
               <div className="space-y-4">
                 {[
-                  { name: 'Free Tier', value: stats.planStats.FREE, total: stats.totalTenants, color: 'bg-zinc-700' },
+                  { name: 'Free Trial (7 Bills)', value: stats.planStats.FREE, total: stats.totalTenants, color: 'bg-zinc-700' },
+                  { name: 'Basic Plan (₹3,000/yr)', value: stats.planStats.BASIC || 0, total: stats.totalTenants, color: 'bg-emerald-500' },
                   { name: 'Starter Tier', value: stats.planStats.STARTER, total: stats.totalTenants, color: 'bg-blue-500' },
                   { name: 'Professional Tier', value: stats.planStats.PRO, total: stats.totalTenants, color: 'bg-purple-500' },
                   { name: 'Enterprise Tier', value: stats.planStats.ENTERPRISE, total: stats.totalTenants, color: 'bg-pink-500' },

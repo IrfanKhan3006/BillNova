@@ -24,8 +24,10 @@ import {
   DollarSign,
   PackagePlus,
   Users,
+  Zap,
 } from 'lucide-react';
 import { toast, showConfirm } from '../store/uiStore';
+import { useSubscriptionStore } from '../store/subscriptionStore';
 
 interface Vendor {
   id: string;
@@ -93,6 +95,7 @@ interface PurchaseInvoice {
 
 export default function PurchasesPage() {
   const { user } = useAuthStore();
+  const { planStatus, openUpgradeModal } = useSubscriptionStore();
   const [purchases, setPurchases] = useState<PurchaseInvoice[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -322,6 +325,12 @@ export default function PurchasesPage() {
         paymentReference: markPaid && paymentRef ? paymentRef.trim() : undefined,
       };
 
+      // 0. Pro-Level Subscription / 7-Bill Limit Gate Check
+      if (user?.role !== 'SUPER_ADMIN' && planStatus?.isLimitReached) {
+        openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan (₹3,000 / year) to record purchase bills.');
+        return;
+      }
+
       const created = await api.post('/purchases', payload);
       toast.success(`Purchase Invoice ${created.purchaseNumber} recorded successfully!`);
 
@@ -459,6 +468,33 @@ export default function PurchasesPage() {
     <SidebarLayout>
       <FeatureGate featureKey="purchasesEnabled" featureName="Purchase Invoices">
         <div className="space-y-6">
+
+          {/* Free Trial Limit Reached Banner */}
+          {user?.role !== 'SUPER_ADMIN' && planStatus?.isLimitReached && (
+            <div className="rounded-2xl border-2 border-rose-500/30 bg-gradient-to-r from-rose-950/40 via-zinc-900/60 to-zinc-900/40 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+              <div className="flex items-start gap-3.5">
+                <div className="h-10 w-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-base flex items-center gap-2">
+                    Free Trial Limit Reached ({planStatus.invoicesCount}/{planStatus.maxFreeInvoices} Bills Used)
+                  </h4>
+                  <p className="text-xs text-zinc-300 mt-0.5">
+                    Your 7 free bills have been utilized. Please activate our Basic Plan (₹3,000/year) to record purchase bills and continue unlimited operations.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan (₹3,000 / year) to continue.')}
+                className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition shrink-0"
+              >
+                <Zap className="h-4 w-4 fill-current" /> Select Plan (₹3,000/yr)
+              </button>
+            </div>
+          )}
+
           {/* Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-5">
             <div>

@@ -4,10 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private subscriptionService: SubscriptionService,
+  ) {}
 
   async list(tenantId: string, customerId?: string, status?: any) {
     const where: any = {
@@ -50,6 +54,9 @@ export class InvoicesService {
   }
 
   async create(tenantId: string, data: any) {
+    // 0. Enforce Pro-Level Subscription / 7-Bill Limit Gate
+    await this.subscriptionService.assertCanCreateInvoice(tenantId);
+
     const {
       customerId,
       items,

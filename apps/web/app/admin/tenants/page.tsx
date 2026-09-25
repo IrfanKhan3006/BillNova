@@ -16,6 +16,9 @@ import {
   Sliders,
   Key,
   X,
+  Zap,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast, showConfirm } from '../../store/uiStore';
@@ -32,7 +35,16 @@ interface Tenant {
   id: string;
   name: string;
   slug: string;
-  plan: 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE';
+  plan: 'FREE' | 'BASIC' | 'STARTER' | 'PRO' | 'ENTERPRISE';
+  subscriptionStatus?: string;
+  planExpiresAt?: string | null;
+  maxFreeInvoices?: number;
+  planPrice?: number;
+  upgradeRequested?: boolean;
+  upgradeRequestedAt?: string | null;
+  isLimitReached?: boolean;
+  daysRemaining?: number | null;
+  invoicesRemaining?: number;
   gstin: string | null;
   email: string | null;
   phone: string | null;
@@ -52,6 +64,7 @@ interface Tenant {
     users: number;
     invoices: number;
     customers: number;
+    purchaseInvoices?: number;
   };
 }
 
@@ -63,7 +76,7 @@ export default function AdminTenantsPage() {
   
   // Modals / Status controls
   const [isEditingPlan, setIsEditingPlan] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'>('FREE');
+  const [selectedPlan, setSelectedPlan] = useState<'FREE' | 'BASIC' | 'STARTER' | 'PRO' | 'ENTERPRISE'>('FREE');
 
   // Credentials / logins controls
   const [activeTenantForLogins, setActiveTenantForLogins] = useState<Tenant | null>(null);
@@ -138,6 +151,76 @@ export default function AdminTenantsPage() {
       toast.success('Plan changed successfully!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to change business plan.');
+    }
+  };
+
+  const handleQuickActivatePlan = async (tenantId: string, businessName: string) => {
+    const ok = await showConfirm({
+      title: 'Activate Basic Plan',
+      message: `Activate Basic Plan (₹3,000 / year) for "${businessName}"? This will enable unlimited billing & ERP features for 365 days.`,
+      confirmText: 'Activate Plan (₹3,000/yr)',
+      danger: false,
+    });
+    if (!ok) return;
+
+    try {
+      const res = await api.post(`/admin/tenants/${tenantId}/activate-plan`, {
+        plan: 'BASIC',
+        durationDays: 365,
+        price: 3000,
+      });
+      setTenants((prev) =>
+        prev.map((t) =>
+          t.id === tenantId
+            ? {
+                ...t,
+                plan: 'BASIC',
+                subscriptionStatus: 'ACTIVE',
+                planExpiresAt: res.tenant.planExpiresAt,
+                upgradeRequested: false,
+                billingEnabled: true,
+                purchasesEnabled: true,
+              }
+            : t
+        )
+      );
+      toast.success(`Basic Plan (₹3,000/yr) activated for "${businessName}"! Valid for 365 days.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to activate plan.');
+    }
+  };
+
+  const handleResetTrial = async (tenantId: string, businessName: string) => {
+    const ok = await showConfirm({
+      title: 'Reset Free Trial',
+      message: `Reset free trial to 7 bills for "${businessName}"?`,
+      confirmText: 'Reset to 7 Free Bills',
+      danger: false,
+    });
+    if (!ok) return;
+
+    try {
+      await api.post(`/admin/tenants/${tenantId}/reset-trial`, {
+        maxFreeInvoices: 7,
+      });
+      setTenants((prev) =>
+        prev.map((t) =>
+          t.id === tenantId
+            ? {
+                ...t,
+                plan: 'FREE',
+                subscriptionStatus: 'TRIAL',
+                planExpiresAt: null,
+                maxFreeInvoices: 7,
+                upgradeRequested: false,
+                isLimitReached: (t._count?.invoices || 0) >= 7,
+              }
+            : t
+        )
+      );
+      toast.success(`Free trial reset to 7 bills for "${businessName}".`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reset trial.');
     }
   };
 
@@ -328,51 +411,139 @@ export default function AdminTenantsPage() {
                             </div>
                           </td>
 
-                          {/* Plan */}
+                          {/* Subscription Plan & Limits */}
                           <td className="py-5">
-                            {isEditingPlan === t.id ? (
-                              <div className="flex items-center gap-2">
-                                <select
-                                  value={selectedPlan}
-                                  onChange={(e) =>
-                                    setSelectedPlan(e.target.value as any)
-                                  }
-                                  className="rounded-lg border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                                >
-                                  <option value="FREE">FREE</option>
-                                  <option value="STARTER">STARTER</option>
-                                  <option value="PRO">PRO</option>
-                                  <option value="ENTERPRISE">ENTERPRISE</option>
-                                </select>
-                                <button
-                                  onClick={() => handlePlanSave(t.id)}
-                                  className="rounded-lg bg-emerald-500 p-1.5 text-zinc-950 hover:bg-emerald-400 transition"
-                                >
-                                  <Check className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-2 min-w-[210px]">
+                              {/* Plan & Status Badges */}
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 <span
-                                  className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold border uppercase ${
-                                    t.plan === 'PRO' || t.plan === 'ENTERPRISE'
+                                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border uppercase ${
+                                    t.plan === 'BASIC'
+                                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                      : t.plan === 'PRO' || t.plan === 'ENTERPRISE'
                                       ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
                                       : 'bg-zinc-800 text-zinc-400 border-zinc-700'
                                   }`}
                                 >
-                                  {t.plan}
+                                  {t.plan === 'BASIC' ? 'BASIC (₹3,000/yr)' : t.plan}
                                 </span>
-                                <button
-                                  onClick={() => {
-                                    setSelectedPlan(t.plan);
-                                    setIsEditingPlan(t.id);
-                                  }}
-                                  className="text-xs font-semibold text-zinc-500 hover:text-purple-400 transition"
-                                >
-                                  Edit Plan
-                                </button>
+
+                                {t.subscriptionStatus === 'ACTIVE' && (
+                                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/20">
+                                    Active
+                                  </span>
+                                )}
+
+                                {t.upgradeRequested && (
+                                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[9px] font-extrabold text-amber-300 border border-amber-500/30 animate-pulse flex items-center gap-1">
+                                    <Zap className="h-2.5 w-2.5 fill-current" /> Requested
+                                  </span>
+                                )}
                               </div>
-                            )}
+
+                              {/* Free Trial or Expiry Details */}
+                              <div className="text-[11px] text-zinc-400">
+                                {t.plan === 'FREE' ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <span>Trial Bills:</span>
+                                    <span
+                                      className={`font-mono font-bold ${
+                                        (t._count?.invoices || 0) >= (t.maxFreeInvoices || 7)
+                                          ? 'text-rose-400'
+                                          : 'text-zinc-200'
+                                      }`}
+                                    >
+                                      {t._count?.invoices || 0}/{t.maxFreeInvoices || 7}
+                                    </span>
+                                    {(t._count?.invoices || 0) >= (t.maxFreeInvoices || 7) && (
+                                      <span className="text-[10px] text-rose-400 font-semibold">(Limit Reached)</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1">
+                                    <span>Valid till:</span>
+                                    <span className="font-semibold text-zinc-200">
+                                      {t.planExpiresAt
+                                        ? new Date(t.planExpiresAt).toLocaleDateString('en-IN')
+                                        : '365 Days'}
+                                    </span>
+                                    {t.daysRemaining !== null && t.daysRemaining !== undefined && (
+                                      <span className="text-[10px] text-zinc-500 font-mono">({t.daysRemaining}d left)</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Super Admin 1-Click Action Controls */}
+                              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                                {t.plan !== 'BASIC' && (
+                                  <button
+                                    onClick={() => handleQuickActivatePlan(t.id, t.name)}
+                                    className="flex items-center gap-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-2.5 py-1 text-[11px] font-bold shadow-xs transition"
+                                    title="Activate Basic Plan ₹3,000/year for 365 days"
+                                  >
+                                    <Zap className="h-3 w-3 fill-current" /> Activate Basic (₹3,000/yr)
+                                  </button>
+                                )}
+
+                                {t.plan === 'BASIC' && (
+                                  <button
+                                    onClick={() => handleQuickActivatePlan(t.id, t.name)}
+                                    className="flex items-center gap-1 rounded-lg bg-zinc-850 hover:bg-zinc-800 text-emerald-400 px-2 py-1 text-[11px] font-semibold border border-zinc-700/60 transition"
+                                    title="Renew for another 1 year"
+                                  >
+                                    <Clock className="h-3 w-3" /> +1 Yr Renewal
+                                  </button>
+                                )}
+
+                                {t.plan === 'FREE' && (t._count?.invoices || 0) > 0 && (
+                                  <button
+                                    onClick={() => handleResetTrial(t.id, t.name)}
+                                    className="text-[10px] text-zinc-500 hover:text-zinc-300 underline"
+                                  >
+                                    Reset Trial
+                                  </button>
+                                )}
+
+                                {isEditingPlan === t.id ? (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <select
+                                      value={selectedPlan}
+                                      onChange={(e) => setSelectedPlan(e.target.value as any)}
+                                      className="rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-white focus:outline-none"
+                                    >
+                                      <option value="FREE">FREE</option>
+                                      <option value="BASIC">BASIC</option>
+                                      <option value="STARTER">STARTER</option>
+                                      <option value="PRO">PRO</option>
+                                      <option value="ENTERPRISE">ENTERPRISE</option>
+                                    </select>
+                                    <button
+                                      onClick={() => handlePlanSave(t.id)}
+                                      className="rounded-lg bg-emerald-500 p-1 text-zinc-950 hover:bg-emerald-400 transition"
+                                    >
+                                      <Check className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => setIsEditingPlan(null)}
+                                      className="rounded-lg bg-zinc-800 p-1 text-zinc-400 hover:text-white transition"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPlan(t.plan);
+                                      setIsEditingPlan(t.id);
+                                    }}
+                                    className="text-[11px] font-semibold text-zinc-500 hover:text-purple-400 transition"
+                                  >
+                                    Edit...
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </td>
 
                           {/* Feature Gating Switches */}

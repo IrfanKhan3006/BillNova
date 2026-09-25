@@ -1,11 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { UpdateTenantDto } from './admin.controller';
+import {
+  UpdateTenantDto,
+  ActivatePlanDto,
+  ResetTrialDto,
+} from './admin.controller';
+import { SubscriptionService } from '../subscription/subscription.service';
+import { TenantPlan } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private subscriptionService: SubscriptionService,
+  ) {}
 
   // ─── Platform Analytics ───────────────────────────────────────────────────
   async getDashboardStats() {
@@ -15,6 +24,10 @@ export class AdminService {
 
     const totalUsers = await this.prisma.user.count({
       where: { isActive: true, deletedAt: null },
+    });
+
+    const upgradeRequestsPending = await this.prisma.tenant.count({
+      where: { upgradeRequested: true, deletedAt: null },
     });
 
     const invoicesAggregate = await this.prisma.invoice.aggregate({
@@ -52,9 +65,11 @@ export class AdminService {
       totalTenants,
       totalUsers,
       totalRevenue,
+      upgradeRequestsPending,
       recentTenants,
       planStats: {
         FREE: planStats['FREE'] || 0,
+        BASIC: planStats['BASIC'] || 0,
         STARTER: planStats['STARTER'] || 0,
         PRO: planStats['PRO'] || 0,
         ENTERPRISE: planStats['ENTERPRISE'] || 0,
@@ -64,7 +79,7 @@ export class AdminService {
 
   // ─── Manage Tenants ───────────────────────────────────────────────────────
   async listTenants() {
-    return this.prisma.tenant.findMany({
+    const tenants = await this.prisma.tenant.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
         users: {
@@ -81,8 +96,112 @@ export class AdminService {
             users: true,
             invoices: true,
             customers: true,
+            purchaseInvoices: true,
           },
         },
+      },
+    });
+
+    const now = new Date();
+
+    return tenants.map((t) => {
+      const invoicesCount = t._count.invoices;
+      const isPaidPlan = t.plan !== TenantPlan.FREE;
+      let isExpired = false;
+      let daysRemaining: number | null = null;
+
+      if (isPaidPlan && t.planExpiresAt) {
+        const expiry = new Date(t.planExpiresAt);
+        const diffMs = expiry.getTime() - now.getTime();
+        daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        isExpired = diffMs <= 0;
+      }
+
+      let isLimitReached = false;
+      let effectiveStatus = t.subscriptionStatus || 'TRIAL';
+
+      if (t.plan === TenantPlan.FREE) {
+        isLimitReached = invoicesCount >= t.maxFreeInvoices;
+        effectiveStatus = isLimitReached ? 'EXPIRED' : 'TRIAL';
+      } else {
+        if (isExpired || t.subscriptionStatus === 'EXPIRED') {
+          isLimitReached = true;
+          effectiveStatus = 'EXPIRED';
+        } else {
+          isLimitReached = false;
+          effectiveStatus = 'ACTIVE';
+        }
+      }
+
+      return {
+        ...t,
+        subscriptionStatus: effectiveStatus,
+        invoicesRemaining:
+          t.plan === TenantPlan.FREE
+            ? Math.max(0, t.maxFreeInvoices - invoicesCount)
+            : 999999,
+        isLimitReached,
+        isExpired,
+        daysRemaining,
+      };
+    });
+  }
+
+  async listUpgradeRequests() {
+    const tenants = await this.prisma.tenant.findMany({
+      where: { upgradeRequested: true, deletedAt: null },
+      orderBy: { upgradeRequestedAt: 'desc' },
+      include: {
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+          },
+        },
+        _count: {
+          select: {
+            users: true,
+            invoices: true,
+            customers: true,
+            purchaseInvoices: true,
+          },
+        },
+      },
+    });
+
+    return tenants.map((t) => {
+      const invoicesCount = t._count.invoices;
+      return {
+        ...t,
+        invoicesRemaining:
+          t.plan === TenantPlan.FREE
+            ? Math.max(0, t.maxFreeInvoices - invoicesCount)
+            : 999999,
+        isLimitReached:
+          t.plan === TenantPlan.FREE
+            ? invoicesCount >= t.maxFreeInvoices
+            : false,
+      };
+    });
+  }
+
+  async dismissUpgradeRequest(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Business profile not found.');
+    }
+
+    return this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        upgradeRequested: false,
+        upgradeRequestedAt: null,
       },
     });
   }
@@ -100,6 +219,11 @@ export class AdminService {
       where: { id: tenantId },
       data: {
         plan: dto.plan,
+        subscriptionStatus: dto.subscriptionStatus,
+        planExpiresAt: dto.planExpiresAt ? new Date(dto.planExpiresAt) : undefined,
+        maxFreeInvoices: dto.maxFreeInvoices,
+        planPrice: dto.planPrice,
+        upgradeRequested: dto.upgradeRequested,
         billingEnabled: dto.billingEnabled,
         productsEnabled: dto.productsEnabled,
         paymentsEnabled: dto.paymentsEnabled,
@@ -110,6 +234,23 @@ export class AdminService {
         theme: dto.theme,
       },
     });
+  }
+
+  async activateTenantPlan(tenantId: string, dto: ActivatePlanDto) {
+    const plan = dto.plan || TenantPlan.BASIC;
+    const durationDays = dto.durationDays || 365;
+    const price = dto.price || 3000;
+    return this.subscriptionService.activatePlan(
+      tenantId,
+      plan,
+      durationDays,
+      price,
+    );
+  }
+
+  async resetTenantTrial(tenantId: string, dto: ResetTrialDto) {
+    const maxFree = dto.maxFreeInvoices || 7;
+    return this.subscriptionService.resetTrial(tenantId, maxFree);
   }
 
   async auditTenantInvoices(tenantId: string) {

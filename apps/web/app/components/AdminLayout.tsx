@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '../store/authStore';
+import { api } from '../lib/api';
 import {
   LayoutDashboard,
   Building2,
@@ -12,6 +13,7 @@ import {
   Menu,
   X,
   Shield,
+  Zap,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
@@ -20,6 +22,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(0);
+
+  useEffect(() => {
+    async function checkPending() {
+      try {
+        const data = await api.get('/admin/requests');
+        if (Array.isArray(data)) {
+          setPendingRequestsCount(data.length);
+        }
+      } catch {}
+    }
+    checkPending();
+  }, [pathname]);
 
   const handleLogout = () => {
     logout();
@@ -29,6 +44,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { name: 'Platform Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Manage Businesses', href: '/admin/tenants', icon: Building2 },
+    {
+      name: 'Activation Requests',
+      href: '/admin/requests',
+      icon: Zap,
+      badge: pendingRequestsCount,
+    },
   ];
 
   return (
@@ -58,14 +79,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition duration-150 ${
+                  className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition duration-150 ${
                     isActive
-                      ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                      ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold'
                       : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
                   }`}
                 >
-                  <Icon className="h-4.5 w-4.5" />
-                  {item.name}
+                  <div className="flex items-center gap-3">
+                    <Icon className={`h-4.5 w-4.5 ${isActive ? 'text-purple-400' : 'text-zinc-500'}`} />
+                    <span>{item.name}</span>
+                  </div>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-black text-zinc-950 animate-pulse">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -125,12 +153,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     key={item.name}
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-md font-medium transition ${
-                      isActive ? 'bg-purple-500/10 text-purple-400' : 'text-zinc-400'
+                    className={`flex items-center justify-between px-4 py-3.5 rounded-xl text-md font-medium transition ${
+                      isActive ? 'bg-purple-500/10 text-purple-400 font-bold' : 'text-zinc-400'
                     }`}
                   >
-                    <Icon className="h-5 w-5" />
-                    {item.name}
+                    <div className="flex items-center gap-3">
+                      <Icon className="h-5 w-5" />
+                      <span>{item.name}</span>
+                    </div>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-black text-zinc-950">
+                        {item.badge}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

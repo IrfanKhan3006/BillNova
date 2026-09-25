@@ -45,12 +45,25 @@ async function request(path: string, options: FetchOptions = {}) {
     }
 
     let errMsg = 'Something went wrong';
+    let errCode = '';
     try {
       const errData = await response.json();
       errMsg = errData.message || errMsg;
+      errCode = errData.code || '';
     } catch {
       // Ignored
     }
+
+    // Intercept Plan Limit & Subscription payment required
+    if (response.status === 402 || errCode === 'PLAN_LIMIT_REACHED' || errCode === 'PLAN_EXPIRED') {
+      try {
+        const { useSubscriptionStore } = await import('../store/subscriptionStore');
+        useSubscriptionStore.getState().openUpgradeModal(errMsg);
+      } catch {
+        // Fallback
+      }
+    }
+
     throw new Error(errMsg);
   }
 

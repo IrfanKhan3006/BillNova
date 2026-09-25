@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -72,17 +72,43 @@ class UpdateBusinessDto {
   theme?: string;
 }
 
+import { SubscriptionService } from '../subscription/subscription.service';
+
+class RequestUpgradeDto {
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
 @ApiTags('Business')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('business')
 export class BusinessController {
-  constructor(private readonly businessService: BusinessService) {}
+  constructor(
+    private readonly businessService: BusinessService,
+    private readonly subscriptionService: SubscriptionService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Apne business ka profile dekho' })
   async getProfile(@CurrentUser() user: any) {
     return this.businessService.getProfile(user.tenantId);
+  }
+
+  @Get('plan')
+  @ApiOperation({ summary: 'Current business plan and bill usage metrics dekho' })
+  async getPlanStatus(@CurrentUser() user: any) {
+    return this.subscriptionService.getTenantPlanStatus(user.tenantId);
+  }
+
+  @Post('request-upgrade')
+  @ApiOperation({ summary: 'Basic Plan (₹3,000/year) ke liye activation request send kro' })
+  async requestUpgrade(
+    @CurrentUser() user: any,
+    @Body() dto: RequestUpgradeDto,
+  ) {
+    return this.subscriptionService.requestUpgrade(user.tenantId, dto.note);
   }
 
   @Get('gst-fetch/:gstin')
