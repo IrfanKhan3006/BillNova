@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useUIStore } from '../store/uiStore';
+import PlanUpgradeModal from './PlanUpgradeModal';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -133,6 +134,9 @@ export default function UIFeedback() {
           </div>
         </div>
       )}
+
+      {/* ─── SUBSCRIPTION / 7-BILL LIMIT UPGRADE MODAL ─────────────────── */}
+      <PlanUpgradeModal />
     </>
   );
 }

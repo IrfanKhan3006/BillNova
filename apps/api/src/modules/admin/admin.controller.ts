@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
   Body,
@@ -15,6 +16,7 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  IsNumber,
 } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -25,6 +27,26 @@ export class UpdateTenantDto {
   @IsOptional()
   @IsEnum(TenantPlan)
   plan?: TenantPlan;
+
+  @IsOptional()
+  @IsString()
+  subscriptionStatus?: string;
+
+  @IsOptional()
+  @IsString()
+  planExpiresAt?: string;
+
+  @IsOptional()
+  @IsNumber()
+  maxFreeInvoices?: number;
+
+  @IsOptional()
+  @IsNumber()
+  planPrice?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  upgradeRequested?: boolean;
 
   @IsOptional()
   @IsBoolean()
@@ -59,6 +81,26 @@ export class UpdateTenantDto {
   theme?: string;
 }
 
+export class ActivatePlanDto {
+  @IsOptional()
+  @IsEnum(TenantPlan)
+  plan?: TenantPlan;
+
+  @IsOptional()
+  @IsNumber()
+  durationDays?: number;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+}
+
+export class ResetTrialDto {
+  @IsOptional()
+  @IsNumber()
+  maxFreeInvoices?: number;
+}
+
 export class ResetUserPasswordDto {
   @IsString()
   @MinLength(6)
@@ -85,6 +127,18 @@ export class AdminController {
     return this.adminService.listTenants();
   }
 
+  @Get('requests')
+  @ApiOperation({ summary: 'Businesses jinhone plan activation request ki hai unki list dekho' })
+  async listUpgradeRequests() {
+    return this.adminService.listUpgradeRequests();
+  }
+
+  @Delete('requests/:id')
+  @ApiOperation({ summary: 'Dismiss/reject an activation request' })
+  async dismissUpgradeRequest(@Param('id') id: string) {
+    return this.adminService.dismissUpgradeRequest(id);
+  }
+
   @Patch('tenants/:id')
   @ApiOperation({ summary: 'Kisi business ka plan ya features edit kro' })
   async updateTenant(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
@@ -95,6 +149,24 @@ export class AdminController {
   @ApiOperation({ summary: 'Kisi specific business ke bills audit kro' })
   async auditInvoices(@Param('id') id: string) {
     return this.adminService.auditTenantInvoices(id);
+  }
+
+  @Post('tenants/:id/activate-plan')
+  @ApiOperation({ summary: 'Super Admin: Business ka plan instantly activate kro (e.g. Basic ₹3,000/yr)' })
+  async activatePlan(
+    @Param('id') id: string,
+    @Body() dto: ActivatePlanDto,
+  ) {
+    return this.adminService.activateTenantPlan(id, dto);
+  }
+
+  @Post('tenants/:id/reset-trial')
+  @ApiOperation({ summary: 'Super Admin: Business ka trial reset ya custom free bills grant kro' })
+  async resetTrial(
+    @Param('id') id: string,
+    @Body() dto: ResetTrialDto,
+  ) {
+    return this.adminService.resetTenantTrial(id, dto);
   }
 
   @Delete('tenants/:id')

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '../store/authStore';
+import { useSubscriptionStore } from '../store/subscriptionStore';
 import {
   LayoutDashboard,
   Receipt,
@@ -18,6 +19,10 @@ import {
   X,
   User as UserIcon,
   Building,
+  Sparkles,
+  Zap,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
@@ -25,7 +30,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { planStatus, fetchPlanStatus, openUpgradeModal } = useSubscriptionStore();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (user?.role !== 'SUPER_ADMIN') {
+      fetchPlanStatus();
+    }
+  }, [user?.role, fetchPlanStatus]);
 
   const handleLogout = () => {
     logout();
@@ -215,10 +227,49 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             )}
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-              Plan: <span className="text-emerald-600 dark:text-emerald-400 font-bold capitalize">{user?.tenant?.plan || 'Free'}</span>
-            </div>
+          <div className="flex items-center gap-3">
+            {/* Plan Status Widget */}
+            {user?.role === 'SUPER_ADMIN' ? (
+              <span className="rounded-full bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-400 border border-purple-500/20">
+                Super Admin
+              </span>
+            ) : planStatus?.plan === 'BASIC' || user?.tenant?.plan === 'BASIC' ? (
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                <span className="font-bold text-emerald-400">Basic Plan (Active)</span>
+                {planStatus?.daysRemaining !== null && planStatus?.daysRemaining !== undefined && (
+                  <span className="text-[10px] text-emerald-300 font-mono">({planStatus.daysRemaining}d left)</span>
+                )}
+              </div>
+            ) : planStatus?.isLimitReached ? (
+              <button
+                onClick={() => openUpgradeModal('Free trial limit of 7 bills reached. Upgrade to Basic Plan (₹3,000/year) to continue.')}
+                className="group flex items-center gap-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 px-3 py-1.5 text-xs text-rose-300 transition animate-pulse"
+              >
+                <AlertTriangle className="h-4 w-4 text-rose-400" />
+                <span className="font-bold">7/7 Bills Used</span>
+                <span className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2 py-0.5 text-[10px] font-extrabold text-zinc-950 shadow">
+                  <Zap className="h-3 w-3 fill-current" /> Upgrade ₹3,000/yr
+                </span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400 font-medium">
+                  <span>Free Trial:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                    {planStatus?.invoicesCount ?? 0}/{planStatus?.maxFreeInvoices ?? 7}
+                  </span>
+                  <span className="text-[11px] text-zinc-400">bills</span>
+                </div>
+                <button
+                  onClick={() => openUpgradeModal()}
+                  className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm transition"
+                >
+                  <Sparkles className="h-3 w-3" /> Upgrade (₹3,000/yr)
+                </button>
+              </div>
+            )}
+
             <ThemeToggle />
           </div>
         </header>

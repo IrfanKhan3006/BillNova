@@ -4,10 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 @Injectable()
 export class PurchasesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private subscriptionService: SubscriptionService,
+  ) {}
 
   // ─── Purchase Invoices ──────────────────────────────────────────────────────
 
@@ -79,6 +83,9 @@ export class PurchasesService {
   }
 
   async create(tenantId: string, data: any) {
+    // 0. Enforce Pro-Level Subscription / 7-Bill Limit Gate
+    await this.subscriptionService.assertCanCreateInvoice(tenantId);
+
     let vendorId = data.vendorId;
     const {
       vendorName,

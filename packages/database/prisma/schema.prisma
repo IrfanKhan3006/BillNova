@@ -17,6 +17,7 @@ enum Role {
 
 enum TenantPlan {
   FREE
+  BASIC
   STARTER
   PRO
   ENTERPRISE
@@ -27,6 +28,14 @@ model Tenant {
   name  String
   slug  String     @unique
   plan  TenantPlan @default(FREE)
+
+  // Subscription & Plan Limits
+  subscriptionStatus String    @default("TRIAL") // "TRIAL", "ACTIVE", "EXPIRED", "SUSPENDED"
+  planExpiresAt     DateTime?
+  maxFreeInvoices   Int        @default(7)
+  planPrice         Float      @default(3000)
+  upgradeRequested  Boolean    @default(false)
+  upgradeRequestedAt DateTime?
 
   gstin     String?
   stateCode String?

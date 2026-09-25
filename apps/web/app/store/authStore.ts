@@ -13,6 +13,11 @@ interface User {
     gstin?: string;
     stateCode?: string;
     plan: string;
+    subscriptionStatus?: string;
+    planExpiresAt?: string | null;
+    maxFreeInvoices?: number;
+    planPrice?: number;
+    upgradeRequested?: boolean;
     logoUrl?: string;
     customHeaderUrl?: string;
     address?: string;
