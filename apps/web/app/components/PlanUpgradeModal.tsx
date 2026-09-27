@@ -60,7 +60,7 @@ export default function PlanUpgradeModal() {
   const whatsappMessage = encodeURIComponent(
     `Hello BillNova Team, I would like to activate the Basic Plan (₹3,000 / year) for my business:\n\n• Business Name: ${tenantName}\n• Email: ${user?.email || ''}\n• Phone: ${user?.tenant?.phone || ''}\n• Plan: Basic Plan (₹3,000/yr)\n\nPlease activate my account.`
   );
-  const whatsappUrl = `https://wa.me/919876543210?text=${whatsappMessage}`;
+  const whatsappUrl = `https://wa.me/919205875078?text=${whatsappMessage}`;
 
   return (
     <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 no-print overflow-y-auto">
