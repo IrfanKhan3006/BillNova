@@ -7,7 +7,7 @@ import {
 } from './admin.controller';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { TenantPlan } from '@prisma/client';
-import * as argon2 from 'argon2';
+import { hashPassword } from '../../common/utils/password.util';
 
 @Injectable()
 export class AdminService {
@@ -220,7 +220,9 @@ export class AdminService {
       data: {
         plan: dto.plan,
         subscriptionStatus: dto.subscriptionStatus,
-        planExpiresAt: dto.planExpiresAt ? new Date(dto.planExpiresAt) : undefined,
+        planExpiresAt: dto.planExpiresAt
+          ? new Date(dto.planExpiresAt)
+          : undefined,
         maxFreeInvoices: dto.maxFreeInvoices,
         planPrice: dto.planPrice,
         upgradeRequested: dto.upgradeRequested,
@@ -309,9 +311,7 @@ export class AdminService {
       throw new NotFoundException('User not found.');
     }
 
-    const passwordHash = await argon2.hash(newPassword, {
-      type: argon2.argon2id,
-    });
+    const passwordHash = await hashPassword(newPassword);
 
     return this.prisma.user.update({
       where: { id: userId },
