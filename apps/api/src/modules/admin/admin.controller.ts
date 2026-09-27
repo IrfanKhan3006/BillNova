@@ -180,6 +180,21 @@ export class AdminController {
     return this.adminService.deleteTenantInvoice(id, invoiceId);
   }
 
+  @Get('recycle-bin')
+  @ApiOperation({ summary: 'Deleted bills, business-wise' })
+  async listDeletedInvoices() {
+    return this.adminService.listDeletedInvoices();
+  }
+
+  @Post('tenants/:id/invoices/:invoiceId/restore')
+  @ApiOperation({ summary: 'Deleted bill wapas restore kro' })
+  async restoreTenantInvoice(
+    @Param('id') id: string,
+    @Param('invoiceId') invoiceId: string,
+  ) {
+    return this.adminService.restoreTenantInvoice(id, invoiceId);
+  }
+
   @Post('tenants/:id/activate-plan')
   @ApiOperation({ summary: 'Super Admin: Business ka plan instantly activate kro (e.g. Basic ₹3,000/yr)' })
   async activatePlan(

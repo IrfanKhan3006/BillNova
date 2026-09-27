@@ -192,7 +192,7 @@ export default function AdminInvoiceDetailPage({ params }: PageProps) {
 
   const handleDelete = async () => {
     if (!invoice) return;
-    if (!confirm(`Delete bill ${invoice.invoiceNumber}? The customer's outstanding balance will be adjusted.`)) return;
+    if (!confirm(`Delete bill ${invoice.invoiceNumber}? It will move to the Recycle Bin and can be restored later.`)) return;
     setSaving(true);
     setError(null);
     try {
