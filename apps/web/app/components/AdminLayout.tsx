@@ -14,6 +14,7 @@ import {
   X,
   Shield,
   Zap,
+  Trash2,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
@@ -50,6 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       icon: Zap,
       badge: pendingRequestsCount,
     },
+    { name: 'Recycle Bin', href: '/admin/recycle-bin', icon: Trash2 },
   ];
 
   return (

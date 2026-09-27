@@ -34,6 +34,7 @@ export class AdminService {
     });
 
     const invoicesAggregate = await this.prisma.invoice.aggregate({
+      where: { deletedAt: null },
       _sum: {
         totalAmount: true,
       },
@@ -97,7 +98,7 @@ export class AdminService {
         _count: {
           select: {
             users: true,
-            invoices: true,
+            invoices: { where: { deletedAt: null } },
             customers: true,
             purchaseInvoices: true,
           },
@@ -167,7 +168,7 @@ export class AdminService {
         _count: {
           select: {
             users: true,
-            invoices: true,
+            invoices: { where: { deletedAt: null } },
             customers: true,
             purchaseInvoices: true,
           },
@@ -294,6 +295,30 @@ export class AdminService {
 
   async deleteTenantInvoice(tenantId: string, invoiceId: string) {
     return this.invoicesService.remove(tenantId, invoiceId);
+  }
+
+  // ─── Recycle Bin ──────────────────────────────────────────────────────────
+  async listDeletedInvoices() {
+    const invoices = await this.prisma.invoice.findMany({
+      where: { deletedAt: { not: null } },
+      include: {
+        customer: { select: { name: true } },
+        tenant: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { deletedAt: 'desc' },
+    });
+
+    // Group by business for the recycle bin view
+    const groups = new Map<string, { tenant: any; invoices: any[] }>();
+    for (const { tenant, ...inv } of invoices) {
+      if (!groups.has(tenant.id)) groups.set(tenant.id, { tenant, invoices: [] });
+      groups.get(tenant.id)!.invoices.push(inv);
+    }
+    return [...groups.values()];
+  }
+
+  async restoreTenantInvoice(tenantId: string, invoiceId: string) {
+    return this.invoicesService.restore(tenantId, invoiceId);
   }
 
   async suspendTenant(tenantId: string) {

@@ -515,6 +515,68 @@ export class InvoicesService {
   }
 
   /**
+   * Restores a soft-deleted invoice. If its number has since been taken by
+   * another invoice, it is given the next number in the tenant's sequence.
+   */
+  async restore(tenantId: string, id: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, tenantId, deletedAt: { not: null } },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Deleted invoice not found.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      let invoiceNumber = invoice.invoiceNumber;
+      const clash = await tx.invoice.findFirst({
+        where: { tenantId, invoiceNumber, id: { not: id } },
+      });
+
+      if (clash) {
+        const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
+        if (!tenant) throw new NotFoundException('Business profile not found.');
+
+        if (invoice.isAdvance && !invoice.advanceConverted) {
+          const nextCounter = (tenant.advanceCounter || 0) + 1;
+          invoiceNumber = `${tenant.advancePrefix || 'ADV'}-${String(nextCounter).padStart(5, '0')}`;
+          await tx.tenant.update({
+            where: { id: tenantId },
+            data: { advanceCounter: nextCounter },
+          });
+        } else {
+          const nextCounter = tenant.invoiceCounter + 1;
+          invoiceNumber = `${tenant.invoicePrefix || 'INV'}-${String(nextCounter).padStart(5, '0')}`;
+          await tx.tenant.update({
+            where: { id: tenantId },
+            data: { invoiceCounter: nextCounter },
+          });
+        }
+      }
+
+      // Re-apply what remove() reverted
+      const isActive = invoice.status !== 'DRAFT' && invoice.status !== 'VOID';
+      if (isActive && invoice.amountDue !== 0) {
+        await tx.customer.update({
+          where: { id: invoice.customerId },
+          data: { outstandingBalance: { increment: invoice.amountDue } },
+        });
+      }
+
+      const restored = await tx.invoice.update({
+        where: { id },
+        data: { deletedAt: null, invoiceNumber },
+      });
+
+      return {
+        ...restored,
+        renumbered: invoiceNumber !== invoice.invoiceNumber,
+        previousInvoiceNumber: invoice.invoiceNumber,
+      };
+    });
+  }
+
+  /**
    * Automatically generates a new regular final Tax Invoice when an Advance Bill is fully settled.
    * This ensures users don't have to audit provisional advance bill numbers.
    */
