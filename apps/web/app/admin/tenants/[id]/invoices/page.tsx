@@ -14,6 +14,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Invoice {
   id: string;
@@ -36,6 +37,7 @@ interface PageProps {
 
 export default function TenantInvoicesPage({ params }: PageProps) {
   const { id: tenantId } = use(params);
+  const router = useRouter();
   
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -169,7 +171,11 @@ export default function TenantInvoicesPage({ params }: PageProps) {
                       </tr>
                     ) : (
                       filteredInvoices.map((inv) => (
-                        <tr key={inv.id} className="hover:bg-zinc-850/10 transition-colors">
+                        <tr
+                          key={inv.id}
+                          onClick={() => router.push(`/admin/tenants/${tenantId}/invoices/${inv.id}`)}
+                          className="cursor-pointer hover:bg-zinc-800/40 transition-colors"
+                        >
                           <td className="py-4 pl-6">
                             <span className="font-bold text-white font-mono">{inv.invoiceNumber}</span>
                           </td>
