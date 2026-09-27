@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as argon2 from 'argon2';
+import { hashPassword, verifyPassword } from '../../common/utils/password.util';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { RegisterDto } from './dto/register.dto';
@@ -36,12 +36,7 @@ export class AuthService {
 
     const slug = await this.generateUniqueSlug(dto.businessName);
 
-    const passwordHash = await argon2.hash(dto.password, {
-      type: argon2.argon2id,
-      memoryCost: 65536,
-      timeCost: 3,
-      parallelism: 1,
-    });
+    const passwordHash = await hashPassword(dto.password);
 
     const { tenant, user } = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
@@ -114,7 +109,7 @@ export class AuthService {
       throw new UnauthorizedException('Incorrect email or password.');
     }
 
-    const isPasswordValid = await argon2.verify(
+    const isPasswordValid = await verifyPassword(
       user.passwordHash,
       dto.password,
     );

@@ -20,3 +20,4 @@ coverage
 /generated/prisma
 .vercel
 .env*
+deploy/
