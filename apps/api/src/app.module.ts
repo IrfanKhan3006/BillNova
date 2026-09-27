@@ -19,8 +19,8 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      ignoreEnvFile: process.env.NODE_ENV === 'production',
-      envFilePath: '../../.env',
+      // Real env vars always win; .env files are only a fallback (e.g. Hostinger).
+      envFilePath: ['.env', '../../.env'],
     }),
     SubscriptionModule,
     HealthModule,

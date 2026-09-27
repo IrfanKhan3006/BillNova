@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AdminService } from './admin.service';
+import { UpdateInvoiceDto } from '../invoices/invoices.controller';
 
 export class UpdateTenantDto {
   @IsOptional()
@@ -149,6 +150,34 @@ export class AdminController {
   @ApiOperation({ summary: 'Kisi specific business ke bills audit kro' })
   async auditInvoices(@Param('id') id: string) {
     return this.adminService.auditTenantInvoices(id);
+  }
+
+  @Get('tenants/:id/invoices/:invoiceId')
+  @ApiOperation({ summary: 'Kisi business ka ek bill detail me dekho' })
+  async getTenantInvoice(
+    @Param('id') id: string,
+    @Param('invoiceId') invoiceId: string,
+  ) {
+    return this.adminService.getTenantInvoice(id, invoiceId);
+  }
+
+  @Patch('tenants/:id/invoices/:invoiceId')
+  @ApiOperation({ summary: 'Kisi business ka bill edit kro' })
+  async updateTenantInvoice(
+    @Param('id') id: string,
+    @Param('invoiceId') invoiceId: string,
+    @Body() dto: UpdateInvoiceDto,
+  ) {
+    return this.adminService.updateTenantInvoice(id, invoiceId, dto);
+  }
+
+  @Delete('tenants/:id/invoices/:invoiceId')
+  @ApiOperation({ summary: 'Kisi business ka bill delete kro' })
+  async deleteTenantInvoice(
+    @Param('id') id: string,
+    @Param('invoiceId') invoiceId: string,
+  ) {
+    return this.adminService.deleteTenantInvoice(id, invoiceId);
   }
 
   @Post('tenants/:id/activate-plan')

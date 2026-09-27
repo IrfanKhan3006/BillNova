@@ -23,7 +23,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { InvoicesService } from './invoices.service';
 
-class CreateInvoiceItemDto {
+export class CreateInvoiceItemDto {
   @IsOptional()
   @IsString()
   productId?: string;
@@ -181,7 +181,7 @@ class CreateInvoiceDto {
   vehicleNumber?: string;
 }
 
-class UpdateInvoiceDto {
+export class UpdateInvoiceDto {
   @IsOptional()
   @IsString()
   status?: string;

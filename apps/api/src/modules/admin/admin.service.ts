@@ -6,6 +6,8 @@ import {
   ResetTrialDto,
 } from './admin.controller';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { InvoicesService } from '../invoices/invoices.service';
+import { UpdateInvoiceDto } from '../invoices/invoices.controller';
 import { TenantPlan } from '@prisma/client';
 import { hashPassword } from '../../common/utils/password.util';
 
@@ -14,6 +16,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private subscriptionService: SubscriptionService,
+    private invoicesService: InvoicesService,
   ) {}
 
   // ─── Platform Analytics ───────────────────────────────────────────────────
@@ -265,7 +268,7 @@ export class AdminService {
     }
 
     return this.prisma.invoice.findMany({
-      where: { tenantId },
+      where: { tenantId, deletedAt: null },
       include: {
         customer: {
           select: { name: true, email: true },
@@ -273,6 +276,24 @@ export class AdminService {
       },
       orderBy: { date: 'desc' },
     });
+  }
+
+  // Reuse tenant-side invoice logic so totals, payments and customer
+  // outstanding balances stay consistent with edits made by the business.
+  async getTenantInvoice(tenantId: string, invoiceId: string) {
+    return this.invoicesService.findOne(tenantId, invoiceId);
+  }
+
+  async updateTenantInvoice(
+    tenantId: string,
+    invoiceId: string,
+    dto: UpdateInvoiceDto,
+  ) {
+    return this.invoicesService.update(tenantId, invoiceId, dto);
+  }
+
+  async deleteTenantInvoice(tenantId: string, invoiceId: string) {
+    return this.invoicesService.remove(tenantId, invoiceId);
   }
 
   async suspendTenant(tenantId: string) {
