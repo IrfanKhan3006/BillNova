@@ -31,7 +31,8 @@ export default function PlanUpgradeModal() {
 
   if (!isUpgradeModalOpen) return null;
 
-  const upiId = user?.tenant?.upiId || 'billnova@upi';
+  // Platform owner's UPI ID — plan payments go to BillNova, not the tenant
+  const upiId = '9205875078@pthdfc';
   const tenantName = user?.tenant?.name || 'My Business';
   const billsUsed = planStatus?.invoicesCount ?? user?.tenant?.maxFreeInvoices ?? 7;
   const maxBills = planStatus?.maxFreeInvoices ?? 7;
