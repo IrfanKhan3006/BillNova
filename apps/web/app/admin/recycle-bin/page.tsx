@@ -148,7 +148,7 @@ export default function RecycleBinPage() {
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
                   {deletedTenants.map((t) => {
-                    const owner = t.users.find((u) => u.role === 'OWNER') || t.users[0];
+                    const owner = t.users.find((u) => u.role === 'ADMIN') || t.users[0];
                     return (
                       <tr key={t.id}>
                         <td className="py-3 pl-6">

@@ -29,6 +29,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       where: {
         id: payload.sub,
         tenantId: payload.tenantId || null,
+        isActive: true,
+        deletedAt: null,
       },
     });
 

@@ -19,6 +19,9 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PurchasesService } from './purchases.service';
@@ -247,7 +250,7 @@ class RecordPurchasePaymentDto {
 
 @ApiTags('Purchases')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('purchases')
 export class PurchasesController {
   constructor(private readonly purchasesService: PurchasesService) {}
@@ -280,6 +283,7 @@ export class PurchasesController {
     return this.purchasesService.createVendor(user.tenantId, dto);
   }
 
+  @Roles(Role.ADMIN)
   @Patch('vendors/:id')
   @ApiOperation({ summary: 'Update an existing vendor' })
   async updateVendor(
@@ -290,6 +294,7 @@ export class PurchasesController {
     return this.purchasesService.updateVendor(user.tenantId, id, dto);
   }
 
+  @Roles(Role.ADMIN)
   @Post('payments')
   @ApiOperation({ summary: 'Record a payment made to a vendor' })
   async recordPayment(
@@ -311,9 +316,10 @@ export class PurchasesController {
     @CurrentUser() user: any,
     @Body() dto: CreatePurchaseInvoiceDto,
   ) {
-    return this.purchasesService.create(user.tenantId, dto);
+    return this.purchasesService.create(user.tenantId, dto, user.id);
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
   @ApiOperation({ summary: 'Delete or void a purchase invoice' })
   async delete(@CurrentUser() user: any, @Param('id') id: string) {

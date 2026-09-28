@@ -146,6 +146,12 @@ export class AdminController {
     return this.adminService.updateTenant(id, dto);
   }
 
+  @Get('tenants/:id')
+  @ApiOperation({ summary: 'Ek business ki detail: users aur bills ki counts' })
+  async getTenantDetail(@Param('id') id: string) {
+    return this.adminService.getTenantDetail(id);
+  }
+
   @Get('tenants/:id/invoices')
   @ApiOperation({ summary: 'Kisi specific business ke bills audit kro' })
   async auditInvoices(@Param('id') id: string) {

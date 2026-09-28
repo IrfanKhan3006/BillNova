@@ -82,7 +82,7 @@ export class PurchasesService {
     return purchase;
   }
 
-  async create(tenantId: string, data: any) {
+  async create(tenantId: string, data: any, createdById?: string) {
     // 0. Enforce Pro-Level Subscription / 7-Bill Limit Gate
     await this.subscriptionService.assertCanCreateInvoice(tenantId);
 
@@ -277,6 +277,7 @@ export class PurchasesService {
       const purchaseInvoice = await tx.purchaseInvoice.create({
         data: {
           tenantId,
+          createdById,
           vendorId,
           purchaseNumber,
           billNumber: billNumber?.trim() || null,

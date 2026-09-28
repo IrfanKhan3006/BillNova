@@ -197,7 +197,7 @@ export default function AdminInvoiceDetailPage({ params }: PageProps) {
     setError(null);
     try {
       await api.delete(endpoint);
-      router.push(`/admin/tenants/${tenantId}/invoices`);
+      router.push(`/admin/tenants/${tenantId}`);
     } catch (err: any) {
       setError(err.message || 'Failed to delete bill.');
       setSaving(false);
@@ -209,10 +209,10 @@ export default function AdminInvoiceDetailPage({ params }: PageProps) {
       <div className="space-y-6">
         <div className="space-y-4">
           <Link
-            href={`/admin/tenants/${tenantId}/invoices`}
+            href={`/admin/tenants/${tenantId}`}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-400 hover:text-purple-300 transition"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Bills
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Business
           </Link>
           {invoice && (
             <div className="flex flex-wrap items-center justify-between gap-4">

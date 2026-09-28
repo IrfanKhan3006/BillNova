@@ -19,6 +19,9 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { InvoicesService } from './invoices.service';
@@ -223,7 +226,7 @@ export class UpdateInvoiceDto {
 
 @ApiTags('Invoices')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('invoices')
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
@@ -235,9 +238,16 @@ export class InvoicesController {
     @Query('customerId') customerId?: string,
     @Query('status') status?: string,
     @Query('isAdvance') isAdvance?: string,
+    @Query('search') search?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
     const isAdv = isAdvance !== undefined ? isAdvance === 'true' : undefined;
-    return this.invoicesService.list(user.tenantId, customerId, status, isAdv);
+    return this.invoicesService.list(user.tenantId, customerId, status, isAdv, {
+      search,
+      from,
+      to,
+    });
   }
 
   @Get(':id')
@@ -251,9 +261,10 @@ export class InvoicesController {
     summary: 'Generate a new invoice with dynamic GST calculation',
   })
   async create(@CurrentUser() user: any, @Body() dto: CreateInvoiceDto) {
-    return this.invoicesService.create(user.tenantId, dto);
+    return this.invoicesService.create(user.tenantId, dto, user.id);
   }
 
+  @Roles(Role.ADMIN)
   @Patch(':id')
   @ApiOperation({ summary: 'Update invoice payment status' })
   async update(
@@ -264,6 +275,7 @@ export class InvoicesController {
     return this.invoicesService.update(user.tenantId, id, dto);
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
   @ApiOperation({ summary: 'Delete or cancel an invoice' })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {

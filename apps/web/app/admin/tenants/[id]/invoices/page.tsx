@@ -95,10 +95,10 @@ export default function TenantInvoicesPage({ params }: PageProps) {
         {/* Back Link & Header */}
         <div className="space-y-4">
           <Link
-            href="/admin/tenants"
+            href={`/admin/tenants/${tenantId}`}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-400 hover:text-purple-300 transition"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Businesses
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Business
           </Link>
           <div>
             <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">

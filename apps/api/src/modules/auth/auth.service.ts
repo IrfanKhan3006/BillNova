@@ -50,7 +50,7 @@ export class AuthService {
           name: dto.ownerName,
           email: dto.email,
           passwordHash,
-          role: 'OWNER',
+          role: 'ADMIN',
         },
       });
 
@@ -85,6 +85,7 @@ export class AuthService {
           bankAccountNumber: tenant.bankAccountNumber,
           bankIfsc: tenant.bankIfsc,
           upiId: tenant.upiId,
+          defaultNotes: tenant.defaultNotes,
           billingEnabled: tenant.billingEnabled,
           productsEnabled: tenant.productsEnabled,
           paymentsEnabled: tenant.paymentsEnabled,
@@ -151,6 +152,7 @@ export class AuthService {
               bankAccountNumber: user.tenant.bankAccountNumber,
               bankIfsc: user.tenant.bankIfsc,
               upiId: user.tenant.upiId,
+              defaultNotes: user.tenant.defaultNotes,
               billingEnabled: user.tenant.billingEnabled,
               productsEnabled: user.tenant.productsEnabled,
               paymentsEnabled: user.tenant.paymentsEnabled,
@@ -244,6 +246,7 @@ export class AuthService {
             bankAccountNumber: true,
             bankIfsc: true,
             upiId: true,
+            defaultNotes: true,
             billingEnabled: true,
             productsEnabled: true,
             paymentsEnabled: true,

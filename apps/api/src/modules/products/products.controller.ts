@@ -11,6 +11,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { IsString, IsOptional, IsNumber, IsBoolean } from 'class-validator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ProductsService } from './products.service';
@@ -125,7 +128,7 @@ class UpdateProductDto {
 
 @ApiTags('Products')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
@@ -137,6 +140,7 @@ export class ProductsController {
     return this.productsService.listCategories(user.tenantId);
   }
 
+  @Roles(Role.ADMIN)
   @Post('categories')
   @ApiOperation({ summary: 'Create a new category' })
   async createCategory(
@@ -146,6 +150,7 @@ export class ProductsController {
     return this.productsService.createCategory(user.tenantId, dto);
   }
 
+  @Roles(Role.ADMIN)
   @Patch('categories/:id')
   @ApiOperation({ summary: 'Update category details' })
   async updateCategory(
@@ -156,6 +161,7 @@ export class ProductsController {
     return this.productsService.updateCategory(user.tenantId, id, dto);
   }
 
+  @Roles(Role.ADMIN)
   @Delete('categories/:id')
   @ApiOperation({ summary: 'Delete a category' })
   async removeCategory(@CurrentUser() user: any, @Param('id') id: string) {
@@ -185,6 +191,7 @@ export class ProductsController {
     return this.productsService.create(user.tenantId, dto);
   }
 
+  @Roles(Role.ADMIN)
   @Patch(':id')
   @ApiOperation({ summary: 'Update product details' })
   async update(
@@ -195,6 +202,7 @@ export class ProductsController {
     return this.productsService.update(user.tenantId, id, dto);
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a product' })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {

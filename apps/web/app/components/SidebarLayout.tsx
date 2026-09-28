@@ -25,6 +25,8 @@ import {
   AlertTriangle,
   Clock,
   Wallet,
+  UserPlus,
+  FileText,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
@@ -49,18 +51,27 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Create Invoice', href: '/billing', icon: Receipt, featureKey: 'billingEnabled' as const },
+    { name: 'Invoices', href: '/invoices', icon: FileText, featureKey: 'billingEnabled' as const },
     { name: 'Advance Bills', href: '/advance-bills', icon: Clock, featureKey: 'billingEnabled' as const },
     { name: 'Purchase Invoices', href: '/purchases', icon: ShoppingBag, featureKey: 'purchasesEnabled' as const },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Products & Inventory', href: '/products', icon: Package, featureKey: 'productsEnabled' as const },
     { name: 'Payments', href: '/payments', icon: CreditCard, featureKey: 'paymentsEnabled' as const },
     { name: 'Reports', href: '/reports', icon: BarChart3, featureKey: 'reportsEnabled' as const },
+    { name: 'Team Users', href: '/team', icon: UserPlus, adminOnly: true },
     { name: 'Business Settings', href: '/business', icon: Settings },
   ];
+
+  // Team users are unlocked once a paid plan is active (not during the free trial).
+  const isPaidPlanActive =
+    !!planStatus && planStatus.plan !== 'FREE' && !planStatus.isExpired;
+  const USER_PATHS = ['/dashboard', '/billing', '/invoices', '/purchases'];
 
   // Only show modules enabled on the tenant's plan (Super Admin sees all)
   const visibleNavItems = navItems.filter((item) => {
     if (user?.role === 'SUPER_ADMIN') return true;
+    if (user?.role === 'USER' && !USER_PATHS.includes(item.href)) return false;
+    if ((item as any).adminOnly && (user?.role !== 'ADMIN' || !isPaidPlanActive)) return false;
     if (!item.featureKey) return true;
     return user?.tenant?.[item.featureKey] !== false;
   });
@@ -112,7 +123,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{user?.name || 'User'}</p>
-              <p className="text-[10px] text-zinc-500 font-semibold tracking-wider uppercase truncate">{user?.role || 'Staff'}</p>
+              <p className="text-[10px] text-zinc-500 font-semibold tracking-wider uppercase truncate">{user?.role}</p>
             </div>
           </div>
           <button

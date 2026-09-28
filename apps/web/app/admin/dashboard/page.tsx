@@ -98,7 +98,7 @@ export default function AdminDashboardPage() {
       value: stats.totalUsers,
       icon: Users,
       color: 'from-emerald-500/20 to-teal-500/10 text-emerald-400 border-emerald-500/20',
-      description: 'Active staff & owner profiles',
+      description: 'Active admin & user profiles',
     },
     {
       title: 'Aggregate Revenue Generated',
