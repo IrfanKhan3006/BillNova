@@ -19,6 +19,7 @@ import {
   Zap,
   Clock,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast, showConfirm } from '../../store/uiStore';
@@ -242,6 +243,24 @@ export default function AdminTenantsPage() {
       toast.success(`Business ${isCurrentlySuspended ? 'reactivated' : 'suspended'} successfully.`);
     } catch (err: any) {
       toast.error(err.message || 'Suspension toggle failed.');
+    }
+  };
+
+  const handleDeleteTenant = async (tenantId: string, name: string) => {
+    const ok = await showConfirm({
+      title: 'Delete Business',
+      message: `Delete "${name}"? It will be removed from the platform and its users can no longer log in. The owner's email can be used to register a new business.`,
+      confirmText: 'Delete Business',
+      danger: true,
+    });
+    if (!ok) return;
+
+    try {
+      await api.delete(`/admin/tenants/${tenantId}/permanent`);
+      setTenants((prev) => prev.filter((t) => t.id !== tenantId));
+      toast.success('Business deleted successfully.');
+    } catch (err: any) {
+      toast.error(err.message || 'Delete failed.');
     }
   };
 
@@ -632,6 +651,13 @@ export default function AdminTenantsPage() {
                                     <AlertTriangle className="h-3.5 w-3.5" /> Suspend
                                   </>
                                 )}
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteTenant(t.id, t.name)}
+                                className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Delete
                               </button>
                             </div>
                           </td>

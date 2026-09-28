@@ -629,7 +629,7 @@ export default function Home() {
               <ul>
                 <li><a href="#">Help Center</a></li>
                 <li><a href="#faq">FAQs</a></li>
-                <li><a href="#">Contact Support</a></li>
+                <li><Link href="/contact">Contact Us</Link></li>
                 <li><a href="#">Security Audits</a></li>
               </ul>
             </div>

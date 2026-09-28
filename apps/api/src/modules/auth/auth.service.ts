@@ -24,8 +24,9 @@ export class AuthService {
     dto: RegisterDto,
     meta: { userAgent?: string; ipAddress?: string },
   ) {
+    // Soft-deleted businesses free up their email for a fresh signup.
     const existingUser = await this.prisma.user.findFirst({
-      where: { email: dto.email },
+      where: { email: dto.email, deletedAt: null },
     });
 
     if (existingUser) {
