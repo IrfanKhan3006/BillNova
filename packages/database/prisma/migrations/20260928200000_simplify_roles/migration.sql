@@ -1,0 +1,10 @@
+-- Roles are now SUPER_ADMIN, ADMIN (was OWNER) and USER (was STAFF); ACCOUNTANT removed.
+ALTER TYPE "Role" RENAME VALUE 'OWNER' TO 'ADMIN';
+ALTER TYPE "Role" RENAME VALUE 'STAFF' TO 'USER';
+
+CREATE TYPE "Role_new" AS ENUM ('ADMIN', 'USER', 'SUPER_ADMIN');
+ALTER TABLE "users" ALTER COLUMN "role" DROP DEFAULT;
+ALTER TABLE "users" ALTER COLUMN "role" TYPE "Role_new" USING ("role"::text::"Role_new");
+DROP TYPE "Role";
+ALTER TYPE "Role_new" RENAME TO "Role";
+ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'USER';

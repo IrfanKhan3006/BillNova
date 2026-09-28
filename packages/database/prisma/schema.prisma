@@ -9,10 +9,9 @@ datasource db {
 }
 
 enum Role {
-  OWNER
-  STAFF
-  ACCOUNTANT
-  SUPER_ADMIN
+  ADMIN       // Registers the business; full access to it
+  USER        // Created by ADMIN; can only create/print bills & purchases
+  SUPER_ADMIN // Platform owner
 }
 
 enum TenantPlan {
@@ -58,6 +57,7 @@ model Tenant {
   advanceCounter Int    @default(0)
   dueDays        Int    @default(30)
   invoiceTemplate String @default("CLASSIC")
+  defaultNotes    String? // Printed at the end of every new bill
 
   // Gating Toggles
   billingEnabled   Boolean @default(true)
@@ -95,7 +95,7 @@ model User {
   email        String
   name         String  @default("")
   passwordHash String
-  role         Role    @default(STAFF)
+  role         Role    @default(USER)
   isActive     Boolean @default(true)
 
   createdAt DateTime  @default(now())
@@ -205,6 +205,7 @@ model Invoice {
   invoiceNumber  String
   date           DateTime      @default(now())
   dueDate        DateTime
+  createdById    String? // User who created the bill (for per-user analytics)
   status         InvoiceStatus @default(DRAFT)
   discountAmount Float         @default(0)
   taxAmount      Float         @default(0)
@@ -351,6 +352,7 @@ model PurchaseInvoice {
   purchaseNumber String
   billNumber     String?
   date           DateTime              @default(now())
+  createdById    String? // User who recorded the purchase
   dueDate        DateTime?
   status         PurchaseStatus        @default(RECEIVED)
   subTotal       Float                 @default(0)

@@ -95,6 +95,7 @@ interface PurchaseInvoice {
 
 export default function PurchasesPage() {
   const { user } = useAuthStore();
+  const isUser = user?.role === 'USER';
   const { planStatus, openUpgradeModal } = useSubscriptionStore();
   const [purchases, setPurchases] = useState<PurchaseInvoice[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -757,6 +758,7 @@ export default function PurchasesPage() {
                             >
                               <Printer className="h-3.5 w-3.5" />
                             </button>
+                            {!isUser && (
                             <button
                               onClick={() => handleDeletePurchase(p.id, p.purchaseNumber)}
                               className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-zinc-800/80 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-500/10 dark:border-transparent transition"
@@ -764,6 +766,7 @@ export default function PurchasesPage() {
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1739,6 +1742,7 @@ export default function PurchasesPage() {
                               {formatCurrency(v.outstandingBalance)}
                             </td>
                             <td className="py-2.5 px-3 text-right">
+                              {!isUser && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1758,6 +1762,7 @@ export default function PurchasesPage() {
                               >
                                 Edit
                               </button>
+                              )}
                             </td>
                           </tr>
                         ))

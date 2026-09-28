@@ -58,7 +58,7 @@ async function main() {
         name: 'Rajesh Sharma',
         email: 'test@sharma.com',
         passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$yvAVWqHjjGX0umId5KvqfQ$uIAsoHGyQ5InnkQ/K4qTuxWiww0phEfN3pC49DF5yp4',
-        role: 'OWNER',
+        role: 'ADMIN',
         isActive: true,
       },
     });

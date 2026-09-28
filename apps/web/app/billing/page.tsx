@@ -123,6 +123,8 @@ export default function BillingPage() {
   const { user, updateUserTenant } = useAuthStore();
   const { planStatus, openUpgradeModal, fetchPlanStatus } = useSubscriptionStore();
   const isTravel = (user as any)?.tenant?.businessType === 'SERVICES_TRAVEL';
+  // USER role can only create and print bills.
+  const isUser = user?.role === 'USER';
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   
@@ -428,6 +430,15 @@ export default function BillingPage() {
       setCustomBusinessGstin(user.tenant.gstin || '');
     }
   }, [user]);
+
+  // Notes on new bills always come from Business Settings (no per-bill input).
+  // Bills opened for edit/clone keep their own notes.
+  const defaultNotes = user?.tenant?.defaultNotes || '';
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('editInvoiceId') || params.get('cloneInvoiceId')) return;
+    setNotes(defaultNotes);
+  }, [defaultNotes]);
 
 
   useEffect(() => {
@@ -939,7 +950,7 @@ export default function BillingPage() {
     setPaymentReference('');
     setPaymentNotes('');
     setShowSettleModal(false);
-    setNotes('');
+    setNotes(defaultNotes);
     setItems([
       { 
         name: '', 
@@ -1207,7 +1218,7 @@ export default function BillingPage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
-              {createdInvoice.isAdvance && !createdInvoice.advanceConverted && (
+              {!isUser && createdInvoice.isAdvance && !createdInvoice.advanceConverted && (
                 <button
                   type="button"
                   onClick={() => handleEditAdvanceBill(createdInvoice)}
@@ -1217,6 +1228,7 @@ export default function BillingPage() {
                   <span>✏️ Edit Bill Items & Rates</span>
                 </button>
               )}
+              {!isUser && (
               <button
                 type="button"
                 onClick={() => {
@@ -1228,6 +1240,7 @@ export default function BillingPage() {
                 <Sparkles className="h-4 w-4 text-emerald-450" />
                 <span>Change Template</span>
               </button>
+              )}
               <button
                 onClick={handlePrint}
                 className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-emerald-400"
@@ -1917,6 +1930,7 @@ export default function BillingPage() {
             </h1>
             <p className="mt-1 text-zinc-400 text-sm">Generate multi-tenant, GST-compliant tax invoices in real-time.</p>
           </div>
+          {!isUser && (
           <button
             type="button"
             onClick={() => {
@@ -1928,6 +1942,7 @@ export default function BillingPage() {
             <Sparkles className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
             <span>Select Active Template</span>
           </button>
+          )}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -2465,17 +2480,6 @@ export default function BillingPage() {
                 </div>
               )}
 
-              {/* Notes */}
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Notes / Special Instructions</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  className="mt-2 block w-full rounded-lg border border-zinc-200 dark:border-zinc-805 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="Notes shown on invoice print sheet"
-                />
-              </div>
             </div>
           </div>
 

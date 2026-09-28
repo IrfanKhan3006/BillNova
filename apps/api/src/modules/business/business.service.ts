@@ -36,6 +36,7 @@ export class BusinessService {
         bankAccountNumber: true,
         bankIfsc: true,
         upiId: true,
+        defaultNotes: true,
         businessType: true,
         trackInventory: true,
         theme: true,
@@ -69,6 +70,7 @@ export class BusinessService {
       bankAccountNumber,
       bankIfsc,
       upiId,
+      defaultNotes,
       theme,
     } = updateData;
 
@@ -91,6 +93,7 @@ export class BusinessService {
         bankAccountNumber,
         bankIfsc,
         upiId,
+        defaultNotes,
         theme,
       },
     });

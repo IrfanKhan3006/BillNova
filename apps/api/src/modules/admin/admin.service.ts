@@ -93,6 +93,7 @@ export class AdminService {
       orderBy: { createdAt: 'desc' },
       include: {
         users: {
+          where: { deletedAt: null },
           select: {
             id: true,
             name: true,
@@ -103,7 +104,7 @@ export class AdminService {
         },
         _count: {
           select: {
-            users: true,
+            users: { where: { deletedAt: null } },
             invoices: { where: { deletedAt: null } },
             customers: true,
             purchaseInvoices: true,
@@ -263,6 +264,52 @@ export class AdminService {
   async resetTenantTrial(tenantId: string, dto: ResetTrialDto) {
     const maxFree = dto.maxFreeInvoices || 7;
     return this.subscriptionService.resetTrial(tenantId, maxFree);
+  }
+
+  async getTenantDetail(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: {
+        users: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+        _count: {
+          select: {
+            invoices: { where: { deletedAt: null } },
+            purchaseInvoices: true,
+            customers: true,
+            products: true,
+          },
+        },
+      },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Business profile not found.');
+    }
+
+    const totals = await this.prisma.invoice.aggregate({
+      where: { tenantId, deletedAt: null },
+      _sum: { totalAmount: true },
+    });
+    const deletedInvoices = await this.prisma.invoice.count({
+      where: { tenantId, deletedAt: { not: null } },
+    });
+
+    return {
+      ...tenant,
+      totalBilled: totals._sum.totalAmount || 0,
+      deletedInvoices,
+    };
   }
 
   async auditTenantInvoices(tenantId: string) {

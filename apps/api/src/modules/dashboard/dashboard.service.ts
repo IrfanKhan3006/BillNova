@@ -1,9 +1,132 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
+
+  // Sales vs purchases between from..to (default: last 6 months), bucketed by
+  // day for ranges up to ~2 months, otherwise by month. Also returns the bills
+  // in the range. When createdById is given (USER role) only that user's bills count.
+  async getAnalytics(
+    tenantId: string,
+    createdById?: string,
+    fromStr?: string,
+    toStr?: string,
+  ) {
+    const to = toStr ? new Date(`${toStr}T23:59:59.999`) : new Date();
+    let from: Date;
+    if (fromStr) {
+      from = new Date(`${fromStr}T00:00:00`);
+    } else {
+      from = new Date(to);
+      from.setDate(1);
+      from.setHours(0, 0, 0, 0);
+      from.setMonth(from.getMonth() - 5);
+    }
+    if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) {
+      throw new BadRequestException('Invalid date range.');
+    }
+
+    const salesWhere = {
+      tenantId,
+      deletedAt: null,
+      status: { notIn: ['DRAFT', 'VOID'] as any },
+      date: { gte: from, lte: to },
+      ...(createdById ? { createdById } : {}),
+    };
+    const purchaseWhere = {
+      tenantId,
+      deletedAt: null,
+      status: { notIn: ['DRAFT', 'CANCELLED'] as any },
+      date: { gte: from, lte: to },
+      ...(createdById ? { createdById } : {}),
+    };
+
+    const [sales, purchases] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where: salesWhere,
+        select: {
+          id: true,
+          invoiceNumber: true,
+          date: true,
+          status: true,
+          totalAmount: true,
+          customer: { select: { name: true } },
+        },
+        orderBy: { date: 'desc' },
+      }),
+      this.prisma.purchaseInvoice.findMany({
+        where: purchaseWhere,
+        select: { date: true, totalAmount: true },
+      }),
+    ]);
+
+    const daily = to.getTime() - from.getTime() <= 62 * 86400000;
+    const keyOf = (d: Date) =>
+      daily
+        ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+        : `${d.getFullYear()}-${d.getMonth()}`;
+
+    const buckets: {
+      key: string;
+      label: string;
+      sales: number;
+      salesCount: number;
+      purchases: number;
+      purchaseCount: number;
+    }[] = [];
+    const cursor = new Date(from);
+    cursor.setHours(0, 0, 0, 0);
+    if (!daily) cursor.setDate(1);
+    while (cursor <= to) {
+      buckets.push({
+        key: keyOf(cursor),
+        label: daily
+          ? cursor.toLocaleString('en-IN', { day: 'numeric', month: 'short' })
+          : cursor.toLocaleString('en-IN', { month: 'short', year: '2-digit' }),
+        sales: 0,
+        salesCount: 0,
+        purchases: 0,
+        purchaseCount: 0,
+      });
+      if (daily) cursor.setDate(cursor.getDate() + 1);
+      else cursor.setMonth(cursor.getMonth() + 1);
+    }
+    const byKey = new Map(buckets.map((b) => [b.key, b]));
+    for (const s of sales) {
+      const b = byKey.get(keyOf(s.date));
+      if (b) {
+        b.sales += s.totalAmount;
+        b.salesCount += 1;
+      }
+    }
+    for (const p of purchases) {
+      const b = byKey.get(keyOf(p.date));
+      if (b) {
+        b.purchases += p.totalAmount;
+        b.purchaseCount += 1;
+      }
+    }
+
+    return {
+      scope: createdById ? 'USER' : 'BUSINESS',
+      from: from.toISOString(),
+      to: to.toISOString(),
+      granularity: daily ? 'day' : 'month',
+      totals: {
+        salesCount: sales.length,
+        salesAmount: sales.reduce((sum, s) => sum + s.totalAmount, 0),
+        purchaseCount: purchases.length,
+        purchaseAmount: purchases.reduce((sum, p) => sum + p.totalAmount, 0),
+      },
+      buckets: buckets.map(({ key, ...b }) => b),
+      invoices: sales.slice(0, 100).map(({ customer, ...inv }) => ({
+        ...inv,
+        customerName: customer?.name || '',
+      })),
+    };
+  }
 
   async getMetrics(tenantId: string) {
     const startOfToday = new Date();

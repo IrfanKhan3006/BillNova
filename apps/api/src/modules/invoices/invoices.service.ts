@@ -13,11 +13,37 @@ export class InvoicesService {
     private subscriptionService: SubscriptionService,
   ) {}
 
-  async list(tenantId: string, customerId?: string, status?: any, isAdvance?: boolean) {
+  async list(
+    tenantId: string,
+    customerId?: string,
+    status?: any,
+    isAdvance?: boolean,
+    filters: { search?: string; from?: string; to?: string } = {},
+  ) {
     const where: any = {
       tenantId,
       deletedAt: null,
     };
+
+    // Search by invoice number or customer name.
+    const search = filters.search?.trim();
+    if (search) {
+      where.AND = [
+        {
+          OR: [
+            { invoiceNumber: { contains: search, mode: 'insensitive' } },
+            { customer: { name: { contains: search, mode: 'insensitive' } } },
+          ],
+        },
+      ];
+    }
+
+    if (filters.from || filters.to) {
+      where.date = {
+        ...(filters.from ? { gte: new Date(`${filters.from}T00:00:00`) } : {}),
+        ...(filters.to ? { lte: new Date(`${filters.to}T23:59:59.999`) } : {}),
+      };
+    }
 
     if (customerId) {
       where.customerId = customerId;
@@ -74,7 +100,7 @@ export class InvoicesService {
     return invoice;
   }
 
-  async create(tenantId: string, data: any) {
+  async create(tenantId: string, data: any, createdById?: string) {
     // 0. Enforce Pro-Level Subscription / 7-Bill Limit Gate
     await this.subscriptionService.assertCanCreateInvoice(tenantId);
 
@@ -245,6 +271,7 @@ export class InvoicesService {
       const invoice = await tx.invoice.create({
         data: {
           tenantId,
+          createdById,
           customerId,
           invoiceNumber,
           date: invoiceDate,

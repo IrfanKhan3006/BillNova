@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from '../store/uiStore';
+import { useAuthStore } from '../store/authStore';
+import SalesPurchaseAnalytics from '../components/SalesPurchaseAnalytics';
 
 interface DashboardData {
   todaySales: number;
@@ -84,7 +86,7 @@ interface TopItemsData {
   }>;
 }
 
-export default function DashboardPage() {
+function AdminDashboard() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [topItems, setTopItems] = useState<TopItemsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -332,6 +334,9 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Sales vs Purchases analytics */}
+        <SalesPurchaseAnalytics title="Business Sales vs Purchases" />
 
         {/* Invoice Settlement Breakdown Cards (Advance Bills vs Completed vs Pending) */}
         <div>
@@ -852,4 +857,45 @@ export default function DashboardPage() {
       </div>
     </SidebarLayout>
   );
+}
+
+// USER role: only their own invoices and purchases.
+function UserDashboard() {
+  const { user } = useAuthStore();
+  return (
+    <SidebarLayout>
+      <div className="space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+              Welcome, {user?.name || 'User'}
+            </h1>
+            <p className="mt-1 text-zinc-500 dark:text-zinc-400 text-sm">Invoices and purchase invoices at a glance.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/purchases"
+              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+            >
+              <Plus className="h-4 w-4" />
+              <span>New Purchase</span>
+            </Link>
+            <Link
+              href="/billing"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-4 py-2.5 text-xs font-bold text-zinc-950 shadow-md shadow-emerald-500/10 transition"
+            >
+              <Receipt className="h-4 w-4" />
+              <span>Create New Invoice</span>
+            </Link>
+          </div>
+        </div>
+        <SalesPurchaseAnalytics title="My Sales vs Purchases" />
+      </div>
+    </SidebarLayout>
+  );
+}
+
+export default function DashboardPage() {
+  const { user } = useAuthStore();
+  return user?.role === 'USER' ? <UserDashboard /> : <AdminDashboard />;
 }

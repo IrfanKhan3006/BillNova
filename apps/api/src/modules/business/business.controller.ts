@@ -1,5 +1,8 @@
 import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { BusinessService } from './business.service';
@@ -73,6 +76,10 @@ class UpdateBusinessDto {
 
   @IsOptional()
   @IsString()
+  defaultNotes?: string;
+
+  @IsOptional()
+  @IsString()
   theme?: string;
 }
 
@@ -86,7 +93,7 @@ class RequestUpgradeDto {
 
 @ApiTags('Business')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('business')
 export class BusinessController {
   constructor(
@@ -106,6 +113,8 @@ export class BusinessController {
     return this.subscriptionService.getTenantPlanStatus(user.tenantId);
   }
 
+  // USER may also ask for activation when the plan limit blocks them.
+  @Roles(Role.ADMIN, Role.USER)
   @Post('request-upgrade')
   @ApiOperation({ summary: 'Basic Plan (₹3,000/year) ke liye activation request send kro' })
   async requestUpgrade(
@@ -121,6 +130,7 @@ export class BusinessController {
     return this.businessService.gstFetch(gstin);
   }
 
+  @Roles(Role.ADMIN)
   @Patch()
   @ApiOperation({ summary: 'Update business profile details' })
   async updateProfile(

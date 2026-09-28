@@ -5,6 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../lib/api';
 
+const USER_PATHS = ['/dashboard', '/billing', '/invoices', '/purchases'];
+
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { hydrate, isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
@@ -55,6 +57,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (user?.role === 'SUPER_ADMIN') {
         if (isPublicPath || !isAdminPath) {
           router.push('/admin/dashboard');
+        }
+      } else if (user?.role === 'USER') {
+        // Team users only get billing and purchases.
+        if (!USER_PATHS.some((p) => pathname.startsWith(p)) && !isLandingPage) {
+          router.push('/dashboard');
         }
       } else {
         if (isAdminPath) {
