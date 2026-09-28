@@ -219,6 +219,24 @@ export class AdminController {
     return this.adminService.suspendTenant(id);
   }
 
+  @Delete('tenants/:id/permanent')
+  @ApiOperation({ summary: 'Business ko soft delete kro (email dobara register ho sake)' })
+  async deleteTenant(@Param('id') id: string) {
+    return this.adminService.softDeleteTenant(id);
+  }
+
+  @Get('recycle-bin/businesses')
+  @ApiOperation({ summary: 'Deleted businesses ki list' })
+  async listDeletedTenants() {
+    return this.adminService.listDeletedTenants();
+  }
+
+  @Post('tenants/:id/restore')
+  @ApiOperation({ summary: 'Deleted business wapas restore kro' })
+  async restoreTenant(@Param('id') id: string) {
+    return this.adminService.restoreTenant(id);
+  }
+
   @Patch('users/:id/password')
   @ApiOperation({ summary: 'Kisi user ka password change/reset kro' })
   async resetPassword(

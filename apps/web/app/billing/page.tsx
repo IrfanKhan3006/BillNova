@@ -1836,19 +1836,6 @@ export default function BillingPage() {
                 </div>
               )}
 
-              {/* Footer signature and GST/PAN info */}
-              <div className="flex justify-between items-end mt-12 pt-6 border-t border-zinc-100 text-[10px] text-zinc-450">
-                <div className="space-y-1">
-                  <p className="text-zinc-400">Software Powered by BillNova ERP</p>
-                  {user?.tenant?.gstin && <p><span className="font-semibold">Company's GST No.:</span> <span className="uppercase">{user.tenant.gstin}</span></p>}
-                  {user?.tenant?.gstin && user.tenant.gstin.length === 15 && (
-                    <p><span className="font-semibold">Company's PAN:</span> <span className="uppercase">{user.tenant.gstin.substring(2, 12)}</span></p>
-                  )}
-                </div>
-                <div className="text-center w-48 border-t border-zinc-350 pt-2">
-                  <p className="font-bold text-zinc-700 uppercase tracking-wider">Authorized Signatory</p>
-                </div>
-              </div>
             </div>
           );
         })()}

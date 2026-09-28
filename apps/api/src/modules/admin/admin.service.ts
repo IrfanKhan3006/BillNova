@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import {
   UpdateTenantDto,
@@ -84,6 +89,7 @@ export class AdminService {
   // ─── Manage Tenants ───────────────────────────────────────────────────────
   async listTenants() {
     const tenants = await this.prisma.tenant.findMany({
+      where: { subscriptionStatus: { not: 'DELETED' } },
       orderBy: { createdAt: 'desc' },
       include: {
         users: {
@@ -330,6 +336,10 @@ export class AdminService {
       throw new NotFoundException('Business profile not found.');
     }
 
+    if (tenant.subscriptionStatus === 'DELETED') {
+      throw new BadRequestException('This business has been deleted.');
+    }
+
     // Toggle suspension or mark deletedAt
     const now = tenant.deletedAt ? null : new Date();
 
@@ -346,6 +356,93 @@ export class AdminService {
       });
 
       return updatedTenant;
+    });
+  }
+
+  // Soft delete: data stays in the DB, but the business and its users are
+  // hidden everywhere. Users get deletedAt so their email can register again.
+  async softDeleteTenant(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+    });
+
+    if (!tenant || tenant.subscriptionStatus === 'DELETED') {
+      throw new NotFoundException('Business profile not found.');
+    }
+
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.user.updateMany({
+        where: { tenantId },
+        data: { isActive: false, deletedAt: now },
+      });
+
+      return tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          deletedAt: now,
+          subscriptionStatus: 'DELETED',
+          upgradeRequested: false,
+        },
+      });
+    });
+  }
+
+  async listDeletedTenants() {
+    return this.prisma.tenant.findMany({
+      where: { subscriptionStatus: 'DELETED' },
+      orderBy: { deletedAt: 'desc' },
+      include: {
+        users: { select: { id: true, name: true, email: true, role: true } },
+        _count: {
+          select: { invoices: { where: { deletedAt: null } }, customers: true },
+        },
+      },
+    });
+  }
+
+  async restoreTenant(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+    });
+
+    if (!tenant || tenant.subscriptionStatus !== 'DELETED') {
+      throw new NotFoundException('Deleted business not found.');
+    }
+
+    // Only bring back users removed together with the business.
+    const users = await this.prisma.user.findMany({
+      where: { tenantId, deletedAt: tenant.deletedAt },
+    });
+
+    // Their email may have been reused for a new business in the meantime.
+    const taken = await this.prisma.user.findMany({
+      where: {
+        email: { in: users.map((u) => u.email) },
+        deletedAt: null,
+      },
+      select: { email: true },
+    });
+    if (taken.length) {
+      throw new ConflictException(
+        `Cannot restore: ${taken.map((u) => u.email).join(', ')} is already used by another active business. Delete that business first.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.user.updateMany({
+        where: { id: { in: users.map((u) => u.id) } },
+        data: { isActive: true, deletedAt: null },
+      });
+
+      return tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          deletedAt: null,
+          subscriptionStatus: tenant.plan === TenantPlan.FREE ? 'TRIAL' : 'ACTIVE',
+        },
+      });
     });
   }
 
