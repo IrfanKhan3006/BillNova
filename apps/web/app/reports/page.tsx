@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function ReportsPage() {
-  const [activeTab, setActiveTab] = useState<'sales' | 'payments' | 'tax' | 'customers'>('sales');
+  const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'payments' | 'tax' | 'customers'>('sales');
   
   // Date Filters
   const [startDate, setStartDate] = useState('');
@@ -40,6 +40,8 @@ export default function ReportsPage() {
       let data;
       if (activeTab === 'sales') {
         data = await api.get('/reports/sales', params);
+      } else if (activeTab === 'purchases') {
+        data = await api.get('/reports/purchases', params);
       } else if (activeTab === 'payments') {
         data = await api.get('/reports/payments', params);
       } else if (activeTab === 'tax') {
@@ -98,6 +100,7 @@ export default function ReportsPage() {
           <div className="flex flex-wrap gap-2 border-b border-zinc-800 pb-3">
             {[
               { id: 'sales', name: 'Sales Register', icon: FileText },
+              { id: 'purchases', name: 'Purchase Register', icon: FileText },
               { id: 'payments', name: 'Payments Register', icon: CreditCard },
               { id: 'tax', name: 'Tax Breakdowns', icon: Building2 },
               { id: 'customers', name: 'Customer Balances', icon: Users },
@@ -219,6 +222,73 @@ export default function ReportsPage() {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+            {/* Purchases tab content */}
+            {activeTab === 'purchases' && reportData.purchases && (
+              <>
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 no-print">
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/10 p-5">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Total Purchase Bills</p>
+                    <h3 className="text-xl font-bold text-white mt-1">{reportData.summary?.totalPurchases || 0}</h3>
+                  </div>
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/10 p-5">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Total Purchase Value</p>
+                    <h3 className="text-xl font-bold text-white mt-1">{formatCurrency(reportData.summary?.totalAmount || 0)}</h3>
+                  </div>
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/10 p-5">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Total GST Paid</p>
+                    <h3 className="text-xl font-bold text-emerald-400 mt-1">{formatCurrency(reportData.summary?.taxAmount || 0)}</h3>
+                  </div>
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/10 p-5">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Total Due to Vendors</p>
+                    <h3 className="text-xl font-bold text-red-400 mt-1">{formatCurrency(reportData.summary?.amountDue || 0)}</h3>
+                  </div>
+                </div>
+
+                {/* Purchase Register Table */}
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/10 overflow-hidden">
+                  <table className="w-full text-left text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-zinc-800 text-zinc-400 text-xs font-bold uppercase bg-zinc-900/20">
+                        <th className="p-4">Purchase No</th>
+                        <th className="p-4">Vendor Bill No</th>
+                        <th className="p-4">Vendor Name</th>
+                        <th className="p-4">Date</th>
+                        <th className="p-4 text-right">Subtotal</th>
+                        <th className="p-4 text-right">GST Paid</th>
+                        <th className="p-4 text-right">Grand Total</th>
+                        <th className="p-4 text-right">Due</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/40">
+                      {reportData.purchases.map((p: any) => (
+                        <tr key={p.id} className="hover:bg-zinc-800/10 transition">
+                          <td className="p-4 font-mono text-xs text-white">{p.purchaseNumber}</td>
+                          <td className="p-4 font-mono text-xs text-zinc-400">{p.billNumber || '-'}</td>
+                          <td className="p-4 font-semibold text-zinc-300">{p.vendorName}</td>
+                          <td className="p-4 text-xs text-zinc-450">
+                            {new Date(p.date).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </td>
+                          <td className="p-4 text-right text-zinc-350">{formatCurrency(p.subTotal)}</td>
+                          <td className="p-4 text-right text-emerald-400">{formatCurrency(p.taxAmount)}</td>
+                          <td className="p-4 text-right font-black text-white">{formatCurrency(p.totalAmount)}</td>
+                          <td className="p-4 text-right text-red-400">{formatCurrency(p.amountDue)}</td>
+                        </tr>
+                      ))}
+                      {reportData.purchases.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="p-8 text-center text-zinc-500 text-sm">No purchases found for selected dates.</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

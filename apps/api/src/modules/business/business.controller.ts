@@ -85,6 +85,26 @@ class UpdateBusinessDto {
 
 import { SubscriptionService } from '../subscription/subscription.service';
 
+class CreateEnquiryDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  phone: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  usersNeeded?: string;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+}
+
 class RequestUpgradeDto {
   @IsOptional()
   @IsString()
@@ -111,6 +131,13 @@ export class BusinessController {
   @ApiOperation({ summary: 'Current business plan and bill usage metrics dekho' })
   async getPlanStatus(@CurrentUser() user: any) {
     return this.subscriptionService.getTenantPlanStatus(user.tenantId);
+  }
+
+  @Roles(Role.ADMIN, Role.USER)
+  @Post('enquiry')
+  @ApiOperation({ summary: 'Extra users ke liye enquiry Super Admin ko bhejo' })
+  async createEnquiry(@CurrentUser() user: any, @Body() dto: CreateEnquiryDto) {
+    return this.subscriptionService.createEnquiry(user.tenantId, dto);
   }
 
   // USER may also ask for activation when the plan limit blocks them.

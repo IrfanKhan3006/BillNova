@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { Save, AlertCircle, CheckCircle, Building, Search, CreditCard, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 import { toast } from '../store/uiStore';
 import { useSubscriptionStore } from '../store/subscriptionStore';
+import { parseNoteSections, composeNoteSections, NoteSection } from '../lib/noteSections';
 
 export default function BusinessSettingsPage() {
   const { updateUserTenant } = useAuthStore();
@@ -208,13 +209,13 @@ export default function BusinessSettingsPage() {
               </div>
 
               <h3 className="text-xl font-extrabold text-white">
-                {planStatus?.plan === 'BASIC' ? 'BillNova Basic Plan — ₹3,000 / Year' : 'Free Trial Tier — 7 Free Bills'}
+                {planStatus?.plan === 'BASIC' ? 'BillNova Basic Plan' : 'Free Trial Tier — 7 Free Bills'}
               </h3>
 
               <p className="text-xs text-zinc-400 max-w-xl">
                 {planStatus?.plan === 'BASIC'
                   ? `Your annual subscription is active and valid until ${planStatus.planExpiresAt ? new Date(planStatus.planExpiresAt).toLocaleDateString('en-IN') : '1 Year'}. Enjoy unlimited sales invoices and purchase bills!`
-                  : `You get 7 free sales invoices on registration. Once 7 bills are created, select our Basic Plan (₹3,000/year) to unlock unlimited bills and continue operations without interruption.`}
+                  : `You get 7 free sales invoices on registration. Once 7 bills are created, select our Basic Plan to unlock unlimited bills and continue operations without interruption.`}
               </p>
 
               {/* Free bills progress bar */}
@@ -247,7 +248,7 @@ export default function BusinessSettingsPage() {
                   onClick={() => openUpgradeModal()}
                   className="flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition cursor-pointer"
                 >
-                  <Zap className="h-4 w-4 fill-current" /> Select Basic Plan (₹3,000/yr)
+                  <Zap className="h-4 w-4 fill-current" /> Select Basic Plan
                 </button>
               ) : (
                 <button
@@ -548,17 +549,38 @@ export default function BusinessSettingsPage() {
                   </select>
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="md:col-span-2 space-y-4">
                   <label className="block text-sm font-semibold text-zinc-300">Default Notes / Terms on Bills</label>
-                  <textarea
-                    name="defaultNotes"
-                    value={form.defaultNotes}
-                    onChange={handleChange}
-                    rows={4}
-                    className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
-                    placeholder={'e.g. Goods once sold will not be taken back.\nSubject to local jurisdiction.'}
-                  />
-                  <p className="mt-1 text-[11px] text-zinc-500">Printed automatically at the end of every new bill.</p>
+                  {(() => {
+                    const parsed = parseNoteSections(form.defaultNotes);
+                    // Always show two editable sections; old plain notes go into the first one.
+                    const sections: NoteSection[] = [
+                      { heading: parsed[0]?.heading || 'Terms & Conditions', body: parsed[0]?.body || '' },
+                      { heading: parsed[1]?.heading || 'Notes', body: parsed[1]?.body || '' },
+                    ];
+                    const update = (idx: number, patch: Partial<NoteSection>) => {
+                      const next = sections.map((sec, i) => (i === idx ? { ...sec, ...patch } : sec));
+                      setForm((prev: any) => ({ ...prev, defaultNotes: composeNoteSections(next) }));
+                    };
+                    return sections.map((sec, idx) => (
+                      <div key={idx} className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-3 space-y-2">
+                        <input
+                          value={sec.heading}
+                          onChange={(e) => update(idx, { heading: e.target.value })}
+                          placeholder={idx === 0 ? 'Terms & Conditions' : 'Notes'}
+                          className="block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-bold uppercase tracking-wide text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+                        />
+                        <textarea
+                          value={sec.body}
+                          onChange={(e) => update(idx, { body: e.target.value })}
+                          rows={3}
+                          className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+                          placeholder={idx === 0 ? 'e.g. Goods once sold will not be taken back.\nSubject to local jurisdiction.' : 'e.g. Thank you for your business!'}
+                        />
+                      </div>
+                    ));
+                  })()}
+                  <p className="text-[11px] text-zinc-500">Both headings are editable and printed in bold on every new bill. Leave a section empty to hide it.</p>
                 </div>
               </div>
             </div>

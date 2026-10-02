@@ -199,6 +199,22 @@ export class AdminService {
     });
   }
 
+  async listEnquiries() {
+    return this.prisma.enquiry.findMany({
+      orderBy: [{ status: 'desc' }, { createdAt: 'desc' }], // NEW before DONE
+      take: 200,
+      include: { tenant: { select: { id: true, name: true, plan: true } } },
+    });
+  }
+
+  async markEnquiryDone(id: string) {
+    const enquiry = await this.prisma.enquiry.findUnique({ where: { id } });
+    if (!enquiry) {
+      throw new NotFoundException('Enquiry not found.');
+    }
+    return this.prisma.enquiry.update({ where: { id }, data: { status: 'DONE' } });
+  }
+
   async dismissUpgradeRequest(tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
@@ -235,6 +251,10 @@ export class AdminService {
           ? new Date(dto.planExpiresAt)
           : undefined,
         maxFreeInvoices: dto.maxFreeInvoices,
+        maxUsers:
+          dto.maxUsers !== undefined
+            ? Math.max(0, Math.floor(dto.maxUsers))
+            : undefined,
         planPrice: dto.planPrice,
         upgradeRequested: dto.upgradeRequested,
         billingEnabled: dto.billingEnabled,

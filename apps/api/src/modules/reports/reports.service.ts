@@ -68,6 +68,74 @@ export class ReportsService {
     };
   }
 
+  async getPurchaseReport(
+    tenantId: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const where: any = {
+      tenantId,
+      deletedAt: null,
+      status: { notIn: ['DRAFT', 'CANCELLED'] },
+    };
+
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) {
+        where.date.gte = new Date(startDate);
+      }
+      if (endDate) {
+        where.date.lte = new Date(endDate);
+      }
+    }
+
+    const purchases = await this.prisma.purchaseInvoice.findMany({
+      where,
+      include: { vendor: true },
+      orderBy: { date: 'desc' },
+    });
+
+    const summary = purchases.reduce(
+      (acc, p) => {
+        acc.totalPurchases += 1;
+        acc.subTotal += p.subTotal;
+        acc.taxAmount += p.taxAmount;
+        acc.discountAmount += p.discountAmount;
+        acc.totalAmount += p.totalAmount;
+        acc.amountPaid += p.amountPaid;
+        acc.amountDue += p.amountDue;
+        return acc;
+      },
+      {
+        totalPurchases: 0,
+        subTotal: 0,
+        taxAmount: 0,
+        discountAmount: 0,
+        totalAmount: 0,
+        amountPaid: 0,
+        amountDue: 0,
+      },
+    );
+
+    return {
+      summary,
+      purchases: purchases.map((p) => ({
+        id: p.id,
+        purchaseNumber: p.purchaseNumber,
+        billNumber: p.billNumber,
+        vendorName: p.vendor.name,
+        date: p.date,
+        subTotal: p.subTotal,
+        taxAmount: p.taxAmount,
+        discountAmount: p.discountAmount,
+        totalAmount: p.totalAmount,
+        amountPaid: p.amountPaid,
+        amountDue: p.amountDue,
+        status: p.status,
+      })),
+    };
+  }
+
   async getCustomerReport(tenantId: string) {
     const customers = await this.prisma.customer.findMany({
       where: {

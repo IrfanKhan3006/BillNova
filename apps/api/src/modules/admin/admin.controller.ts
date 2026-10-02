@@ -43,6 +43,10 @@ export class UpdateTenantDto {
 
   @IsOptional()
   @IsNumber()
+  maxUsers?: number;
+
+  @IsOptional()
+  @IsNumber()
   planPrice?: number;
 
   @IsOptional()
@@ -132,6 +136,18 @@ export class AdminController {
   @ApiOperation({ summary: 'Businesses jinhone plan activation request ki hai unki list dekho' })
   async listUpgradeRequests() {
     return this.adminService.listUpgradeRequests();
+  }
+
+  @Get('enquiries')
+  @ApiOperation({ summary: 'Extra users enquiries ki list dekho' })
+  async listEnquiries() {
+    return this.adminService.listEnquiries();
+  }
+
+  @Patch('enquiries/:id/done')
+  @ApiOperation({ summary: 'Enquiry ko handled (DONE) mark kro' })
+  async markEnquiryDone(@Param('id') id: string) {
+    return this.adminService.markEnquiryDone(id);
   }
 
   @Delete('requests/:id')

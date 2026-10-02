@@ -206,7 +206,8 @@ export class InvoicesService {
         }
       }
 
-      const totalAmount = subTotal + taxAmount;
+      // Round off grand total to nearest rupee (< 50 paise down, >= 50 paise up)
+      const totalAmount = Math.round(subTotal + taxAmount);
       const initialPaid = Math.min(
         totalAmount,
         Math.max(0, Number(data.amountPaid ?? data.advanceAmount ?? 0)),
@@ -374,6 +375,7 @@ export class InvoicesService {
     return this.prisma.$transaction(async (tx) => {
       let subTotal = oldInvoice.subTotal;
       let taxAmount = oldInvoice.taxAmount;
+      let discountAmount = oldInvoice.discountAmount;
       let totalAmount = oldInvoice.totalAmount;
       let amountPaid = oldInvoice.amountPaid;
       let finalStatus = oldInvoice.status;
@@ -382,6 +384,7 @@ export class InvoicesService {
       if (items && Array.isArray(items) && items.length > 0) {
         subTotal = 0;
         taxAmount = 0;
+        discountAmount = 0;
         const processedItems: any[] = [];
 
         for (const item of items) {
@@ -404,6 +407,7 @@ export class InvoicesService {
 
           subTotal += itemSubTotal;
           taxAmount += itemTaxAmount;
+          discountAmount += itemDiscountAmount;
 
           processedItems.push({
             invoiceId: id,
@@ -420,7 +424,7 @@ export class InvoicesService {
           });
         }
 
-        totalAmount = subTotal + taxAmount;
+        totalAmount = Math.round(subTotal + taxAmount);
         await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
         await tx.invoiceItem.createMany({ data: processedItems });
       }
@@ -483,6 +487,7 @@ export class InvoicesService {
         data: {
           subTotal,
           taxAmount,
+          discountAmount,
           totalAmount,
           amountPaid,
           amountDue,

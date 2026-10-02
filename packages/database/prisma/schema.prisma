@@ -34,6 +34,7 @@ model Tenant {
   maxFreeInvoices   Int        @default(7)
   planPrice         Float      @default(3000)
   upgradeRequested  Boolean    @default(false)
+  maxUsers          Int        @default(2) // team (USER role) accounts allowed
   upgradeRequestedAt DateTime?
 
   gstin     String?
@@ -85,8 +86,28 @@ model Tenant {
   payments          Payment[]
   purchaseInvoices  PurchaseInvoice[]
   purchasePayments  PurchasePayment[]
+  enquiries         Enquiry[]
 
   @@map("tenants")
+}
+
+// Sales enquiries raised from the app (e.g. "need more users" on the plan modal)
+model Enquiry {
+  id          String   @id @default(uuid())
+  tenantId    String
+  type        String   @default("EXTRA_USERS")
+  name        String
+  phone       String
+  email       String?
+  usersNeeded String?
+  message     String?
+  status      String   @default("NEW") // NEW | DONE
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([status, createdAt])
+  @@map("enquiries")
 }
 
 model User {

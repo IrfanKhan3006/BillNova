@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast, showConfirm } from '../../store/uiStore';
+import UserEnquiries from '../../components/UserEnquiries';
 
 interface RequestedTenant {
   id: string;
@@ -308,6 +309,10 @@ export default function AdminActivationRequestsPage() {
             })}
           </div>
         )}
+
+        <div className="border-t border-zinc-800 pt-8">
+          <UserEnquiries />
+        </div>
       </div>
     </AdminLayout>
   );

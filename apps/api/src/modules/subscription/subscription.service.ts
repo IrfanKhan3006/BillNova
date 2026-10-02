@@ -132,7 +132,7 @@ export class SubscriptionService {
             error: 'PAYMENT_REQUIRED',
             code: 'PLAN_EXPIRED',
             message:
-              'Your annual subscription has expired. Please renew your Basic Plan (₹3,000 / year) to continue.',
+              'Your annual subscription has expired. Please renew your Basic Plan to continue.',
             details: status,
           },
           HttpStatus.PAYMENT_REQUIRED,
@@ -144,7 +144,7 @@ export class SubscriptionService {
           statusCode: HttpStatus.PAYMENT_REQUIRED,
           error: 'PAYMENT_REQUIRED',
           code: 'PLAN_LIMIT_REACHED',
-          message: `Free trial limit of ${status.maxFreeInvoices} bills reached. Please select our Basic Plan (₹3,000 / year) to continue.`,
+          message: `Free trial limit of ${status.maxFreeInvoices} bills reached. Please select our Basic Plan to continue.`,
           details: status,
         },
         HttpStatus.PAYMENT_REQUIRED,
@@ -157,6 +157,29 @@ export class SubscriptionService {
   /**
    * User requests plan activation from their account
    */
+  async createEnquiry(
+    tenantId: string,
+    data: {
+      name: string;
+      phone: string;
+      email?: string;
+      usersNeeded?: string;
+      message?: string;
+    },
+  ) {
+    return this.prisma.enquiry.create({
+      data: {
+        tenantId,
+        type: 'EXTRA_USERS',
+        name: data.name.trim(),
+        phone: data.phone.trim(),
+        email: data.email?.trim() || null,
+        usersNeeded: data.usersNeeded?.trim() || null,
+        message: data.message?.trim() || null,
+      },
+    });
+  }
+
   async requestUpgrade(tenantId: string, note?: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId, deletedAt: null },
@@ -177,7 +200,7 @@ export class SubscriptionService {
     return {
       success: true,
       message:
-        'Your upgrade request for Basic Plan (₹3,000 / year) has been submitted to Super Admin. You can also contact support for instant activation.',
+        'Your upgrade request for Basic Plan has been submitted to Super Admin. You can also contact support for instant activation.',
       tenant: {
         id: updated.id,
         name: updated.name,
@@ -192,7 +215,7 @@ export class SubscriptionService {
         upiId: 'billnova@upi',
         phone: '9876543210',
         instructions:
-          'Transfer ₹3,000 via UPI and share the payment screenshot on WhatsApp to activate within 5 minutes.',
+          'Transfer the plan amount via UPI and share the payment screenshot on WhatsApp to activate within 5 minutes.',
       },
     };
   }

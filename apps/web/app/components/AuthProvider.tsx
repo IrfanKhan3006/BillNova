@@ -48,6 +48,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (isLoading) return;
 
+    // Contact page is open to everyone (logged in or not) — never redirect.
+    if (pathname === '/contact') return;
+
     const isPublicPath = pathname === '/login' || pathname === '/register';
     const isLandingPage = pathname === '/';
     const isAdminPath = pathname.startsWith('/admin');

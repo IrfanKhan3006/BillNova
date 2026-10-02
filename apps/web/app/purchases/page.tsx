@@ -25,7 +25,9 @@ import {
   PackagePlus,
   Users,
   Zap,
+  Download,
 } from 'lucide-react';
+import { downloadCsv, csvDate, csvAmount } from '../lib/exportCsv';
 import { toast, showConfirm } from '../store/uiStore';
 import { useSubscriptionStore } from '../store/subscriptionStore';
 
@@ -343,7 +345,7 @@ export default function PurchasesPage() {
 
       // 0. Pro-Level Subscription / 7-Bill Limit Gate Check
       if (user?.role !== 'SUPER_ADMIN' && planStatus?.isLimitReached) {
-        openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan (₹3,000 / year) to record purchase bills.');
+        openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan to record purchase bills.');
         return;
       }
 
@@ -497,16 +499,16 @@ export default function PurchasesPage() {
                     Free Trial Limit Reached ({planStatus.invoicesCount}/{planStatus.maxFreeInvoices} Bills Used)
                   </h4>
                   <p className="text-xs text-zinc-300 mt-0.5">
-                    Your 7 free bills have been utilized. Please activate our Basic Plan (₹3,000/year) to record purchase bills and continue unlimited operations.
+                    Your 7 free bills have been utilized. Please activate our Basic Plan to record purchase bills and continue unlimited operations.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan (₹3,000 / year) to continue.')}
+                onClick={() => openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan to continue.')}
                 className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition shrink-0"
               >
-                <Zap className="h-4 w-4 fill-current" /> Select Plan (₹3,000/yr)
+                <Zap className="h-4 w-4 fill-current" /> Select Plan
               </button>
             </div>
           )}
@@ -526,6 +528,34 @@ export default function PurchasesPage() {
             </div>
 
             <div className="flex items-center gap-2.5">
+              <button
+                onClick={() =>
+                  downloadCsv(
+                    `purchases-${new Date().toISOString().split('T')[0]}.csv`,
+                    ['Purchase No', 'Vendor Bill No', 'Date', 'Vendor', 'Vendor GSTIN', 'Status', 'Taxable Amount', 'Discount', 'GST', 'Grand Total', 'Paid', 'Due'],
+                    filteredPurchases.map((p) => [
+                      p.purchaseNumber,
+                      p.billNumber,
+                      csvDate(p.date),
+                      p.vendor?.name,
+                      (p.vendor as any)?.gstin,
+                      p.status,
+                      csvAmount(p.subTotal),
+                      csvAmount(p.discountAmount),
+                      csvAmount(p.taxAmount),
+                      csvAmount(p.totalAmount),
+                      csvAmount(p.amountPaid),
+                      csvAmount(p.amountDue),
+                    ]),
+                  )
+                }
+                disabled={filteredPurchases.length === 0}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 shadow-xs transition"
+              >
+                <Download className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                Download Excel
+              </button>
+
               <button
                 onClick={() => setShowVendorsModal(true)}
                 className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-xs transition"

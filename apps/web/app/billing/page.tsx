@@ -6,6 +6,7 @@ import FeatureGate from '../components/FeatureGate';
 import { api } from '../lib/api';
 import { compressImage } from '../lib/imageUtils';
 import { useAuthStore } from '../store/authStore';
+import { parseNoteSections } from '../lib/noteSections';
 import {
   Plus,
   Trash2,
@@ -131,6 +132,7 @@ export default function BillingPage() {
   // Selection states
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [notes, setNotes] = useState('');
+  const [discountPercent, setDiscountPercent] = useState<string>('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   
   // Items array
@@ -255,6 +257,7 @@ export default function BillingPage() {
   const [settling, setSettling] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [editingInvoiceNumber, setEditingInvoiceNumber] = useState<string>('');
+  const [editingIsAdvance, setEditingIsAdvance] = useState<boolean>(true);
   const [editingAdvancePaid, setEditingAdvancePaid] = useState<number>(0);
   const [editingPaymentsHistory, setEditingPaymentsHistory] = useState<any[]>([]);
   const [additionalAdvanceAmount, setAdditionalAdvanceAmount] = useState<string>('');
@@ -465,6 +468,7 @@ export default function BillingPage() {
             const inv = await api.get(`/invoices/${editInvoiceId}`);
             setEditingInvoiceId(inv.id);
             setEditingInvoiceNumber(inv.invoiceNumber);
+            setEditingIsAdvance(Boolean(inv.isAdvance));
             setEditingAdvancePaid(Number(inv.amountPaid || 0));
             setEditingPaymentsHistory(inv.payments || []);
             setSelectedCustomerId(inv.customerId);
@@ -472,6 +476,7 @@ export default function BillingPage() {
             if (inv.date) {
               setDate(new Date(inv.date).toISOString().split('T')[0]);
             }
+            setDiscountPercent(inv.items?.[0]?.discountRate ? String(inv.items[0].discountRate) : '');
             if (inv.items && inv.items.length > 0) {
               setItems(
                 inv.items.map((it: any) => ({
@@ -501,6 +506,7 @@ export default function BillingPage() {
             const fullInvoice = await api.get(`/invoices/${cloneInvoiceId}`);
             setSelectedCustomerId(fullInvoice.customerId);
             setNotes(fullInvoice.notes || '');
+            setDiscountPercent(fullInvoice.items?.[0]?.discountRate ? String(fullInvoice.items[0].discountRate) : '');
             if (fullInvoice.items && fullInvoice.items.length > 0) {
               setItems(fullInvoice.items.map((it: any) => ({
                 productId: it.productId || '',
@@ -667,27 +673,40 @@ export default function BillingPage() {
 
   // Calculations
   const calculateInvoiceSummary = () => {
+    let grossTotal = 0;
+    let discountAmount = 0;
     let subTotal = 0;
     let taxAmount = 0;
+    const discRate = Math.min(100, Math.max(0, parseFloat(discountPercent) || 0));
 
     items.forEach((item) => {
       const price = parseFloat(item.price as string) || 0;
       const qty = parseFloat(item.qty as string) || 0;
       const taxRate = parseFloat(item.taxRate as string) || 0;
 
-      const itemSubTotal = price * qty;
+      const itemGross = price * qty;
+      const itemDiscount = itemGross * (discRate / 100);
+      const itemSubTotal = itemGross - itemDiscount;
       const itemTaxAmount = itemSubTotal * (taxRate / 100);
 
+      grossTotal += itemGross;
+      discountAmount += itemDiscount;
       subTotal += itemSubTotal;
       taxAmount += itemTaxAmount;
     });
 
-    const totalAmount = subTotal + taxAmount;
+    // Round off to nearest rupee (< 50 paise down, >= 50 paise up)
+    const exactTotal = subTotal + taxAmount;
+    const totalAmount = Math.round(exactTotal);
+    const roundOff = totalAmount - exactTotal;
 
     return {
+      grossTotal,
+      discountRate: discRate,
+      discountAmount,
       subTotal,
       taxAmount,
-      discountAmount: 0,
+      roundOff,
       totalAmount,
     };
   };
@@ -731,6 +750,7 @@ export default function BillingPage() {
             price: parseFloat(item.price as string) || 0,
             taxRate: parseFloat(item.taxRate as string) || 0,
             hsnCode: item.hsnCode || undefined,
+            discountRate: summary.discountRate,
           })),
           notes,
           date,
@@ -759,10 +779,10 @@ export default function BillingPage() {
             `Bill fully settled! Automatically converted to regular Tax Invoice #${fullInvoice.invoiceNumber}`
           );
         } else {
-          toast.success(`Advance Bill #${fullInvoice.invoiceNumber} updated successfully!`);
+          toast.success(`${editingIsAdvance ? 'Advance Bill' : 'Invoice'} #${fullInvoice.invoiceNumber} updated successfully!`);
         }
       } catch (err: any) {
-        toast.error(err.message || 'Failed to update advance bill');
+        toast.error(err.message || 'Failed to update bill');
       } finally {
         setSubmitting(false);
       }
@@ -788,7 +808,7 @@ export default function BillingPage() {
 
     // 0. Pro-Level Subscription / 7-Bill Limit Gate Check
     if (user?.role !== 'SUPER_ADMIN' && planStatus?.isLimitReached) {
-      openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan (₹3,000 / year) to generate this bill.');
+      openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan to generate this bill.');
       return;
     }
 
@@ -808,6 +828,7 @@ export default function BillingPage() {
           price: parseFloat(item.price as string) || 0,
           taxRate: parseFloat(item.taxRate as string) || 0,
           hsnCode: item.hsnCode || undefined,
+          discountRate: summary.discountRate,
         })),
         date,
         notes,
@@ -905,10 +926,12 @@ export default function BillingPage() {
   const handleEditAdvanceBill = (inv: any) => {
     setEditingInvoiceId(inv.id);
     setEditingInvoiceNumber(inv.invoiceNumber);
+    setEditingIsAdvance(Boolean(inv.isAdvance));
     setEditingAdvancePaid(Number(inv.amountPaid || 0));
     setEditingPaymentsHistory(inv.payments || []);
     setSelectedCustomerId(inv.customerId);
     setNotes(inv.notes || '');
+    setDiscountPercent(inv.items?.[0]?.discountRate ? String(inv.items[0].discountRate) : '');
     if (inv.date) {
       setDate(new Date(inv.date).toISOString().split('T')[0]);
     }
@@ -951,6 +974,7 @@ export default function BillingPage() {
     setPaymentNotes('');
     setShowSettleModal(false);
     setNotes(defaultNotes);
+    setDiscountPercent('');
     setItems([
       { 
         name: '', 
@@ -1218,7 +1242,7 @@ export default function BillingPage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
-              {!isUser && createdInvoice.isAdvance && !createdInvoice.advanceConverted && (
+              {!isUser && !createdInvoice.advanceConverted && createdInvoice.status !== 'VOID' && (
                 <button
                   type="button"
                   onClick={() => handleEditAdvanceBill(createdInvoice)}
@@ -1679,10 +1703,27 @@ export default function BillingPage() {
 
                 {/* Right side: Calculations */}
                 <div className={`w-64 space-y-2 text-xs border-t sm:border-t-0 pt-4 sm:pt-0 shrink-0 ${isEmerald ? 'bg-emerald-50/30 p-4 rounded-xl border-emerald-100' : isBlue ? 'bg-slate-50 p-4 rounded-xl border-slate-200' : 'border-zinc-200'}`}>
-                  <div className="flex justify-between text-zinc-550">
-                    <span>Subtotal:</span>
-                    <span>{formatCurrency(createdInvoice.subTotal)}</span>
-                  </div>
+                  {Number(createdInvoice.discountAmount || 0) > 0 ? (
+                    <>
+                      <div className="flex justify-between text-zinc-550">
+                        <span>Subtotal:</span>
+                        <span>{formatCurrency(createdInvoice.subTotal + createdInvoice.discountAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-red-600">
+                        <span>Discount{createdInvoice.items?.[0]?.discountRate ? ` (${createdInvoice.items[0].discountRate}%)` : ''}:</span>
+                        <span className="font-semibold">- {formatCurrency(createdInvoice.discountAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-zinc-550">
+                        <span>Taxable Amount:</span>
+                        <span>{formatCurrency(createdInvoice.subTotal)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-zinc-550">
+                      <span>Subtotal:</span>
+                      <span>{formatCurrency(createdInvoice.subTotal)}</span>
+                    </div>
+                  )}
 
                   {(() => {
                     const myState = user?.tenant?.stateCode || user?.tenant?.gstin?.slice(0, 2) || '';
@@ -1715,6 +1756,16 @@ export default function BillingPage() {
                     <span>Total Tax (GST):</span>
                     <span>{formatCurrency(createdInvoice.taxAmount)}</span>
                   </div>
+                  {(() => {
+                    const roundOff = createdInvoice.totalAmount - (createdInvoice.subTotal + createdInvoice.taxAmount);
+                    if (Math.abs(roundOff) < 0.005) return null;
+                    return (
+                      <div className="flex justify-between text-zinc-550">
+                        <span>Round Off:</span>
+                        <span>{roundOff > 0 ? '+ ' : '- '}{formatCurrency(Math.abs(roundOff))}</span>
+                      </div>
+                    );
+                  })()}
                   <div className="flex justify-between text-sm font-black text-zinc-950 pt-1">
                     <span>Grand Total:</span>
                     <span className={isEmerald ? 'text-emerald-700 text-sm font-black' : isBlue ? 'text-blue-700 text-sm font-black' : ''}>{formatCurrency(createdInvoice.totalAmount)}</span>
@@ -1844,8 +1895,14 @@ export default function BillingPage() {
               {/* Notes */}
               {createdInvoice.notes && (
                 <div className="border-t border-zinc-150 mt-8 pt-4">
-                  <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Notes & Terms</h5>
-                  <p className="text-xs text-zinc-600 mt-1 whitespace-pre-line leading-relaxed">{createdInvoice.notes}</p>
+                  {parseNoteSections(createdInvoice.notes).filter((sec) => sec.body).map((sec, i) => (
+                    <div key={i} className={i > 0 ? 'mt-3' : ''}>
+                      <h5 className="inline-block rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-extrabold text-zinc-900 uppercase tracking-wider">
+                        {sec.heading || 'Notes & Terms'}
+                      </h5>
+                      <p className="text-xs text-zinc-600 mt-1.5 whitespace-pre-line leading-relaxed">{sec.body}</p>
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -1875,16 +1932,16 @@ export default function BillingPage() {
                   Free Trial Limit Reached ({planStatus.invoicesCount}/{planStatus.maxFreeInvoices} Bills Used)
                 </h4>
                 <p className="text-xs text-zinc-300 mt-0.5">
-                  You have created all 7 free bills. Please select our Basic Plan (₹3,000/year) to generate this bill and unlock unlimited billing.
+                  You have created all 7 free bills. Please select our Basic Plan to generate this bill and unlock unlimited billing.
                 </p>
               </div>
             </div>
             <button
               type="button"
-              onClick={() => openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan (₹3,000 / year) to continue.')}
+              onClick={() => openUpgradeModal('Free trial limit of 7 bills reached. Please select our Basic Plan to continue.')}
               className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition shrink-0"
             >
-              <Zap className="h-4 w-4 fill-current" /> Select Plan (₹3,000/yr)
+              <Zap className="h-4 w-4 fill-current" /> Select Plan
             </button>
           </div>
         )}
@@ -1898,10 +1955,10 @@ export default function BillingPage() {
               </span>
               <div>
                 <p className="font-bold text-white text-sm">
-                  Editing Advance Bill #{editingInvoiceNumber}
+                  Editing {editingIsAdvance ? 'Advance Bill' : 'Invoice'} #{editingInvoiceNumber}
                 </p>
                 <p className="text-zinc-300 text-xs mt-0.5">
-                  Advance Paid:{' '}
+                  {editingIsAdvance ? 'Advance Paid' : 'Amount Paid'}:{' '}
                   <strong className="text-emerald-400 font-bold">
                     {formatCurrency(editingAdvancePaid)}
                   </strong>{' '}
@@ -2491,8 +2548,35 @@ export default function BillingPage() {
               <div className="space-y-3 text-xs text-zinc-600 dark:text-zinc-400">
                 <div className="flex justify-between">
                   <span>Item Subtotal:</span>
-                  <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(summary.subTotal)}</span>
+                  <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(summary.grossTotal)}</span>
                 </div>
+
+                <div className="flex justify-between items-center">
+                  <span>Discount (%):</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={discountPercent}
+                    onChange={(e) => setDiscountPercent(e.target.value)}
+                    placeholder="0"
+                    className="w-20 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-right text-xs font-bold text-zinc-900 dark:text-white outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                {summary.discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between text-red-500">
+                      <span>Discount ({summary.discountRate}%):</span>
+                      <span className="font-bold">- {formatCurrency(summary.discountAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Taxable Amount:</span>
+                      <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(summary.subTotal)}</span>
+                    </div>
+                  </>
+                )}
 
                 {taxType === 'INTER' ? (
                   <div className="flex justify-between text-blue-600 dark:text-blue-400">
@@ -2516,6 +2600,12 @@ export default function BillingPage() {
                   <span>Total Tax (GST):</span>
                   <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(summary.taxAmount)}</span>
                 </div>
+                {Math.abs(summary.roundOff) >= 0.005 && (
+                  <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+                    <span>Round Off:</span>
+                    <span className="font-bold text-zinc-900 dark:text-white">{summary.roundOff > 0 ? '+ ' : '- '}{formatCurrency(Math.abs(summary.roundOff))}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-baseline pt-2">
                   <span className="text-sm font-bold text-zinc-900 dark:text-white">Grand Total (INR):</span>
                   <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(summary.totalAmount)}</span>
@@ -2527,7 +2617,7 @@ export default function BillingPage() {
                     {/* Advance Status Card */}
                     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-2 text-xs">
                       <div className="flex justify-between items-center text-zinc-700 dark:text-zinc-300">
-                        <span className="font-semibold">Advance Already Paid:</span>
+                        <span className="font-semibold">{editingIsAdvance ? 'Advance Already Paid' : 'Amount Already Paid'}:</span>
                         <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
                           {formatCurrency(editingAdvancePaid)}
                         </span>
@@ -2589,7 +2679,7 @@ export default function BillingPage() {
                       <div className="rounded-xl border border-amber-500/20 bg-zinc-50 dark:bg-zinc-950 p-3 space-y-2.5">
                         <div className="flex justify-between items-center">
                           <label className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                            Add New Advance Payment (Optional)
+                            {editingIsAdvance ? 'Add New Advance Payment (Optional)' : 'Record Payment (Optional)'}
                           </label>
                           <button
                             type="button"
@@ -2784,10 +2874,10 @@ export default function BillingPage() {
                         ? parseFloat(additionalAdvanceAmount) >=
                             Math.max(0, summary.totalAmount - editingAdvancePaid) &&
                           Math.max(0, summary.totalAmount - editingAdvancePaid) > 0
-                          ? `Settle & Convert to Final Tax Bill (₹0 Due)`
+                          ? editingIsAdvance ? `Settle & Convert to Final Tax Bill (₹0 Due)` : `Update Invoice & Mark Fully Paid`
                           : parseFloat(additionalAdvanceAmount) > 0
-                          ? `Update Bill & Add ₹${additionalAdvanceAmount} Advance`
-                          : `Update Advance Bill #${editingInvoiceNumber}`
+                          ? `Update Bill & Add ₹${additionalAdvanceAmount} ${editingIsAdvance ? 'Advance' : 'Payment'}`
+                          : `Update ${editingIsAdvance ? 'Advance Bill' : 'Invoice'} #${editingInvoiceNumber}`
                         : paymentType === 'ADVANCE'
                         ? `Generate Advance Bill (${formatCurrency(parseFloat(advanceAmount as string) || 0)} Paid)`
                         : paymentType === 'PAID'
