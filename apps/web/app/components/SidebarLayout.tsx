@@ -257,13 +257,13 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
               </div>
             ) : planStatus?.isLimitReached ? (
               <button
-                onClick={() => openUpgradeModal('Free trial limit of 7 bills reached. Upgrade to Basic Plan (₹3,000/year) to continue.')}
+                onClick={() => openUpgradeModal('Free trial limit of 7 bills reached. Upgrade to Basic Plan to continue.')}
                 className="group flex items-center gap-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 px-3 py-1.5 text-xs text-rose-300 transition animate-pulse"
               >
                 <AlertTriangle className="h-4 w-4 text-rose-400" />
                 <span className="font-bold">7/7 Bills Used</span>
                 <span className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2 py-0.5 text-[10px] font-extrabold text-zinc-950 shadow">
-                  <Zap className="h-3 w-3 fill-current" /> Upgrade ₹3,000/yr
+                  <Zap className="h-3 w-3 fill-current" /> Upgrade Plan
                 </span>
               </button>
             ) : (
@@ -279,7 +279,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   onClick={() => openUpgradeModal()}
                   className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm transition"
                 >
-                  <Sparkles className="h-3 w-3" /> Upgrade (₹3,000/yr)
+                  <Sparkles className="h-3 w-3" /> Upgrade
                 </button>
               </div>
             )}

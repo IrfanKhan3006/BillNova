@@ -47,6 +47,7 @@ interface TenantDetail {
   subscriptionStatus: string;
   planExpiresAt: string | null;
   maxFreeInvoices: number;
+  maxUsers?: number;
   upgradeRequested: boolean;
   gstin: string | null;
   email: string | null;
@@ -99,6 +100,7 @@ export default function TenantDetailPage({ params }: PageProps) {
   const [editingPlan, setEditingPlan] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan>('FREE');
   const [billSearch, setBillSearch] = useState('');
+  const [maxUsersInput, setMaxUsersInput] = useState<string>('');
   const [now] = useState(() => Date.now()); // read once, not on every render
 
   const load = async () => {
@@ -108,6 +110,7 @@ export default function TenantDetailPage({ params }: PageProps) {
         api.get(`/admin/tenants/${id}/invoices`),
       ]);
       setTenant(t);
+      setMaxUsersInput(String(t.maxUsers ?? 2));
       setInvoices(inv);
     } catch (err: any) {
       setError(err.message || 'Failed to load business.');
@@ -419,6 +422,34 @@ export default function TenantDetailPage({ params }: PageProps) {
                 )}
               </div>
 
+              {/* Team user limit — how many USER accounts this business may create */}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-semibold text-zinc-400">Team users allowed:</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={maxUsersInput}
+                  onChange={(e) => setMaxUsersInput(e.target.value)}
+                  className="w-16 rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-center font-mono font-bold text-white focus:border-emerald-500 focus:outline-none"
+                />
+                {Number(maxUsersInput) !== (tenant.maxUsers ?? 2) && (
+                  <button
+                    onClick={() => {
+                      const n = parseInt(maxUsersInput, 10);
+                      if (isNaN(n) || n < 0 || n > 100) {
+                        toast.error('Enter a number between 0 and 100.');
+                        return;
+                      }
+                      patchTenant({ maxUsers: n }, `Team user limit set to ${n}.`);
+                    }}
+                    className="rounded-lg bg-emerald-500 px-2.5 py-1 font-bold text-zinc-950 hover:bg-emerald-400"
+                  >
+                    Save
+                  </button>
+                )}
+              </div>
+
               {editingPlan ? (
                 <div className="flex items-center gap-2">
                   <select
@@ -537,7 +568,7 @@ export default function TenantDetailPage({ params }: PageProps) {
               <Users className="h-5 w-5 text-sky-400" /> Users & Logins
             </span>
             <span className="text-xs font-semibold text-zinc-400">
-              {tenant.users.filter((u) => u.role === 'USER').length} / 2 team users
+              {tenant.users.filter((u) => u.role === 'USER').length} / {tenant.maxUsers ?? 2} team users
             </span>
           </div>
           <div className="overflow-x-auto">

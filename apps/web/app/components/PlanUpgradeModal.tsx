@@ -15,7 +15,10 @@ import {
   ShieldCheck,
   AlertCircle,
   Zap,
+  Users,
+  Send,
 } from 'lucide-react';
+import { api } from '../lib/api';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from '../store/uiStore';
 
@@ -24,15 +27,17 @@ export default function PlanUpgradeModal() {
     useSubscriptionStore();
   const { user } = useAuthStore();
 
-  const [activeTab, setActiveTab] = useState<'plan' | 'upi' | 'whatsapp'>('plan');
+  const [activeTab, setActiveTab] = useState<'plan' | 'upi' | 'whatsapp' | 'users'>('plan');
   const [submittingRequest, setSubmittingRequest] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
+  const [enquiry, setEnquiry] = useState({ name: '', phone: '', email: '', usersNeeded: '3', message: '' });
+  const [sendingEnquiry, setSendingEnquiry] = useState(false);
 
   if (!isUpgradeModalOpen) return null;
 
   // Platform owner's UPI ID — plan payments go to BillNova, not the tenant
-  const upiId = '9205875078@pthdfc';
+  const upiId = 'yespay.mabs0639619akit0640@yesbankltd';
   const tenantName = user?.tenant?.name || 'My Business';
   const billsUsed = planStatus?.invoicesCount ?? user?.tenant?.maxFreeInvoices ?? 7;
   const maxBills = planStatus?.maxFreeInvoices ?? 7;
@@ -47,7 +52,7 @@ export default function PlanUpgradeModal() {
   const handleRequestUpgrade = async () => {
     try {
       setSubmittingRequest(true);
-      await requestUpgrade(`Requested activation for Basic Plan ₹3,000/yr by ${user?.name || 'User'}`);
+      await requestUpgrade(`Requested activation for Basic Plan by ${user?.name || 'User'}`);
       setRequestSent(true);
       toast.success('Upgrade request submitted to Super Admin! Contact on WhatsApp for instant 5-minute activation.');
     } catch (err: any) {
@@ -57,10 +62,45 @@ export default function PlanUpgradeModal() {
     }
   };
 
+  // Pre-fill enquiry contact details from the logged-in account.
+  const enquiryName = enquiry.name || user?.name || '';
+  const enquiryPhone = enquiry.phone || user?.tenant?.phone || '';
+  const enquiryEmail = enquiry.email || user?.email || '';
+
+  const handleSendEnquiry = async () => {
+    if (!enquiryName.trim() || !enquiryPhone.trim()) {
+      toast.error('Please enter your name and phone number.');
+      return;
+    }
+    const text =
+      `Hello BillNova Team, I need more users for my business.\n\n` +
+      `• Business Name: ${tenantName}\n• Name: ${enquiryName}\n• Phone: ${enquiryPhone}\n` +
+      `• Email: ${enquiryEmail}\n• Users Needed: ${enquiry.usersNeeded}\n` +
+      (enquiry.message.trim() ? `• Message: ${enquiry.message.trim()}\n` : '');
+    // Open WhatsApp first (synchronously) so popup blockers don't stop it.
+    window.open(`https://wa.me/918884979997?text=${encodeURIComponent(text)}`, '_blank');
+    try {
+      setSendingEnquiry(true);
+      await api.post('/business/enquiry', {
+        name: enquiryName,
+        phone: enquiryPhone,
+        email: enquiryEmail || undefined,
+        usersNeeded: enquiry.usersNeeded,
+        message: enquiry.message || undefined,
+      });
+      toast.success('Enquiry sent! Our team will contact you shortly.');
+      setEnquiry({ name: '', phone: '', email: '', usersNeeded: '3', message: '' });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save enquiry. Please send it on WhatsApp.');
+    } finally {
+      setSendingEnquiry(false);
+    }
+  };
+
   const whatsappMessage = encodeURIComponent(
-    `Hello BillNova Team, I would like to activate the Basic Plan (₹3,000 / year) for my business:\n\n• Business Name: ${tenantName}\n• Email: ${user?.email || ''}\n• Phone: ${user?.tenant?.phone || ''}\n• Plan: Basic Plan (₹3,000/yr)\n\nPlease activate my account.`
+    `Hello BillNova Team, I would like to activate the Basic Plan for my business:\n\n• Business Name: ${tenantName}\n• Email: ${user?.email || ''}\n• Phone: ${user?.tenant?.phone || ''}\n• Plan: Basic Plan\n\nPlease activate my account.`
   );
-  const whatsappUrl = `https://wa.me/919205875078?text=${whatsappMessage}`;
+  const whatsappUrl = `https://wa.me/918884979997?text=${whatsappMessage}`;
 
   return (
     <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 no-print overflow-y-auto">
@@ -106,7 +146,7 @@ export default function PlanUpgradeModal() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="grid grid-cols-3 gap-2 bg-zinc-900/60 p-1 rounded-2xl border border-zinc-800/80 text-xs font-semibold">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-zinc-900/60 p-1 rounded-2xl border border-zinc-800/80 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('plan')}
             className={`py-2 px-3 rounded-xl transition ${
@@ -115,7 +155,7 @@ export default function PlanUpgradeModal() {
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            Basic Plan (₹3,000)
+            Basic Plan
           </button>
           <button
             onClick={() => setActiveTab('upi')}
@@ -137,6 +177,16 @@ export default function PlanUpgradeModal() {
           >
             <MessageCircle className="h-3.5 w-3.5" /> WhatsApp Help
           </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
+              activeTab === 'users'
+                ? 'bg-emerald-500 text-zinc-950 font-bold shadow-md'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Users className="h-3.5 w-3.5" /> Need More Users?
+          </button>
         </div>
 
         {/* TAB 1: Plan Details & Direct Request */}
@@ -150,10 +200,6 @@ export default function PlanUpgradeModal() {
                   </span>
                   <h3 className="text-xl font-bold text-white mt-1">Basic Plan</h3>
                   <p className="text-xs text-zinc-400">Complete SaaS ERP for Growing Indian Businesses</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl font-extrabold text-emerald-400">₹3,000</div>
-                  <div className="text-[11px] text-zinc-500 font-medium">per year (₹250/mo)</div>
                 </div>
               </div>
 
@@ -189,7 +235,7 @@ export default function PlanUpgradeModal() {
                   ? 'Activation Request Sent!'
                   : submittingRequest
                   ? 'Submitting...'
-                  : 'Request Plan Activation (₹3,000/yr)'}
+                  : 'Request Plan Activation'}
               </button>
 
               <button
@@ -214,7 +260,7 @@ export default function PlanUpgradeModal() {
           <div className="space-y-4 text-center">
             <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl max-w-[200px] mx-auto shadow-xl">
               <QRCodeSVG
-                value={`upi://pay?pa=${upiId}&pn=BillNova&am=3000&cu=INR&tn=BillNova_Basic_Plan_${tenantName.replace(/\s+/g, '_')}`}
+                value={`upi://pay?pa=${upiId}&pn=BillNova&cu=INR&tn=BillNova_Basic_Plan_${tenantName.replace(/\s+/g, '_')}`}
                 size={160}
                 level="M"
               />
@@ -234,7 +280,7 @@ export default function PlanUpgradeModal() {
             </div>
 
             <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-              Pay ₹3,000 directly via any UPI App. Once paid, click the button below to send payment confirmation on WhatsApp or Super Admin.
+              Pay the plan amount directly via any UPI App. Once paid, click the button below to send payment confirmation on WhatsApp or Super Admin.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -257,6 +303,63 @@ export default function PlanUpgradeModal() {
           </div>
         )}
 
+        {/* TAB 4: Extra users enquiry */}
+        {activeTab === 'users' && (
+          <div className="space-y-4">
+            <div className="text-xs text-zinc-400">
+              Basic Plan includes 2 users. Need more? Fill this form and our team will contact you on WhatsApp.
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                value={enquiryName}
+                onChange={(e) => setEnquiry({ ...enquiry, name: e.target.value })}
+                placeholder="Your Name *"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+              />
+              <input
+                value={enquiryPhone}
+                onChange={(e) => setEnquiry({ ...enquiry, phone: e.target.value })}
+                placeholder="Phone / WhatsApp *"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+              />
+              <input
+                value={enquiryEmail}
+                onChange={(e) => setEnquiry({ ...enquiry, email: e.target.value })}
+                placeholder="Email"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+              />
+              <select
+                value={enquiry.usersNeeded}
+                onChange={(e) => setEnquiry({ ...enquiry, usersNeeded: e.target.value })}
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+              >
+                {['3', '4', '5', '6-10', '10+'].map((n) => (
+                  <option key={n} value={n}>
+                    {n} users needed
+                  </option>
+                ))}
+              </select>
+            </div>
+            <textarea
+              value={enquiry.message}
+              onChange={(e) => setEnquiry({ ...enquiry, message: e.target.value })}
+              rows={3}
+              placeholder="Message (optional)"
+              className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+            />
+            <button
+              onClick={handleSendEnquiry}
+              disabled={sendingEnquiry}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-4 py-3 text-sm font-bold text-zinc-950 disabled:opacity-60 transition"
+            >
+              <Send className="h-4 w-4" /> {sendingEnquiry ? 'Sending...' : 'Submit & Send on WhatsApp'}
+            </button>
+            <p className="text-[11px] text-zinc-500 text-center">
+              WhatsApp will open with your details — just tap Send.
+            </p>
+          </div>
+        )}
+
         {/* TAB 3: WhatsApp Support */}
         {activeTab === 'whatsapp' && (
           <div className="space-y-5 text-center py-2">
@@ -273,7 +376,7 @@ export default function PlanUpgradeModal() {
 
             <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-left text-xs space-y-1.5 max-w-sm mx-auto font-mono text-zinc-400">
               <div className="text-white font-semibold font-sans">Message Preview:</div>
-              <div className="text-zinc-300">"Hello BillNova Team, I would like to activate Basic Plan (₹3,000/yr) for {tenantName}..."</div>
+              <div className="text-zinc-300">"Hello BillNova Team, I would like to activate Basic Plan for {tenantName}..."</div>
             </div>
 
             <a

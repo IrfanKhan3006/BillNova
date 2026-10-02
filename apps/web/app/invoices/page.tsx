@@ -4,17 +4,24 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SidebarLayout from '../components/SidebarLayout';
 import { api } from '../lib/api';
-import { FileText, Search, Printer, Receipt, CalendarRange, X } from 'lucide-react';
+import { FileText, Search, Printer, Receipt, CalendarRange, X, Download, Pencil } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
+import { downloadCsv, csvDate, csvAmount } from '../lib/exportCsv';
 
 interface Invoice {
   id: string;
   invoiceNumber: string;
   date: string;
   status: string;
+  subTotal: number;
+  taxAmount: number;
+  discountAmount: number;
   totalAmount: number;
+  amountPaid: number;
   amountDue: number;
   isAdvance?: boolean;
-  customer: { name: string } | null;
+  advanceConverted?: boolean;
+  customer: { name: string; gstin?: string | null; phone?: string | null } | null;
 }
 
 const inr = (v: number) =>
@@ -30,6 +37,9 @@ const inputClass =
   'rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2.5 py-2 text-xs text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none';
 
 export default function InvoicesPage() {
+  const { user } = useAuthStore();
+  // USER role can only view and print bills.
+  const isUser = user?.role === 'USER';
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +69,28 @@ export default function InvoicesPage() {
 
   const total = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
 
+  const handleDownload = () => {
+    downloadCsv(
+      `invoices-${new Date().toISOString().split('T')[0]}.csv`,
+      ['Invoice No', 'Date', 'Customer', 'Customer GSTIN', 'Phone', 'Type', 'Status', 'Taxable Amount', 'Discount', 'GST', 'Grand Total', 'Paid', 'Due'],
+      invoices.map((inv) => [
+        inv.invoiceNumber,
+        csvDate(inv.date),
+        inv.customer?.name,
+        inv.customer?.gstin,
+        inv.customer?.phone,
+        inv.isAdvance ? 'Advance' : 'Tax Invoice',
+        inv.status,
+        csvAmount(inv.subTotal),
+        csvAmount(inv.discountAmount),
+        csvAmount(inv.taxAmount),
+        csvAmount(inv.totalAmount),
+        csvAmount(inv.amountPaid),
+        csvAmount(inv.amountDue),
+      ]),
+    );
+  };
+
   return (
     <SidebarLayout>
       <div className="space-y-6">
@@ -69,12 +101,21 @@ export default function InvoicesPage() {
             </h1>
             <p className="mt-1 text-zinc-500 dark:text-zinc-400 text-sm">All invoices of the business. Open any invoice to view or print it.</p>
           </div>
+          <div className="flex items-center gap-2 self-start">
+          <button
+            onClick={handleDownload}
+            disabled={invoices.length === 0}
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition"
+          >
+            <Download className="h-4 w-4" /> Download Excel
+          </button>
           <Link
             href="/billing"
-            className="inline-flex items-center gap-2 self-start rounded-xl bg-emerald-500 hover:bg-emerald-400 px-4 py-2.5 text-xs font-bold text-zinc-950 transition"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-4 py-2.5 text-xs font-bold text-zinc-950 transition"
           >
             <Receipt className="h-4 w-4" /> Create New Invoice
           </Link>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -152,7 +193,15 @@ export default function InvoicesPage() {
                       </td>
                       <td className="py-3 text-right font-semibold text-zinc-900 dark:text-white">{inr(inv.totalAmount)}</td>
                       <td className="py-3 text-right">{inr(inv.amountDue || 0)}</td>
-                      <td className="py-3 pr-6 text-right">
+                      <td className="py-3 pr-6 text-right whitespace-nowrap">
+                        {!isUser && !inv.advanceConverted && inv.status !== 'VOID' && (
+                          <Link
+                            href={`/billing?editInvoiceId=${inv.id}`}
+                            className="mr-2 inline-flex items-center gap-1 rounded-lg border border-purple-200 dark:border-purple-500/30 px-2.5 py-1 text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-500/10"
+                          >
+                            <Pencil className="h-3.5 w-3.5" /> Edit
+                          </Link>
+                        )}
                         <Link
                           href={`/billing?invoiceId=${inv.id}`}
                           className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800"

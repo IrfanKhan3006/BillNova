@@ -31,6 +31,20 @@ export class ReportsController {
     );
   }
 
+  @Get('purchases')
+  @ApiOperation({ summary: 'Purchase register (vendor bills) dekho' })
+  async getPurchaseReport(
+    @CurrentUser() user: any,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getPurchaseReport(
+      user.tenantId,
+      startDate,
+      endDate,
+    );
+  }
+
   @Get('customers')
   @ApiOperation({
     summary: 'Customer outstanding aur pending invoice balances dekho',

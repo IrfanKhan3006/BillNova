@@ -50,7 +50,7 @@ export class UsersService {
 
     return {
       enabled: this.isPlanActive(tenant),
-      maxUsers: MAX_TEAM_USERS,
+      maxUsers: tenant.maxUsers ?? MAX_TEAM_USERS,
       emailDomain: teamEmailDomain(tenant.name),
       users,
     };
@@ -70,9 +70,10 @@ export class UsersService {
     const count = await this.prisma.user.count({
       where: { tenantId, role: Role.USER, deletedAt: null },
     });
-    if (count >= MAX_TEAM_USERS) {
+    const maxUsers = tenant.maxUsers ?? MAX_TEAM_USERS;
+    if (count >= maxUsers) {
       throw new BadRequestException(
-        `You can create only ${MAX_TEAM_USERS} users. Remove one to add another.`,
+        `You can create only ${maxUsers} users. Remove one to add another, or contact support for more users.`,
       );
     }
 
