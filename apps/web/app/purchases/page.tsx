@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import SidebarLayout from '../components/SidebarLayout';
 import FeatureGate from '../components/FeatureGate';
 import { api } from '../lib/api';
+import { saveElementAsPdf } from '../lib/savePdf';
 import { useAuthStore } from '../store/authStore';
 import {
   ShoppingBag,
@@ -112,6 +113,32 @@ export default function PurchasesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showVendorsModal, setShowVendorsModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<PurchaseInvoice | null>(null);
+  const [savingPdf, setSavingPdf] = useState(false);
+  const [autoDownload, setAutoDownload] = useState(false);
+
+  const handleSavePurchasePdf = async (closeAfter = false) => {
+    const sheet = document.getElementById('purchase-print-sheet');
+    if (!sheet || !selectedInvoice) return;
+    setSavingPdf(true);
+    try {
+      const name = await saveElementAsPdf(sheet, String(selectedInvoice.purchaseNumber || 'purchase'));
+      toast.success(`Bill saved as ${name}.pdf`);
+      if (closeAfter) setSelectedInvoice(null);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save bill');
+    } finally {
+      setSavingPdf(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!autoDownload || !selectedInvoice) return;
+    setAutoDownload(false);
+    const t = setTimeout(() => { handleSavePurchasePdf(true); }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDownload, selectedInvoice]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New Purchase Form State
@@ -788,6 +815,13 @@ export default function PurchasesPage() {
                             >
                               <Printer className="h-3.5 w-3.5" />
                             </button>
+                            <button
+                              onClick={() => { setAutoDownload(true); setSelectedInvoice(p); }}
+                              className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 dark:bg-zinc-800/80 dark:text-blue-300 dark:hover:bg-blue-500/10 dark:border-transparent transition"
+                              title={`Download ${p.purchaseNumber}.pdf`}
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </button>
                             {!isUser && (
                             <button
                               onClick={() => handleDeletePurchase(p.id, p.purchaseNumber)}
@@ -1288,6 +1322,13 @@ export default function PurchasesPage() {
                     <Printer className="h-3.5 w-3.5" /> Print / Save PDF
                   </button>
                   <button
+                    onClick={() => handleSavePurchasePdf()}
+                    disabled={savingPdf}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-60"
+                  >
+                    <Download className="h-3.5 w-3.5" /> {savingPdf ? 'Saving...' : 'Save Bill'}
+                  </button>
+                  <button
                     onClick={() => setSelectedInvoice(null)}
                     className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
                   >
@@ -1297,7 +1338,7 @@ export default function PurchasesPage() {
               </div>
 
               {/* Printable Invoice Sheet */}
-              <div className="flex-1 overflow-y-auto p-8 bg-white text-zinc-900 print:p-0 print:m-0 print:w-full">
+              <div id="purchase-print-sheet" className="flex-1 overflow-y-auto p-8 bg-white text-zinc-900 print:p-0 print:m-0 print:w-full">
                 {/* Header */}
                 <div className="flex justify-between items-start border-b border-zinc-200 pb-6">
                   <div>

@@ -208,6 +208,13 @@ export default function InvoicesPage() {
                         >
                           <Printer className="h-3.5 w-3.5" /> View / Print
                         </Link>
+                        <Link
+                          href={`/billing?invoiceId=${inv.id}&download=1`}
+                          title={`Download ${inv.invoiceNumber}.pdf`}
+                          className="ml-2 inline-flex items-center rounded-lg border border-blue-200 dark:border-blue-500/30 px-2 py-1 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Link>
                       </td>
                     </tr>
                   ))}

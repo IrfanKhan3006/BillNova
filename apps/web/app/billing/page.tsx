@@ -7,6 +7,7 @@ import { api } from '../lib/api';
 import { compressImage } from '../lib/imageUtils';
 import { useAuthStore } from '../store/authStore';
 import { parseNoteSections } from '../lib/noteSections';
+import { saveElementAsPdf } from '../lib/savePdf';
 import {
   Plus,
   Trash2,
@@ -16,6 +17,7 @@ import {
   Calendar,
   FileText,
   Printer,
+  Download,
   CheckCircle,
   X,
   Sparkles,
@@ -1021,6 +1023,35 @@ export default function BillingPage() {
     window.print();
   };
 
+  const [savingPdf, setSavingPdf] = useState(false);
+  const handleSavePdf = async () => {
+    const sheet = document.querySelector('.print-invoice-sheet') as HTMLElement | null;
+    if (!sheet || !createdInvoice) return;
+    setSavingPdf(true);
+    try {
+      const name = await saveElementAsPdf(sheet, String(createdInvoice.invoiceNumber || 'invoice'));
+      toast.success(`Bill saved as ${name}.pdf`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save bill');
+    } finally {
+      setSavingPdf(false);
+    }
+  };
+
+  // Opened from a list's download icon (?invoiceId=..&download=1): save the PDF once rendered
+  useEffect(() => {
+    if (!createdInvoice || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('download') !== '1') return;
+    params.delete('download');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    const t = setTimeout(() => { handleSavePdf(); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createdInvoice]);
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -1271,6 +1302,14 @@ export default function BillingPage() {
               >
                 <Printer className="h-4 w-4" />
                 <span>Print Invoice</span>
+              </button>
+              <button
+                onClick={handleSavePdf}
+                disabled={savingPdf}
+                className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-400 disabled:opacity-60"
+              >
+                <Download className="h-4 w-4" />
+                <span>{savingPdf ? 'Saving...' : 'Save Bill'}</span>
               </button>
               <button
                 onClick={resetBilling}
