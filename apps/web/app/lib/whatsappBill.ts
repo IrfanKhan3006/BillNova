@@ -106,10 +106,21 @@ export function buildWhatsAppMessage(input: WhatsAppMessageInput): string {
   return message.replace(/\n{3,}/g, '\n\n').trim();
 }
 
-/** Public bill URL for a share token, e.g. https://billcrafts.com/bill?s=<token> */
+/**
+ * Public bill URL for a share token, e.g. https://billcrafts.com/bill?s=<token>
+ *
+ * The host comes from NEXT_PUBLIC_APP_URL so the link a customer receives is
+ * always the public domain — never localhost in dev, and never a preview host
+ * like *.hostingersite.com if a bill happens to be created through one.
+ */
 export function buildBillLink(shareToken?: string | null): string | null {
-  if (!shareToken || typeof window === 'undefined') return null;
-  return `${window.location.origin}/bill?s=${encodeURIComponent(shareToken)}`;
+  if (!shareToken) return null;
+
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '');
+  const origin = configured || (typeof window !== 'undefined' ? window.location.origin : '');
+  if (!origin) return null;
+
+  return `${origin}/bill?s=${encodeURIComponent(shareToken)}`;
 }
 
 /** wa.me click-to-chat link that opens WhatsApp with the message pre-filled. */
