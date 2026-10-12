@@ -37,6 +37,8 @@ export class BusinessService {
         bankIfsc: true,
         upiId: true,
         defaultNotes: true,
+        googleReviewUrl: true,
+        whatsappTemplate: true,
         businessType: true,
         trackInventory: true,
         theme: true,
@@ -71,6 +73,8 @@ export class BusinessService {
       bankIfsc,
       upiId,
       defaultNotes,
+      googleReviewUrl,
+      whatsappTemplate,
       theme,
     } = updateData;
 
@@ -94,6 +98,8 @@ export class BusinessService {
         bankIfsc,
         upiId,
         defaultNotes,
+        googleReviewUrl,
+        whatsappTemplate,
         theme,
       },
     });

@@ -80,6 +80,14 @@ class UpdateBusinessDto {
 
   @IsOptional()
   @IsString()
+  googleReviewUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  whatsappTemplate?: string;
+
+  @IsOptional()
+  @IsString()
   theme?: string;
 }
 

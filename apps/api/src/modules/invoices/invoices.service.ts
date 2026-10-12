@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
+
 import { PrismaService } from '../../database/prisma.service';
 import { SubscriptionService } from '../subscription/subscription.service';
 
@@ -95,6 +97,92 @@ export class InvoicesService {
 
     if (!invoice) {
       throw new NotFoundException('Invoice not found.');
+    }
+
+    return invoice;
+  }
+
+  /** Random, unguessable token used in the public bill link (/bill?s=<token>). */
+  static newShareToken() {
+    return crypto.randomBytes(16).toString('base64url');
+  }
+
+  /**
+   * Returns the invoice's public share token, creating one on demand for bills
+   * that were generated before public bill links existed.
+   */
+  async ensureShareToken(tenantId: string, id: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, tenantId, deletedAt: null },
+      select: { id: true, shareToken: true },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found.');
+    }
+
+    if (invoice.shareToken) {
+      return { shareToken: invoice.shareToken };
+    }
+
+    const updated = await this.prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { shareToken: InvoicesService.newShareToken() },
+      select: { shareToken: true },
+    });
+
+    return { shareToken: updated.shareToken };
+  }
+
+  /**
+   * Unauthenticated lookup for the public bill page. Only returns the fields a
+   * customer needs to read their own bill — never tenant plan/billing internals.
+   */
+  async findByShareToken(shareToken: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { shareToken, deletedAt: null, status: { notIn: ['DRAFT', 'VOID'] } },
+      select: {
+        invoiceNumber: true,
+        date: true,
+        dueDate: true,
+        status: true,
+        isAdvance: true,
+        discountAmount: true,
+        taxAmount: true,
+        subTotal: true,
+        totalAmount: true,
+        amountPaid: true,
+        amountDue: true,
+        notes: true,
+        customer: { select: { name: true, phone: true, address: true, gstin: true } },
+        items: {
+          select: {
+            name: true,
+            qty: true,
+            price: true,
+            taxRate: true,
+            discountRate: true,
+            hsnCode: true,
+            total: true,
+          },
+        },
+        tenant: {
+          select: {
+            name: true,
+            address: true,
+            phone: true,
+            email: true,
+            gstin: true,
+            logoUrl: true,
+            upiId: true,
+            googleReviewUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Bill not found or no longer available.');
     }
 
     return invoice;
@@ -287,6 +375,7 @@ export class InvoicesService {
           amountPaid,
           amountDue,
           notes,
+          shareToken: InvoicesService.newShareToken(),
 
           irn,
           ackNo,

@@ -60,6 +60,10 @@ model Tenant {
   invoiceTemplate String @default("CLASSIC")
   defaultNotes    String? // Printed at the end of every new bill
 
+  // WhatsApp bill sharing
+  googleReviewUrl  String? // Google review link used in the WhatsApp bill message
+  whatsappTemplate String? // Custom WhatsApp message template (placeholders: {customer} {amount} {billLink} {review} {phone} {business} {invoiceNo})
+
   // Gating Toggles
   billingEnabled   Boolean @default(true)
   productsEnabled  Boolean @default(true)
@@ -235,6 +239,7 @@ model Invoice {
   amountPaid     Float         @default(0)
   amountDue      Float         @default(0)
   notes          String?
+  shareToken     String?       @unique // public bill link token (/bill?s=<token>)
 
   // Advance Bill tracking & Auto-conversion
   isAdvance                  Boolean   @default(false)

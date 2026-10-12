@@ -9,6 +9,12 @@ import { useAuthStore } from '../store/authStore';
 import { parseNoteSections } from '../lib/noteSections';
 import { saveElementAsPdf } from '../lib/savePdf';
 import {
+  buildBillLink,
+  buildWhatsAppLink,
+  buildWhatsAppMessage,
+  toWhatsAppNumber,
+} from '../lib/whatsappBill';
+import {
   Plus,
   Trash2,
   Receipt,
@@ -25,6 +31,7 @@ import {
   Zap,
   AlertTriangle,
   Pencil,
+  MessageCircle,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from '../store/uiStore';
@@ -1039,6 +1046,49 @@ export default function BillingPage() {
     }
   };
 
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+  const handleSendWhatsApp = async () => {
+    if (!createdInvoice) return;
+
+    const phone = toWhatsAppNumber(createdInvoice.customer?.phone);
+    if (!phone) {
+      toast.error(
+        createdInvoice.customer?.phone
+          ? 'Customer ka phone number valid nahi hai. Customers page par theek karein.'
+          : 'Is customer ka phone number save nahi hai. Pehle number add karein.',
+      );
+      return;
+    }
+
+    setSendingWhatsApp(true);
+    try {
+      // Public bill link — generated on demand so older bills work too.
+      let billLink: string | null = null;
+      try {
+        const { shareToken } = await api.get(`/invoices/${createdInvoice.id}/share`);
+        billLink = buildBillLink(shareToken);
+      } catch (e) {
+        console.error('Could not create the public bill link:', e);
+      }
+
+      const message = buildWhatsAppMessage({
+        customerName: createdInvoice.customer?.name,
+        businessName: user?.tenant?.name,
+        businessPhone: user?.tenant?.phone,
+        invoiceNumber: createdInvoice.invoiceNumber,
+        totalAmount: createdInvoice.totalAmount,
+        amountDue: createdInvoice.amountDue,
+        billLink,
+        googleReviewUrl: user?.tenant?.googleReviewUrl,
+        template: user?.tenant?.whatsappTemplate,
+      });
+
+      window.open(buildWhatsAppLink(phone, message), '_blank', 'noopener,noreferrer');
+    } finally {
+      setSendingWhatsApp(false);
+    }
+  };
+
   // Opened from a list's download icon (?invoiceId=..&download=1): save the PDF once rendered
   useEffect(() => {
     if (!createdInvoice || typeof window === 'undefined') return;
@@ -1310,6 +1360,15 @@ export default function BillingPage() {
               >
                 <Download className="h-4 w-4" />
                 <span>{savingPdf ? 'Saving...' : 'Save Bill'}</span>
+              </button>
+              <button
+                onClick={handleSendWhatsApp}
+                disabled={sendingWhatsApp}
+                title="Customer ke WhatsApp par bill bhejein"
+                className="flex items-center gap-2 rounded-lg bg-[#25D366] px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-[#1ebe5b] disabled:opacity-60"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>{sendingWhatsApp ? 'Opening...' : 'Send on WhatsApp'}</span>
               </button>
               <button
                 onClick={resetBilling}

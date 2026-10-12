@@ -29,6 +29,8 @@ interface User {
     bankIfsc?: string;
     upiId?: string;
     defaultNotes?: string | null;
+    googleReviewUrl?: string | null;
+    whatsappTemplate?: string | null;
     billingEnabled?: boolean;
     productsEnabled?: boolean;
     paymentsEnabled?: boolean;
