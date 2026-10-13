@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { api } from '../lib/api';
@@ -8,68 +9,40 @@ import { useAuthStore } from '../store/authStore';
 import { canManageBusiness } from '../lib/manageBusiness';
 import {
   Building2,
-  IndianRupee,
-  Users,
-  FileText,
-  ShoppingBag,
-  Package,
-  Trash2,
-  Zap,
+  Search,
+  RefreshCw,
+  ChevronRight,
   Eye,
-  CheckCircle2,
-  XCircle,
-  Wallet,
-  AlertTriangle,
+  Users,
+  IndianRupee,
+  Zap,
+  BellRing,
 } from 'lucide-react';
 
-interface OverviewUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  isActive: boolean;
-  createdAt: string;
-}
-
-interface Overview {
+interface Tenant {
   id: string;
   name: string;
   slug: string;
-  plan: string;
-  subscriptionStatus: string;
-  planExpiresAt?: string | null;
-  maxFreeInvoices: number;
-  maxUsers: number;
-  upgradeRequested: boolean;
-  gstin?: string | null;
-  stateCode?: string | null;
-  address?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  businessType: string;
-  trackInventory: boolean;
-  invoicePrefix: string;
-  purchasePrefix: string;
-  advancePrefix: string;
-  dueDays: number;
-  billingEnabled: boolean;
-  productsEnabled: boolean;
-  paymentsEnabled: boolean;
-  reportsEnabled: boolean;
-  purchasesEnabled: boolean;
+  plan: 'FREE' | 'BASIC' | 'STARTER' | 'PRO' | 'ENTERPRISE';
+  subscriptionStatus?: string;
+  maxFreeInvoices?: number;
+  upgradeRequested?: boolean;
+  daysRemaining?: number | null;
+  isExpired?: boolean;
+  email: string | null;
+  phone: string | null;
   createdAt: string;
-  users: OverviewUser[];
-  _count: {
-    invoices: number;
-    purchaseInvoices: number;
-    customers: number;
-    products: number;
-  };
-  totalBilled: number;
-  totalCollected: number;
-  totalOutstanding: number;
-  totalPurchased: number;
-  deletedInvoices: number;
+  deletedAt: string | null;
+  users?: { email: string; role: string }[];
+  _count: { users: number; invoices: number; customers: number; purchaseInvoices: number };
+}
+
+interface Stats {
+  totalTenants: number;
+  totalUsers: number;
+  totalRevenue: number;
+  upgradeRequestsPending: number;
+  planStats: Record<string, number>;
 }
 
 const currency = (val: number) =>
@@ -79,23 +52,42 @@ const currency = (val: number) =>
     maximumFractionDigits: 0,
   }).format(val || 0);
 
-const longDate = (val?: string | null) =>
+const shortDate = (val?: string | null) =>
   val
-    ? new Date(val).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
+    ? new Date(val).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
+
+const planClass = (plan: string) =>
+  plan === 'FREE'
+    ? 'border-zinc-700 bg-zinc-800 text-zinc-300'
+    : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400';
 
 export default function ManageBusinessPage() {
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
-  const [data, setData] = useState<Overview | null>(null);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const allowed = canManageBusiness(user);
+
+  const load = useCallback(async () => {
+    try {
+      setError(null);
+      const [list, dash] = await Promise.all([
+        api.get('/platform/tenants'),
+        api.get('/platform/dashboard'),
+      ]);
+      setTenants(list);
+      setStats(dash);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load businesses.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -103,254 +95,180 @@ export default function ManageBusinessPage() {
       router.replace('/dashboard');
       return;
     }
-    api
-      .get('/business/overview')
-      .then((res: Overview) => setData(res))
-      .catch((err: Error) => setError(err.message || 'Failed to load the business overview.'))
-      .finally(() => setLoading(false));
-  }, [user, allowed, router]);
+    load();
+  }, [user, allowed, router, load]);
 
   if (!allowed) return null;
 
-  if (loading) {
-    return (
-      <SidebarLayout>
-        <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-800 border-t-emerald-500" />
-        </div>
-      </SidebarLayout>
-    );
-  }
+  const q = search.toLowerCase();
+  const filtered = tenants.filter(
+    (t) =>
+      t.name.toLowerCase().includes(q) ||
+      t.slug.toLowerCase().includes(q) ||
+      (t.email && t.email.toLowerCase().includes(q)) ||
+      t.users?.some((u) => u.email.toLowerCase().includes(q)),
+  );
 
-  if (error || !data) {
-    return (
-      <SidebarLayout>
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-300">
-          {error}
-        </div>
-      </SidebarLayout>
-    );
-  }
-
-  const stats = [
-    { label: 'Total Billed', value: currency(data.totalBilled), icon: IndianRupee, color: 'text-emerald-400' },
-    { label: 'Collected', value: currency(data.totalCollected), icon: Wallet, color: 'text-emerald-400' },
-    { label: 'Outstanding', value: currency(data.totalOutstanding), icon: AlertTriangle, color: 'text-amber-400' },
-    { label: 'Total Purchased', value: currency(data.totalPurchased), icon: ShoppingBag, color: 'text-sky-400' },
-    { label: 'Invoices', value: data._count.invoices, icon: FileText, color: 'text-sky-400' },
-    { label: 'Purchase Invoices', value: data._count.purchaseInvoices, icon: ShoppingBag, color: 'text-amber-400' },
-    { label: 'Customers', value: data._count.customers, icon: Users, color: 'text-violet-400' },
-    { label: 'Products', value: data._count.products, icon: Package, color: 'text-violet-400' },
-    { label: 'Users', value: data.users.length, icon: Users, color: 'text-sky-400' },
-    { label: 'Deleted Bills', value: data.deletedInvoices, icon: Trash2, color: 'text-red-400' },
-  ];
-
-  const features = [
-    { label: 'Billing Engine', on: data.billingEnabled },
-    { label: 'Products & Inventory', on: data.productsEnabled },
-    { label: 'Payments', on: data.paymentsEnabled },
-    { label: 'Reports', on: data.reportsEnabled },
-    { label: 'Purchase Invoices', on: data.purchasesEnabled },
-  ];
-
-  const planExpired =
-    !!data.planExpiresAt && new Date(data.planExpiresAt).getTime() < Date.now();
+  const statCards = stats
+    ? [
+        { label: 'Businesses', value: stats.totalTenants, icon: Building2, color: 'text-emerald-400' },
+        { label: 'Users', value: stats.totalUsers, icon: Users, color: 'text-sky-400' },
+        { label: 'Total Revenue', value: currency(stats.totalRevenue), icon: IndianRupee, color: 'text-emerald-400' },
+        { label: 'Upgrade Requests', value: stats.upgradeRequestsPending, icon: BellRing, color: 'text-amber-400' },
+        { label: 'Paid Plans', value: stats.totalTenants - (stats.planStats?.FREE || 0), icon: Zap, color: 'text-violet-400' },
+      ]
+    : [];
 
   return (
     <SidebarLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-white">{data.name}</h1>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                {data.slug} · Joined {longDate(data.createdAt)}
-              </p>
-            </div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-white">
+              <Building2 className="h-7 w-7 text-emerald-400" /> Manage Business
+            </h1>
+            <p className="mt-1 text-sm text-zinc-400">
+              Platform par registered sabhi businesses. Naya business register hote hi yahan aa jayega.
+            </p>
           </div>
-          <span className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-            <Eye className="h-3.5 w-3.5" />
-            View only
-          </span>
+          <div className="flex items-center gap-2 self-start">
+            <span className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+              <Eye className="h-3.5 w-3.5" /> View only
+            </span>
+            <button
+              onClick={() => {
+                setLoading(true);
+                load();
+              }}
+              className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
+            >
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </button>
+          </div>
         </div>
 
-        <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 text-[11px] leading-relaxed text-zinc-400">
-          Ye section sirf dekhne ke liye hai — yahan se kuch badla nahi ja sakta. Plan, limits
-          aur feature access platform admin manage karte hain. Business details badalne ke liye{' '}
-          <span className="font-semibold text-zinc-300">Business Settings</span> use karein.
-        </p>
+        {error && (
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+            {error}
+          </div>
+        )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {stats.map((s) => (
-            <div key={s.label} className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                  {s.label}
-                </p>
-                <s.icon className={`h-4 w-4 ${s.color}`} />
-              </div>
-              <p className="mt-2 text-lg font-bold text-white">{s.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-5 lg:grid-cols-2">
-          {/* Plan */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h2 className="flex items-center gap-2 font-bold text-white">
-              <Zap className="h-5 w-5 text-emerald-400" /> Subscription Plan
-            </h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <dt className="text-zinc-400">Plan</dt>
-                <dd className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400">
-                  {data.plan}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-zinc-400">Status</dt>
-                <dd
-                  className={`font-semibold ${
-                    planExpired ? 'text-red-400' : 'text-zinc-200'
-                  }`}
-                >
-                  {planExpired ? 'EXPIRED' : data.subscriptionStatus}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-zinc-400">Valid till</dt>
-                <dd className="font-semibold text-zinc-200">{longDate(data.planExpiresAt)}</dd>
-              </div>
-              {data.plan === 'FREE' && (
+        {/* Platform stats */}
+        {statCards.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {statCards.map((s) => (
+              <div key={s.label} className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
                 <div className="flex items-center justify-between">
-                  <dt className="text-zinc-400">Free bills used</dt>
-                  <dd className="font-mono font-bold text-zinc-200">
-                    {data._count.invoices}/{data.maxFreeInvoices}
-                  </dd>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                    {s.label}
+                  </p>
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
                 </div>
-              )}
-              <div className="flex items-center justify-between">
-                <dt className="text-zinc-400">Team users allowed</dt>
-                <dd className="font-mono font-bold text-zinc-200">
-                  {data.users.filter((u) => u.role === 'USER').length}/{data.maxUsers}
-                </dd>
+                <p className="mt-2 text-lg font-bold text-white">{s.value}</p>
               </div>
-              {data.upgradeRequested && (
-                <div className="flex items-center justify-between">
-                  <dt className="text-zinc-400">Upgrade request</dt>
-                  <dd className="font-semibold text-amber-400">Pending with admin</dd>
-                </div>
-              )}
-            </dl>
+            ))}
           </div>
+        )}
 
-          {/* Features */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h2 className="font-bold text-white">Module Access</h2>
-            <p className="mt-1 text-[11px] text-zinc-500">Platform admin dwara control kiya jata hai.</p>
-            <ul className="mt-4 space-y-2.5 text-sm">
-              {features.map((f) => (
-                <li key={f.label} className="flex items-center justify-between">
-                  <span className="text-zinc-300">{f.label}</span>
-                  {f.on ? (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                      <CheckCircle2 className="h-4 w-4" /> Enabled
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500">
-                      <XCircle className="h-4 w-4" /> Disabled
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Business details */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h2 className="font-bold text-white">Business Details</h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              {[
-                ['GSTIN', data.gstin],
-                ['State Code', data.stateCode],
-                ['Phone', data.phone],
-                ['Email', data.email],
-                ['Address', data.address],
-                ['Business Type', data.businessType],
-                ['Inventory Tracking', data.trackInventory ? 'On' : 'Off'],
-              ].map(([label, val]) => (
-                <div key={label as string} className="flex items-start justify-between gap-4">
-                  <dt className="shrink-0 text-zinc-400">{label}</dt>
-                  <dd className="text-right font-medium text-zinc-200">{val || '—'}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          {/* Numbering */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h2 className="font-bold text-white">Bill Numbering</h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              {[
-                ['Invoice Prefix', data.invoicePrefix],
-                ['Advance Prefix', data.advancePrefix],
-                ['Purchase Prefix', data.purchasePrefix],
-                ['Payment Due Days', String(data.dueDays)],
-              ].map(([label, val]) => (
-                <div key={label} className="flex items-center justify-between">
-                  <dt className="text-zinc-400">{label}</dt>
-                  <dd className="font-mono font-semibold text-zinc-200">{val || '—'}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3.5 top-3 h-4 w-4 text-zinc-500" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by business name, slug or email..."
+            className="w-full rounded-xl border border-zinc-800 bg-zinc-900 py-2.5 pl-10 pr-4 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+          />
         </div>
 
-        {/* Users */}
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-          <h2 className="font-bold text-white">Users ({data.users.length})</h2>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-zinc-800 text-[10px] uppercase tracking-wider text-zinc-500">
-                  <th className="pb-2 pr-3 font-bold">Name</th>
-                  <th className="pb-2 pr-3 font-bold">Email</th>
-                  <th className="pb-2 pr-3 font-bold">Role</th>
-                  <th className="pb-2 pr-3 font-bold">Status</th>
-                  <th className="pb-2 font-bold">Joined</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.users.map((u) => (
-                  <tr key={u.id} className="border-b border-zinc-800/60">
-                    <td className="py-2.5 pr-3 font-semibold text-zinc-200">{u.name}</td>
-                    <td className="py-2.5 pr-3 text-zinc-400">{u.email}</td>
-                    <td className="py-2.5 pr-3">
-                      <span className="rounded-full border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-300">
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      <span
-                        className={`text-xs font-semibold ${
-                          u.isActive ? 'text-emerald-400' : 'text-zinc-500'
-                        }`}
-                      >
-                        {u.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-zinc-400">{longDate(u.createdAt)}</td>
+        {/* List */}
+        <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          {loading ? (
+            <div className="flex h-40 items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-800 border-t-emerald-500" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-[10px] uppercase tracking-wider text-zinc-500">
+                    <th className="py-3 pl-5 font-bold">Business</th>
+                    <th className="py-3 font-bold">Owner Login</th>
+                    <th className="py-3 font-bold">Plan</th>
+                    <th className="py-3 text-center font-bold">Users</th>
+                    <th className="py-3 text-center font-bold">Clients</th>
+                    <th className="py-3 text-center font-bold">Bills</th>
+                    <th className="py-3 font-bold">Joined</th>
+                    <th className="py-3 pr-5" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-10 text-center text-sm text-zinc-500">
+                        {search ? 'Is search se koi business nahi mila.' : 'Abhi koi business nahi hai.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((t) => {
+                      const owner = t.users?.find((u) => u.role === 'ADMIN')?.email || t.email || '—';
+                      return (
+                        <tr
+                          key={t.id}
+                          className="border-b border-zinc-800/60 transition hover:bg-zinc-800/30"
+                        >
+                          <td className="py-3 pl-5">
+                            <p className="font-semibold text-white">{t.name}</p>
+                            <p className="text-[11px] text-zinc-500">{t.slug}</p>
+                          </td>
+                          <td className="py-3 text-zinc-400">{owner}</td>
+                          <td className="py-3">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${planClass(t.plan)}`}
+                              >
+                                {t.plan}
+                              </span>
+                              {t.subscriptionStatus === 'EXPIRED' && (
+                                <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-400">
+                                  Expired
+                                </span>
+                              )}
+                              {t.upgradeRequested && (
+                                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                                  Upgrade Req
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 text-center font-mono text-zinc-300">{t._count.users}</td>
+                          <td className="py-3 text-center font-mono text-zinc-300">{t._count.customers}</td>
+                          <td className="py-3 text-center font-mono text-zinc-300">{t._count.invoices}</td>
+                          <td className="py-3 text-zinc-400">{shortDate(t.createdAt)}</td>
+                          <td className="py-3 pr-5 text-right">
+                            <Link
+                              href={`/manage-business/${t.id}`}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300"
+                            >
+                              View <ChevronRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
+
+        <p className="text-[11px] text-zinc-500">
+          Ye section sirf dekhne ke liye hai — plan, limits aur feature access platform admin
+          manage karte hain.
+        </p>
       </div>
     </SidebarLayout>
   );

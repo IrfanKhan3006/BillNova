@@ -135,15 +135,6 @@ export class BusinessController {
     return this.businessService.getProfile(user.tenantId);
   }
 
-  @Roles(Role.ADMIN)
-  @Get('overview')
-  @ApiOperation({
-    summary: 'Apne business ka read-only overview (admin-style figures) dekho',
-  })
-  async getOverview(@CurrentUser() user: any) {
-    return this.businessService.getOverview(user.tenantId);
-  }
-
   @Get('plan')
   @ApiOperation({ summary: 'Current business plan and bill usage metrics dekho' })
   async getPlanStatus(@CurrentUser() user: any) {

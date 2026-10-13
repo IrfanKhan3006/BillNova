@@ -12,6 +12,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { PlatformModule } from './modules/platform/platform.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 
@@ -36,6 +37,7 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
     DashboardModule,
     ReportsModule,
     AdminModule,
+    PlatformModule,
   ],
 })
 export class AppModule {}
