@@ -53,6 +53,93 @@ export class BusinessService {
     return tenant;
   }
 
+  /**
+   * Read-only, admin-style overview of the caller's OWN business: the same
+   * figures the platform admin sees on a business, with none of the controls.
+   * Everything here is the tenant's own data, and nothing is writable.
+   */
+  async getOverview(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        plan: true,
+        subscriptionStatus: true,
+        planExpiresAt: true,
+        maxFreeInvoices: true,
+        maxUsers: true,
+        upgradeRequested: true,
+        upgradeRequestedAt: true,
+        gstin: true,
+        stateCode: true,
+        address: true,
+        phone: true,
+        email: true,
+        businessType: true,
+        trackInventory: true,
+        invoicePrefix: true,
+        purchasePrefix: true,
+        advancePrefix: true,
+        dueDays: true,
+        billingEnabled: true,
+        productsEnabled: true,
+        paymentsEnabled: true,
+        reportsEnabled: true,
+        purchasesEnabled: true,
+        createdAt: true,
+        users: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+        _count: {
+          select: {
+            invoices: { where: { deletedAt: null } },
+            purchaseInvoices: true,
+            customers: true,
+            products: true,
+          },
+        },
+      },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Business profile not found.');
+    }
+
+    const [billed, deletedInvoices, collected] = await Promise.all([
+      this.prisma.invoice.aggregate({
+        where: { tenantId, deletedAt: null },
+        _sum: { totalAmount: true, amountPaid: true, amountDue: true },
+      }),
+      this.prisma.invoice.count({
+        where: { tenantId, deletedAt: { not: null } },
+      }),
+      this.prisma.purchaseInvoice.aggregate({
+        where: { tenantId, deletedAt: null },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return {
+      ...tenant,
+      totalBilled: billed._sum.totalAmount || 0,
+      totalCollected: billed._sum.amountPaid || 0,
+      totalOutstanding: billed._sum.amountDue || 0,
+      totalPurchased: collected._sum.totalAmount || 0,
+      deletedInvoices,
+    };
+  }
+
   async updateProfile(tenantId: string, updateData: any) {
     // Only allow updating certain fields
     const {

@@ -27,8 +27,10 @@ import {
   Wallet,
   UserPlus,
   FileText,
+  Building2,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import { canManageBusiness } from '../lib/manageBusiness';
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -59,6 +61,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     { name: 'Payments', href: '/payments', icon: CreditCard, featureKey: 'paymentsEnabled' as const },
     { name: 'Reports', href: '/reports', icon: BarChart3, featureKey: 'reportsEnabled' as const },
     { name: 'Team Users', href: '/team', icon: UserPlus, adminOnly: true },
+    { name: 'Manage Business', href: '/manage-business', icon: Building2, manageBusinessOnly: true },
     { name: 'Business Settings', href: '/business', icon: Settings },
   ];
 
@@ -69,6 +72,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
   // Only show modules enabled on the tenant's plan (Super Admin sees all)
   const visibleNavItems = navItems.filter((item) => {
+    // Checked before the Super Admin pass-through: they have /admin already.
+    if ((item as any).manageBusinessOnly) return canManageBusiness(user);
     if (user?.role === 'SUPER_ADMIN') return true;
     if (user?.role === 'USER' && !USER_PATHS.includes(item.href)) return false;
     if ((item as any).adminOnly && (user?.role !== 'ADMIN' || !isPaidPlanActive)) return false;
