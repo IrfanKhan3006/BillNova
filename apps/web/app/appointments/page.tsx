@@ -6,7 +6,6 @@ import SidebarLayout from '../components/SidebarLayout';
 import { api } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/uiStore';
-import { hasAppointments } from '../lib/appointments';
 import {
   buildAppointmentMessage,
   buildWhatsAppLink,
@@ -97,8 +96,6 @@ export default function AppointmentsPage() {
     notes: '',
   });
 
-  const allowed = hasAppointments(user);
-
   const load = useCallback(async () => {
     try {
       setError(null);
@@ -115,14 +112,8 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     if (!user) return;
-    if (!allowed) {
-      router.replace('/dashboard');
-      return;
-    }
     load();
-  }, [user, allowed, router, load]);
-
-  if (!allowed) return null;
+  }, [user, load]);
 
   /** Opens WhatsApp with the confirmation message ready to send. */
   const sendWhatsApp = (appt: Appointment) => {

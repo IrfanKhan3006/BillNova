@@ -48,7 +48,8 @@ export default function ProductsPage() {
   const isStockTrackingEnabled =
     user?.tenant?.trackInventory !== false &&
     user?.tenant?.businessType !== 'SERVICES_TRAVEL' &&
-    user?.tenant?.businessType !== 'SERVICES_GENERAL';
+    user?.tenant?.businessType !== 'SERVICES_GENERAL' &&
+    user?.tenant?.businessType !== 'SALOON';
   
   const [search, setSearch] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');

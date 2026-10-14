@@ -32,12 +32,12 @@ export default function RootLayout({
             __html: `
               try {
                 var stored = localStorage.getItem('billnova_theme');
-                if (stored === 'LIGHT') {
-                  document.documentElement.classList.remove('dark');
-                  document.documentElement.classList.add('light');
-                } else {
+                if (stored === 'DARK') {
                   document.documentElement.classList.remove('light');
                   document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                  document.documentElement.classList.add('light');
                 }
               } catch (e) {}
             `,

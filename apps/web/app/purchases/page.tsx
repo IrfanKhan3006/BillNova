@@ -162,7 +162,8 @@ export default function PurchasesPage() {
   const isStockTrackingEnabled =
     user?.tenant?.trackInventory !== false &&
     !isTravel &&
-    user?.tenant?.businessType !== 'SERVICES_GENERAL';
+    user?.tenant?.businessType !== 'SERVICES_GENERAL' &&
+    user?.tenant?.businessType !== 'SALOON';
 
   // Tax Mode: Intra-state (CGST + SGST) vs Inter-state (IGST)
   const [taxMode, setTaxMode] = useState<'INTRA' | 'INTER'>('INTRA');

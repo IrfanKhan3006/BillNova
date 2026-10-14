@@ -11,7 +11,6 @@ import { useSubscriptionStore } from '../store/subscriptionStore';
 import { parseNoteSections, composeNoteSections, NoteSection } from '../lib/noteSections';
 import { DEFAULT_WHATSAPP_TEMPLATE, WHATSAPP_PLACEHOLDERS } from '../lib/whatsappBill';
 import { DEFAULT_APPOINTMENT_TEMPLATE, APPOINTMENT_PLACEHOLDERS } from '../lib/whatsappAppointment';
-import { hasAppointments } from '../lib/appointments';
 
 export default function BusinessSettingsPage() {
   const { updateUserTenant } = useAuthStore();
@@ -638,7 +637,7 @@ export default function BusinessSettingsPage() {
                 </div>
 
                 {/* Appointment confirmation — salon-style businesses only */}
-                {hasAppointments(user) && (
+                {(
                   <div className="md:col-span-2 space-y-4 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
                     <div>
                       <h3 className="text-sm font-bold text-white">Appointment Confirmation Message</h3>

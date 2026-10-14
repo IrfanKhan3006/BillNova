@@ -32,7 +32,6 @@ import {
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { canManageBusiness } from '../lib/manageBusiness';
-import { hasAppointments } from '../lib/appointments';
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -58,7 +57,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     { name: 'Invoices', href: '/invoices', icon: FileText, featureKey: 'billingEnabled' as const },
     { name: 'Advance Bills', href: '/advance-bills', icon: Clock, featureKey: 'billingEnabled' as const },
     { name: 'Purchase Invoices', href: '/purchases', icon: ShoppingBag, featureKey: 'purchasesEnabled' as const },
-    { name: 'Appointments', href: '/appointments', icon: CalendarClock, appointmentsOnly: true },
+    { name: 'Appointments', href: '/appointments', icon: CalendarClock },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Products & Inventory', href: '/products', icon: Package, featureKey: 'productsEnabled' as const },
     { name: 'Payments', href: '/payments', icon: CreditCard, featureKey: 'paymentsEnabled' as const },
@@ -71,12 +70,20 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   // Team users are unlocked once a paid plan is active (not during the free trial).
   const isPaidPlanActive =
     !!planStatus && planStatus.plan !== 'FREE' && !planStatus.isExpired;
-  const USER_PATHS = ['/dashboard', '/billing', '/invoices', '/purchases'];
+  // What a team (sub) user may open. Everything else is ADMIN-only.
+  const USER_PATHS = [
+    '/dashboard',
+    '/billing',
+    '/invoices',
+    '/purchases',
+    '/advance-bills',
+    '/customers',
+    '/products',
+  ];
 
   // Only show modules enabled on the tenant's plan (Super Admin sees all)
   const visibleNavItems = navItems.filter((item) => {
     // Checked before the Super Admin pass-through: they have /admin already.
-    if ((item as any).appointmentsOnly) return hasAppointments(user);
     if ((item as any).manageBusinessOnly) return canManageBusiness(user);
     if (user?.role === 'SUPER_ADMIN') return true;
     if (user?.role === 'USER' && !USER_PATHS.includes(item.href)) return false;

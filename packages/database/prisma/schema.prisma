@@ -75,7 +75,7 @@ model Tenant {
   // Business Type & Inventory Setting
   businessType     String  @default("RETAIL") // "RETAIL", "SERVICES_TRAVEL", "WHOLESALE", "MANUFACTURING", "SERVICES_GENERAL"
   trackInventory   Boolean @default(true)
-  theme            String  @default("DARK")   // "DARK", "LIGHT"
+  theme            String  @default("LIGHT")  // "LIGHT", "DARK"
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
