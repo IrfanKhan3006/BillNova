@@ -96,7 +96,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     <div className="flex min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/30 backdrop-blur-md sticky top-0 h-screen p-4 justify-between no-print z-20">
-        <div className="flex flex-col gap-8">
+        <div className="flex min-h-0 flex-col gap-5">
           {/* Logo / Title */}
           <div className="flex items-center gap-3 px-2 py-1">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-zinc-950 font-bold text-lg shadow-sm">
@@ -109,7 +109,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex flex-col gap-1.5">
+          <nav className="-mr-1 flex min-h-0 flex-col gap-0.5 overflow-y-auto pr-1">
             {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -117,7 +117,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 font-semibold shadow-xs'
                       : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800/30 border border-transparent'
@@ -132,7 +132,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         </div>
 
         {/* User Card & Logout */}
-        <div className="flex flex-col gap-3 border-t border-zinc-200 dark:border-zinc-800/80 pt-4 pb-6">
+        <div className="mt-3 flex shrink-0 flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800/80 pt-3 pb-2">
           <div className="flex items-center gap-3 px-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
               <UserIcon className="h-4 w-4" />
@@ -179,7 +179,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
             
             <aside className="relative flex w-64 flex-col bg-zinc-900 border-r border-zinc-800 p-4 justify-between h-full z-40">
-              <div className="flex flex-col gap-8">
+              <div className="flex min-h-0 flex-col gap-5">
                 <div className="flex items-center justify-between px-2">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-zinc-950 font-bold text-md">
@@ -192,7 +192,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   </button>
                 </div>
 
-                <nav className="flex flex-col gap-1">
+                <nav className="-mr-1 flex min-h-0 flex-col gap-0.5 overflow-y-auto pr-1">
                   {visibleNavItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
@@ -201,7 +201,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition ${
                           isActive
                             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                             : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
