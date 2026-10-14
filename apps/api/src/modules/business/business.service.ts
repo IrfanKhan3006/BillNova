@@ -39,6 +39,7 @@ export class BusinessService {
         defaultNotes: true,
         googleReviewUrl: true,
         whatsappTemplate: true,
+        appointmentTemplate: true,
         businessType: true,
         trackInventory: true,
         theme: true,
@@ -75,6 +76,7 @@ export class BusinessService {
       defaultNotes,
       googleReviewUrl,
       whatsappTemplate,
+      appointmentTemplate,
       theme,
     } = updateData;
 
@@ -100,6 +102,7 @@ export class BusinessService {
         defaultNotes,
         googleReviewUrl,
         whatsappTemplate,
+        appointmentTemplate,
         theme,
       },
     });

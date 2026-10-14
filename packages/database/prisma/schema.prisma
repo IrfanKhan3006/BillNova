@@ -63,6 +63,7 @@ model Tenant {
   // WhatsApp bill sharing
   googleReviewUrl  String? // Google review link used in the WhatsApp bill message
   whatsappTemplate String? // Custom WhatsApp message template (placeholders: {customer} {amount} {billLink} {review} {phone} {business} {invoiceNo})
+  appointmentTemplate String? // WhatsApp appointment confirmation template (placeholders: {customer} {date} {time} {service} {staff} {phone} {business})
 
   // Gating Toggles
   billingEnabled   Boolean @default(true)
@@ -91,6 +92,7 @@ model Tenant {
   purchaseInvoices  PurchaseInvoice[]
   purchasePayments  PurchasePayment[]
   enquiries         Enquiry[]
+  appointments      Appointment[]
 
   @@map("tenants")
 }
@@ -165,9 +167,10 @@ model Customer {
   updatedAt          DateTime  @updatedAt
   deletedAt          DateTime?
 
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-  invoices  Invoice[]
-  payments  Payment[]
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  invoices     Invoice[]
+  payments     Payment[]
+  appointments Appointment[]
 
   @@map("customers")
 }
@@ -442,4 +445,37 @@ model PurchasePayment {
   purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
 
   @@map("purchase_payments")
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+/// A manually booked appointment (salon-style businesses).
+model Appointment {
+  id          String            @id @default(uuid())
+  tenantId    String
+  customerId  String
+  service     String
+  staffName   String?
+  /// Date and start time of the appointment, stored together.
+  startsAt    DateTime
+  status      AppointmentStatus @default(SCHEDULED)
+  notes       String?
+  createdById String?
+  /// Set once a bill has been raised from this appointment.
+  invoiceId   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([tenantId, startsAt])
+  @@map("appointments")
 }

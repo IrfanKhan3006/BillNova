@@ -13,6 +13,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { PlatformModule } from './modules/platform/platform.module';
+import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 
@@ -38,6 +39,7 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
     ReportsModule,
     AdminModule,
     PlatformModule,
+    AppointmentsModule,
   ],
 })
 export class AppModule {}

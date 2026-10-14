@@ -10,9 +10,12 @@ import { toast } from '../store/uiStore';
 import { useSubscriptionStore } from '../store/subscriptionStore';
 import { parseNoteSections, composeNoteSections, NoteSection } from '../lib/noteSections';
 import { DEFAULT_WHATSAPP_TEMPLATE, WHATSAPP_PLACEHOLDERS } from '../lib/whatsappBill';
+import { DEFAULT_APPOINTMENT_TEMPLATE, APPOINTMENT_PLACEHOLDERS } from '../lib/whatsappAppointment';
+import { hasAppointments } from '../lib/appointments';
 
 export default function BusinessSettingsPage() {
   const { updateUserTenant } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const { planStatus, openUpgradeModal, fetchPlanStatus } = useSubscriptionStore();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -39,6 +42,7 @@ export default function BusinessSettingsPage() {
     defaultNotes: '',
     googleReviewUrl: '',
     whatsappTemplate: '',
+    appointmentTemplate: '',
     customHeaderUrl: '',
   });
 
@@ -66,6 +70,7 @@ export default function BusinessSettingsPage() {
           defaultNotes: res.defaultNotes || '',
           googleReviewUrl: res.googleReviewUrl || '',
           whatsappTemplate: res.whatsappTemplate || '',
+          appointmentTemplate: res.appointmentTemplate || '',
           customHeaderUrl: res.customHeaderUrl || '',
         });
       } catch (err: any) {
@@ -162,6 +167,7 @@ export default function BusinessSettingsPage() {
         defaultNotes: res.defaultNotes,
         googleReviewUrl: res.googleReviewUrl,
         whatsappTemplate: res.whatsappTemplate,
+        appointmentTemplate: res.appointmentTemplate,
         customHeaderUrl: res.customHeaderUrl,
         address: res.address,
         phone: res.phone,
@@ -630,6 +636,35 @@ export default function BusinessSettingsPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* Appointment confirmation — salon-style businesses only */}
+                {hasAppointments(user) && (
+                  <div className="md:col-span-2 space-y-4 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white">Appointment Confirmation Message</h3>
+                      <p className="mt-1 text-[11px] text-zinc-400">
+                        Appointment book karte hi WhatsApp par ye message bheja jata hai.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-zinc-300">Message Template</label>
+                      <textarea
+                        name="appointmentTemplate"
+                        value={form.appointmentTemplate}
+                        onChange={handleChange}
+                        rows={11}
+                        placeholder={DEFAULT_APPOINTMENT_TEMPLATE}
+                        className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none font-mono text-xs leading-relaxed"
+                      />
+                      <p className="mt-1.5 text-[11px] text-zinc-500">
+                        Leave empty to use the default shown above. Placeholders:{' '}
+                        {APPOINTMENT_PLACEHOLDERS.map((ph) => (
+                          <code key={ph} className="mr-1 rounded bg-zinc-800 px-1 py-0.5 text-[10px] text-sky-300">{ph}</code>
+                        ))}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

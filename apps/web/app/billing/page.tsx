@@ -554,6 +554,18 @@ export default function BillingPage() {
               termsOfDelivery: fullInvoice.termsOfDelivery || '',
               vehicleNumber: fullInvoice.vehicleNumber || '',
             });
+          } else {
+            // Opened from an appointment's "Create Bill": prefill the customer
+            // and put the booked service in as the first line item.
+            const prefillCustomerId = urlParams.get('customerId');
+            const prefillItemName = urlParams.get('itemName');
+            if (prefillCustomerId) setSelectedCustomerId(prefillCustomerId);
+            if (prefillItemName) {
+              setItems((prev) => [
+                { ...prev[0], name: prefillItemName },
+                ...prev.slice(1),
+              ]);
+            }
           }
         }
       } catch (err) {
@@ -1025,6 +1037,25 @@ export default function BillingPage() {
       window.history.replaceState({}, '', window.location.pathname);
     }
   };
+
+  // A bill raised from an appointment marks that appointment as billed, so the
+  // Appointments list shows it was settled. A failure here must not break the
+  // bill that was already created.
+  useEffect(() => {
+    if (!createdInvoice || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const appointmentId = params.get('appointmentId');
+    if (!appointmentId) return;
+    params.delete('appointmentId');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    api
+      .patch(`/appointments/${appointmentId}`, {
+        invoiceId: createdInvoice.id,
+        status: 'COMPLETED',
+      })
+      .catch((e) => console.error('Could not mark the appointment as billed:', e));
+  }, [createdInvoice]);
 
   const handlePrint = () => {
     window.print();

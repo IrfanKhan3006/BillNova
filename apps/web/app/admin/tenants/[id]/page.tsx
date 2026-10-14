@@ -139,7 +139,8 @@ export default function TenantDetailPage({ params }: PageProps) {
 
   const handleBusinessType = (type: string) => {
     const payload: any = { businessType: type };
-    if (type === 'SERVICES_TRAVEL' || type === 'SERVICES_GENERAL') payload.trackInventory = false;
+    if (type === 'SERVICES_TRAVEL' || type === 'SERVICES_GENERAL' || type === 'SALOON')
+      payload.trackInventory = false;
     patchTenant(payload, 'Business model updated.');
   };
 
@@ -500,6 +501,7 @@ export default function TenantDetailPage({ params }: PageProps) {
                   <option value="RETAIL" className="bg-zinc-950 text-white">🛒 Rashan / Grocery / Retail</option>
                   <option value="SERVICES_TRAVEL" className="bg-zinc-950 text-white">✈️ Tourist / Travel / Packages</option>
                   <option value="WHOLESALE" className="bg-zinc-950 text-white">📦 Wholesale / Distribution</option>
+                  <option value="SALOON" className="bg-zinc-950 text-white">💇 Saloon / Spa / Appointments</option>
                   <option value="SERVICES_GENERAL" className="bg-zinc-950 text-white">🛠️ General Services / Agency</option>
                   <option value="MANUFACTURING" className="bg-zinc-950 text-white">🏭 Manufacturing</option>
                 </select>

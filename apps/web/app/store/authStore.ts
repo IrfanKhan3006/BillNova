@@ -31,6 +31,7 @@ interface User {
     defaultNotes?: string | null;
     googleReviewUrl?: string | null;
     whatsappTemplate?: string | null;
+    appointmentTemplate?: string | null;
     billingEnabled?: boolean;
     productsEnabled?: boolean;
     paymentsEnabled?: boolean;

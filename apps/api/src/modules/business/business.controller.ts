@@ -88,6 +88,10 @@ class UpdateBusinessDto {
 
   @IsOptional()
   @IsString()
+  appointmentTemplate?: string;
+
+  @IsOptional()
+  @IsString()
   theme?: string;
 }
 
