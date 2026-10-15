@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { IsString, IsOptional, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsIn, IsInt, Min } from 'class-validator';
 import { Role } from '@prisma/client';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -34,6 +34,11 @@ class CreateAppointmentDto {
   /** ISO date-time string for the appointment's start. */
   @IsString()
   startsAt: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  durationMins?: number;
 
   @IsOptional()
   @IsString()
@@ -60,6 +65,11 @@ class UpdateAppointmentDto {
   @IsOptional()
   @IsString()
   startsAt?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  durationMins?: number;
 
   @IsOptional()
   @IsString()

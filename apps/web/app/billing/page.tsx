@@ -1809,9 +1809,14 @@ export default function BillingPage() {
                         {(() => {
                           const upiId = (user as any)?.tenant?.upiId || '';
                           const businessName = user?.tenant?.name || '';
-                          const totalAmt = createdInvoice.totalAmount;
+                          // An advance bill's QR asks for the advance itself, not
+                          // the full value of the bill; a regular bill asks for
+                          // its total.
+                          const payAmt = createdInvoice.isAdvance
+                            ? createdInvoice.amountPaid || createdInvoice.totalAmount
+                            : createdInvoice.totalAmount;
                           // UPI URL structure: upi://pay?pa=upiId&pn=name&am=amount&cu=INR
-                          const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(businessName)}&am=${totalAmt}&cu=INR`;
+                          const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(businessName)}&am=${payAmt}&cu=INR`;
                           return (
                             <QRCodeSVG
                               value={upiUrl}

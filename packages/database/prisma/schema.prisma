@@ -463,6 +463,8 @@ model Appointment {
   staffName   String?
   /// Date and start time of the appointment, stored together.
   startsAt    DateTime
+  /// How long it is expected to take, used for the calendar entry's end time.
+  durationMins Int              @default(60)
   status      AppointmentStatus @default(SCHEDULED)
   notes       String?
   createdById String?

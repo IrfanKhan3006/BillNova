@@ -12,6 +12,11 @@ import {
   toWhatsAppNumber,
 } from '../lib/whatsappAppointment';
 import {
+  buildGoogleCalendarUrl,
+  endTimeLabel,
+  DURATION_OPTIONS,
+} from '../lib/googleCalendar';
+import {
   CalendarClock,
   Plus,
   MessageCircle,
@@ -21,6 +26,7 @@ import {
   CheckCircle2,
   Trash2,
   User,
+  CalendarPlus,
 } from 'lucide-react';
 
 interface Customer {
@@ -34,6 +40,7 @@ interface Appointment {
   service: string;
   staffName?: string | null;
   startsAt: string;
+  durationMins: number;
   status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
   notes?: string | null;
   invoiceId?: string | null;
@@ -93,6 +100,7 @@ export default function AppointmentsPage() {
     staffName: '',
     date: todayStr(),
     time: '10:00',
+    durationMins: 60,
     notes: '',
   });
 
@@ -140,6 +148,31 @@ export default function AppointmentsPage() {
     window.open(buildWhatsAppLink(phone, message), '_blank', 'noopener,noreferrer');
   };
 
+  /** Opens Google Calendar with the appointment filled in, ready to save. */
+  const addToCalendar = (appt: Appointment) => {
+    const details = [
+      `Customer: ${appt.customer.name}${appt.customer.phone ? ` (${appt.customer.phone})` : ''}`,
+      appt.staffName ? `With: ${appt.staffName}` : '',
+      appt.notes ? `Notes: ${appt.notes}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const url = buildGoogleCalendarUrl({
+      title: `${appt.service} — ${appt.customer.name}`,
+      startsAt: appt.startsAt,
+      durationMins: appt.durationMins,
+      details,
+      location: user?.tenant?.address || user?.tenant?.name || '',
+    });
+
+    if (!url) {
+      toast.error('Is appointment ki date/time theek nahi hai.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.customerId) {
@@ -147,7 +180,7 @@ export default function AppointmentsPage() {
       return;
     }
     if (!form.service.trim()) {
-      toast.error('Service ka naam likhein.');
+      toast.error('Appointment ka purpose / service likhein.');
       return;
     }
 
@@ -158,6 +191,7 @@ export default function AppointmentsPage() {
         service: form.service.trim(),
         staffName: form.staffName.trim() || undefined,
         startsAt: toIso(form.date, form.time),
+        durationMins: form.durationMins,
         notes: form.notes.trim() || undefined,
       });
       setAppointments((prev) =>
@@ -284,19 +318,19 @@ export default function AppointmentsPage() {
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
-                      Service *
+                      Purpose / Service *
                     </label>
                     <input
                       value={form.service}
                       onChange={(e) => setForm({ ...form, service: e.target.value })}
-                      placeholder="e.g. Hair Cut + Beard Trim"
+                      placeholder="e.g. Consultation, Site Visit, Hair Cut"
                       className="mt-1.5 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder-zinc-600"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
-                      Staff / Stylist
+                      Staff / Assigned To
                     </label>
                     <input
                       value={form.staffName}
@@ -306,7 +340,7 @@ export default function AppointmentsPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
                         Date *
@@ -328,6 +362,22 @@ export default function AppointmentsPage() {
                         onChange={(e) => setForm({ ...form, time: e.target.value })}
                         className="mt-1.5 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
+                        Duration
+                      </label>
+                      <select
+                        value={form.durationMins}
+                        onChange={(e) => setForm({ ...form, durationMins: Number(e.target.value) })}
+                        className="mt-1.5 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                      >
+                        {DURATION_OPTIONS.map((d) => (
+                          <option key={d.value} value={d.value}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -421,7 +471,7 @@ export default function AppointmentsPage() {
                       <div className="min-w-[200px] flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono text-sm font-bold text-emerald-500">
-                            {timeLabel(a.startsAt)}
+                            {timeLabel(a.startsAt)} – {endTimeLabel(a.startsAt, a.durationMins)}
                           </span>
                           <span
                             className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_STYLES[a.status]}`}
@@ -454,6 +504,13 @@ export default function AppointmentsPage() {
                           className="flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-bold text-zinc-950 hover:bg-[#1ebe5b]"
                         >
                           <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                        </button>
+                        <button
+                          onClick={() => addToCalendar(a)}
+                          title="Google Calendar mein save karein"
+                          className="flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-600 hover:bg-sky-500/20 dark:text-sky-400"
+                        >
+                          <CalendarPlus className="h-3.5 w-3.5" /> Calendar
                         </button>
                         {a.status === 'SCHEDULED' && (
                           <button

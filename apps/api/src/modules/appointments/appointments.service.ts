@@ -82,6 +82,7 @@ export class AppointmentsService {
         service: data.service.trim(),
         staffName: data.staffName?.trim() || null,
         startsAt,
+        durationMins: Number(data.durationMins) > 0 ? Number(data.durationMins) : 60,
         notes: data.notes?.trim() || null,
         status: data.status || 'SCHEDULED',
       },
@@ -109,6 +110,13 @@ export class AppointmentsService {
         throw new BadRequestException('Customer not found for this business.');
       }
       patch.customerId = data.customerId;
+    }
+    if (data.durationMins !== undefined) {
+      const mins = Number(data.durationMins);
+      if (!Number.isFinite(mins) || mins <= 0) {
+        throw new BadRequestException('Duration must be more than zero minutes.');
+      }
+      patch.durationMins = Math.round(mins);
     }
     if (data.startsAt !== undefined) {
       const startsAt = new Date(data.startsAt);
