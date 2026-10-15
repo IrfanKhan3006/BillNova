@@ -76,6 +76,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     '/billing',
     '/invoices',
     '/purchases',
+    '/appointments',
     '/advance-bills',
     '/customers',
     '/products',

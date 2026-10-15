@@ -11,6 +11,7 @@ const USER_PATHS = [
   '/billing',
   '/invoices',
   '/purchases',
+  '/appointments',
   '/advance-bills',
   '/customers',
   '/products',
