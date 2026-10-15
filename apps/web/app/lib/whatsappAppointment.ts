@@ -16,6 +16,7 @@ export const APPOINTMENT_PLACEHOLDERS = [
   '{date}',
   '{time}',
   '{phone}',
+  '{calendar}',
 ] as const;
 
 export const DEFAULT_APPOINTMENT_TEMPLATE = `Appointment Confirmed
@@ -25,6 +26,8 @@ Your appointment is confirmed for {date} at {time}.
 
 Service: {service}
 With: {staff}
+
+Add to your calendar: {calendar}
 
 To reschedule or cancel, please call us on {phone}.
 
@@ -39,6 +42,8 @@ export interface AppointmentMessageInput {
   staffName?: string | null;
   /** The appointment's start, as an ISO string or Date. */
   startsAt?: string | Date | null;
+  /** Google Calendar "add event" link the customer can tap to save it. */
+  calendarUrl?: string | null;
   template?: string | null;
 }
 
@@ -79,9 +84,16 @@ export function buildAppointmentMessage(input: AppointmentMessageInput): string 
     '{date}': formatDate(input.startsAt),
     '{time}': formatTime(input.startsAt),
     '{phone}': (input.businessPhone || '').trim(),
+    '{calendar}': (input.calendarUrl || '').trim(),
   };
 
-  const optional = new Set(['{staff}', '{phone}', '{business}', '{service}']);
+  const optional = new Set([
+    '{staff}',
+    '{phone}',
+    '{business}',
+    '{service}',
+    '{calendar}',
+  ]);
 
   const template = input.template?.trim() || DEFAULT_APPOINTMENT_TEMPLATE;
 

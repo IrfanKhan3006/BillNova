@@ -142,14 +142,20 @@ export default function AppointmentsPage() {
       service: appt.service,
       staffName: appt.staffName,
       startsAt: appt.startsAt,
+      calendarUrl: calendarUrlFor(appt),
       template: user?.tenant?.appointmentTemplate,
     });
 
     window.open(buildWhatsAppLink(phone, message), '_blank', 'noopener,noreferrer');
   };
 
-  /** Opens Google Calendar with the appointment filled in, ready to save. */
-  const addToCalendar = (appt: Appointment) => {
+  /**
+   * The Google Calendar "add event" link for an appointment. The same link
+   * serves both sides: the business opens it from the Calendar button, and the
+   * customer gets it in the WhatsApp message and saves it to their own
+   * calendar — it needs no account linking on either end.
+   */
+  const calendarUrlFor = (appt: Appointment) => {
     const details = [
       `Customer: ${appt.customer.name}${appt.customer.phone ? ` (${appt.customer.phone})` : ''}`,
       appt.staffName ? `With: ${appt.staffName}` : '',
@@ -158,13 +164,18 @@ export default function AppointmentsPage() {
       .filter(Boolean)
       .join('\n');
 
-    const url = buildGoogleCalendarUrl({
-      title: `${appt.service} — ${appt.customer.name}`,
+    return buildGoogleCalendarUrl({
+      title: `${appt.service} — ${user?.tenant?.name || appt.customer.name}`,
       startsAt: appt.startsAt,
       durationMins: appt.durationMins,
       details,
       location: user?.tenant?.address || user?.tenant?.name || '',
     });
+  };
+
+  /** Opens Google Calendar with the appointment filled in, ready to save. */
+  const addToCalendar = (appt: Appointment) => {
+    const url = calendarUrlFor(appt);
 
     if (!url) {
       toast.error('Is appointment ki date/time theek nahi hai.');
