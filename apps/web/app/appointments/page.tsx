@@ -16,6 +16,8 @@ import {
   endTimeLabel,
   DURATION_OPTIONS,
 } from '../lib/googleCalendar';
+import AppointmentCalendar from '../components/AppointmentCalendar';
+import type { CalendarView } from '../lib/calendarGrid';
 import {
   CalendarClock,
   Plus,
@@ -27,6 +29,8 @@ import {
   Trash2,
   User,
   CalendarPlus,
+  CalendarDays,
+  List as ListIcon,
 } from 'lucide-react';
 
 interface Customer {
@@ -91,6 +95,9 @@ export default function AppointmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [mode, setMode] = useState<'list' | 'calendar'>('list');
+  const [calendarView, setCalendarView] = useState<CalendarView>('workweek');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -424,6 +431,26 @@ export default function AppointmentsPage() {
           </form>
         )}
 
+        {/* View switch */}
+        <div className="flex rounded-xl border border-zinc-300 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900 w-fit">
+          {([
+            { key: 'list' as const, label: 'List', Icon: ListIcon },
+            { key: 'calendar' as const, label: 'Calendar', Icon: CalendarDays },
+          ]).map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              onClick={() => setMode(key)}
+              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition ${
+                mode === key
+                  ? 'bg-emerald-500 text-zinc-950'
+                  : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </button>
+          ))}
+        </div>
+
         {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
@@ -449,8 +476,85 @@ export default function AppointmentsPage() {
           </select>
         </div>
 
+        {/* Calendar */}
+        {mode === 'calendar' && !loading && (
+          <>
+            <AppointmentCalendar
+              appointments={visible}
+              view={calendarView}
+              onViewChange={setCalendarView}
+              onSelect={(a) => setSelectedId((id) => (id === a.id ? null : a.id))}
+              selectedId={selectedId}
+            />
+            {/* Actions for the block the user picked */}
+            {(() => {
+              const a = visible.find((x) => x.id === selectedId);
+              if (!a) return null;
+              return (
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="font-bold text-zinc-900 dark:text-white">{a.service}</p>
+                      <p className="mt-0.5 text-xs text-zinc-500">
+                        {dayLabel(a.startsAt)} · {timeLabel(a.startsAt)} –{' '}
+                        {endTimeLabel(a.startsAt, a.durationMins)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-zinc-500">
+                        {a.customer.name}
+                        {a.customer.phone ? ` · ${a.customer.phone}` : ''}
+                        {a.staffName ? ` · With: ${a.staffName}` : ''}
+                      </p>
+                      {a.notes && <p className="mt-1 text-xs italic text-zinc-500">{a.notes}</p>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => sendWhatsApp(a)}
+                        className="flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-bold text-zinc-950 hover:bg-[#1ebe5b]"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                      </button>
+                      <button
+                        onClick={() => addToCalendar(a)}
+                        className="flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-600 hover:bg-sky-500/20 dark:text-sky-400"
+                      >
+                        <CalendarPlus className="h-3.5 w-3.5" /> Calendar
+                      </button>
+                      <button
+                        onClick={() => createBill(a)}
+                        className="flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                      >
+                        <Receipt className="h-3.5 w-3.5" /> Create Bill
+                      </button>
+                      <select
+                        value={a.status}
+                        onChange={(e) => setStatus(a, e.target.value as Appointment['status'])}
+                        className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs font-semibold text-zinc-700 focus:border-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                      >
+                        {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                          <option key={val} value={val}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => {
+                          remove(a);
+                          setSelectedId(null);
+                        }}
+                        className="rounded-lg border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 hover:bg-red-500/20"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </>
+        )}
+
         {/* List */}
-        {loading ? (
+        {mode === 'list' && (loading ? (
           <div className="flex h-40 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-emerald-500 dark:border-zinc-800" />
           </div>
@@ -562,6 +666,12 @@ export default function AppointmentsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        ))}
+
+        {mode === 'calendar' && loading && (
+          <div className="flex h-40 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-emerald-500 dark:border-zinc-800" />
           </div>
         )}
       </div>
