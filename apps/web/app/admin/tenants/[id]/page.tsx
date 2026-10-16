@@ -58,6 +58,9 @@ interface TenantDetail {
   paymentsEnabled: boolean;
   reportsEnabled: boolean;
   purchasesEnabled: boolean;
+  quotationsEnabled: boolean;
+  salesOrdersEnabled: boolean;
+  purchaseOrdersEnabled: boolean;
   businessType: string;
   trackInventory: boolean;
   theme: string;
@@ -272,6 +275,9 @@ export default function TenantDetailPage({ params }: PageProps) {
     { label: 'Billing Engine', key: 'billingEnabled', val: tenant.billingEnabled },
     { label: 'Product Catalog', key: 'productsEnabled', val: tenant.productsEnabled },
     { label: 'Purchase Invoices', key: 'purchasesEnabled', val: tenant.purchasesEnabled !== false },
+    { label: 'Quotations', key: 'quotationsEnabled', val: tenant.quotationsEnabled === true },
+    { label: 'Sales Orders', key: 'salesOrdersEnabled', val: tenant.salesOrdersEnabled === true },
+    { label: 'Purchase Orders', key: 'purchaseOrdersEnabled', val: tenant.purchaseOrdersEnabled === true },
     {
       label: tenant.trackInventory !== false ? 'Track Stock / Qty' : 'Stock (Service Mode)',
       key: 'trackInventory',

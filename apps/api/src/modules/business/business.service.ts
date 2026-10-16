@@ -30,6 +30,12 @@ export class BusinessService {
         purchaseCounter: true,
         advancePrefix: true,
         advanceCounter: true,
+        quotationPrefix: true,
+        quotationCounter: true,
+        salesOrderPrefix: true,
+        salesOrderCounter: true,
+        purchaseOrderPrefix: true,
+        purchaseOrderCounter: true,
         dueDays: true,
         invoiceTemplate: true,
         bankAccountName: true,
@@ -67,6 +73,9 @@ export class BusinessService {
       customHeaderUrl,
       invoicePrefix,
       advancePrefix,
+      quotationPrefix,
+      salesOrderPrefix,
+      purchaseOrderPrefix,
       dueDays,
       invoiceTemplate,
       bankAccountName,
@@ -93,6 +102,15 @@ export class BusinessService {
         customHeaderUrl,
         invoicePrefix,
         advancePrefix: advancePrefix ? advancePrefix.trim().toUpperCase() : undefined,
+        quotationPrefix: quotationPrefix
+          ? quotationPrefix.trim().toUpperCase()
+          : undefined,
+        salesOrderPrefix: salesOrderPrefix
+          ? salesOrderPrefix.trim().toUpperCase()
+          : undefined,
+        purchaseOrderPrefix: purchaseOrderPrefix
+          ? purchaseOrderPrefix.trim().toUpperCase()
+          : undefined,
         dueDays,
         invoiceTemplate,
         bankAccountName,

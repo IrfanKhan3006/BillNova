@@ -9,8 +9,8 @@ datasource db {
 }
 
 enum Role {
-  ADMIN       // Registers the business; full access to it
-  USER        // Created by ADMIN; can only create/print bills & purchases
+  ADMIN // Registers the business; full access to it
+  USER // Created by ADMIN; can only create/print bills & purchases
   SUPER_ADMIN // Platform owner
 }
 
@@ -23,26 +23,26 @@ enum TenantPlan {
 }
 
 model Tenant {
-  id    String     @id @default(uuid())
-  name  String
-  slug  String     @unique
-  plan  TenantPlan @default(FREE)
+  id   String     @id @default(uuid())
+  name String
+  slug String     @unique
+  plan TenantPlan @default(FREE)
 
   // Subscription & Plan Limits
   subscriptionStatus String    @default("TRIAL") // "TRIAL", "ACTIVE", "EXPIRED", "SUSPENDED"
-  planExpiresAt     DateTime?
-  maxFreeInvoices   Int        @default(7)
-  planPrice         Float      @default(3000)
-  upgradeRequested  Boolean    @default(false)
-  maxUsers          Int        @default(2) // team (USER role) accounts allowed
+  planExpiresAt      DateTime?
+  maxFreeInvoices    Int       @default(7)
+  planPrice          Float     @default(3000)
+  upgradeRequested   Boolean   @default(false)
+  maxUsers           Int       @default(2) // team (USER role) accounts allowed
   upgradeRequestedAt DateTime?
 
-  gstin     String?
-  stateCode String?
-  address   String?
-  phone     String?
-  email     String?
-  logoUrl   String?
+  gstin           String?
+  stateCode       String?
+  address         String?
+  phone           String?
+  email           String?
+  logoUrl         String?
   customHeaderUrl String?
 
   bankAccountName   String?
@@ -50,32 +50,41 @@ model Tenant {
   bankIfsc          String?
   upiId             String?
 
-  invoicePrefix  String @default("INV")
-  invoiceCounter Int    @default(0)
-  purchasePrefix String @default("PUR")
-  purchaseCounter Int   @default(0)
-  advancePrefix  String @default("ADV")
-  advanceCounter Int    @default(0)
-  dueDays        Int    @default(30)
-  invoiceTemplate String @default("CLASSIC")
-  defaultNotes    String? // Printed at the end of every new bill
+  invoicePrefix        String  @default("INV")
+  invoiceCounter       Int     @default(0)
+  purchasePrefix       String  @default("PUR")
+  purchaseCounter      Int     @default(0)
+  advancePrefix        String  @default("ADV")
+  advanceCounter       Int     @default(0)
+  quotationPrefix      String  @default("QT")
+  quotationCounter     Int     @default(0)
+  salesOrderPrefix     String  @default("SO")
+  salesOrderCounter    Int     @default(0)
+  purchaseOrderPrefix  String  @default("PO")
+  purchaseOrderCounter Int     @default(0)
+  dueDays              Int     @default(30)
+  invoiceTemplate      String  @default("CLASSIC")
+  defaultNotes         String? // Printed at the end of every new bill
 
   // WhatsApp bill sharing
-  googleReviewUrl  String? // Google review link used in the WhatsApp bill message
-  whatsappTemplate String? // Custom WhatsApp message template (placeholders: {customer} {amount} {billLink} {review} {phone} {business} {invoiceNo})
+  googleReviewUrl     String? // Google review link used in the WhatsApp bill message
+  whatsappTemplate    String? // Custom WhatsApp message template (placeholders: {customer} {amount} {billLink} {review} {phone} {business} {invoiceNo})
   appointmentTemplate String? // WhatsApp appointment confirmation template (placeholders: {customer} {date} {time} {service} {staff} {phone} {business})
 
   // Gating Toggles
-  billingEnabled   Boolean @default(true)
-  productsEnabled  Boolean @default(true)
-  paymentsEnabled  Boolean @default(true)
-  reportsEnabled   Boolean @default(true)
-  purchasesEnabled Boolean @default(true)
+  billingEnabled        Boolean @default(true)
+  productsEnabled       Boolean @default(true)
+  paymentsEnabled       Boolean @default(true)
+  reportsEnabled        Boolean @default(true)
+  purchasesEnabled      Boolean @default(true)
+  quotationsEnabled     Boolean @default(false)
+  salesOrdersEnabled    Boolean @default(false)
+  purchaseOrdersEnabled Boolean @default(false)
 
   // Business Type & Inventory Setting
-  businessType     String  @default("RETAIL") // "RETAIL", "SERVICES_TRAVEL", "WHOLESALE", "MANUFACTURING", "SERVICES_GENERAL"
-  trackInventory   Boolean @default(true)
-  theme            String  @default("LIGHT")  // "LIGHT", "DARK"
+  businessType   String  @default("RETAIL") // "RETAIL", "SERVICES_TRAVEL", "WHOLESALE", "MANUFACTURING", "SERVICES_GENERAL"
+  trackInventory Boolean @default(true)
+  theme          String  @default("LIGHT") // "LIGHT", "DARK"
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -93,6 +102,9 @@ model Tenant {
   purchasePayments  PurchasePayment[]
   enquiries         Enquiry[]
   appointments      Appointment[]
+  quotations        Quotation[]
+  salesOrders       SalesOrder[]
+  purchaseOrders    PurchaseOrder[]
 
   @@map("tenants")
 }
@@ -110,7 +122,7 @@ model Enquiry {
   status      String   @default("NEW") // NEW | DONE
   createdAt   DateTime @default(now())
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([status, createdAt])
   @@map("enquiries")
@@ -171,6 +183,8 @@ model Customer {
   invoices     Invoice[]
   payments     Payment[]
   appointments Appointment[]
+  quotations   Quotation[]
+  salesOrders  SalesOrder[]
 
   @@map("customers")
 }
@@ -213,6 +227,9 @@ model Product {
   category             ProductCategory?      @relation(fields: [categoryId], references: [id])
   invoiceItems         InvoiceItem[]
   purchaseInvoiceItems PurchaseInvoiceItem[]
+  quotationItems       QuotationItem[]
+  salesOrderItems      SalesOrderItem[]
+  purchaseOrderItems   PurchaseOrderItem[]
 
   @@map("products")
 }
@@ -245,15 +262,15 @@ model Invoice {
   shareToken     String?       @unique // public bill link token (/bill?s=<token>)
 
   // Advance Bill tracking & Auto-conversion
-  isAdvance                  Boolean   @default(false)
-  advanceConverted           Boolean   @default(false)
+  isAdvance                  Boolean @default(false)
+  advanceConverted           Boolean @default(false)
   convertedInvoiceId         String?
   convertedFromAdvanceNumber String?
 
   // e-Invoice fields
-  irn            String?
-  ackNo          String?
-  ackDate        DateTime?
+  irn     String?
+  ackNo   String?
+  ackDate DateTime?
 
   // Consignee details
   consigneeName    String?
@@ -262,25 +279,25 @@ model Invoice {
   consigneeState   String?
 
   // Dispatch details
-  deliveryNote     String?
-  deliveryNoteDate DateTime?
-  paymentTerms     String?
-  supplierRef      String?
-  otherReferences  String?
-  buyersOrderNo    String?
-  buyersOrderDate  DateTime?
-  despatchDocNo    String?
+  deliveryNote      String?
+  deliveryNoteDate  DateTime?
+  paymentTerms      String?
+  supplierRef       String?
+  otherReferences   String?
+  buyersOrderNo     String?
+  buyersOrderDate   DateTime?
+  despatchDocNo     String?
   despatchedThrough String?
-  destination      String?
-  termsOfDelivery  String?
-  vehicleNumber    String?
+  destination       String?
+  termsOfDelivery   String?
+  vehicleNumber     String?
 
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  deletedAt      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
-  customer Customer @relation(fields: [customerId], references: [id])
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  customer Customer      @relation(fields: [customerId], references: [id])
   items    InvoiceItem[]
   payments Payment[]
 
@@ -350,7 +367,7 @@ enum PurchaseStatus {
 }
 
 model Vendor {
-  id                 String            @id @default(uuid())
+  id                 String    @id @default(uuid())
   tenantId           String
   name               String
   email              String?
@@ -358,91 +375,92 @@ model Vendor {
   address            String?
   gstin              String?
   stateCode          String?
-  outstandingBalance Float             @default(0)
+  outstandingBalance Float     @default(0)
   bankAccountName    String?
   bankAccountNumber  String?
   bankIfsc           String?
   upiId              String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
   deletedAt          DateTime?
 
-  tenant             Tenant            @relation(fields: [tenantId], references: [id])
-  purchaseInvoices   PurchaseInvoice[]
-  payments           PurchasePayment[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  purchaseInvoices PurchaseInvoice[]
+  payments         PurchasePayment[]
+  purchaseOrders   PurchaseOrder[]
 
   @@map("vendors")
 }
 
 model PurchaseInvoice {
-  id             String                @id @default(uuid())
+  id             String         @id @default(uuid())
   tenantId       String
   vendorId       String
   purchaseNumber String
   billNumber     String?
-  date           DateTime              @default(now())
+  date           DateTime       @default(now())
   createdById    String? // User who recorded the purchase
   dueDate        DateTime?
-  status         PurchaseStatus        @default(RECEIVED)
-  subTotal       Float                 @default(0)
-  taxAmount      Float                 @default(0)
-  discountAmount Float                 @default(0)
-  totalAmount    Float                 @default(0)
-  amountPaid     Float                 @default(0)
-  amountDue      Float                 @default(0)
+  status         PurchaseStatus @default(RECEIVED)
+  subTotal       Float          @default(0)
+  taxAmount      Float          @default(0)
+  discountAmount Float          @default(0)
+  totalAmount    Float          @default(0)
+  amountPaid     Float          @default(0)
+  amountDue      Float          @default(0)
   notes          String?
 
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  deletedAt      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  tenant         Tenant                @relation(fields: [tenantId], references: [id])
-  vendor         Vendor                @relation(fields: [vendorId], references: [id])
-  items          PurchaseInvoiceItem[]
-  payments       PurchasePayment[]
+  tenant   Tenant                @relation(fields: [tenantId], references: [id])
+  vendor   Vendor                @relation(fields: [vendorId], references: [id])
+  items    PurchaseInvoiceItem[]
+  payments PurchasePayment[]
 
   @@unique([tenantId, purchaseNumber])
   @@map("purchase_invoices")
 }
 
 model PurchaseInvoiceItem {
-  id                String          @id @default(uuid())
+  id                String  @id @default(uuid())
   purchaseInvoiceId String
   productId         String?
   name              String
-  qty               Int             @default(1)
-  price             Float           @default(0)
-  taxRate           Float           @default(0)
-  taxAmount         Float           @default(0)
-  discountRate      Float           @default(0)
-  discountAmount    Float           @default(0)
-  total             Float           @default(0)
+  qty               Int     @default(1)
+  price             Float   @default(0)
+  taxRate           Float   @default(0)
+  taxAmount         Float   @default(0)
+  discountRate      Float   @default(0)
+  discountAmount    Float   @default(0)
+  total             Float   @default(0)
   hsnCode           String?
 
-  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
-  product           Product?        @relation(fields: [productId], references: [id])
+  purchaseInvoice PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  product         Product?        @relation(fields: [productId], references: [id])
 
   @@map("purchase_invoice_items")
 }
 
 model PurchasePayment {
-  id                String          @id @default(uuid())
+  id                String        @id @default(uuid())
   tenantId          String
   vendorId          String
   purchaseInvoiceId String?
   amount            Float
-  date              DateTime        @default(now())
-  method            PaymentMethod   @default(BANK_TRANSFER)
+  date              DateTime      @default(now())
+  method            PaymentMethod @default(BANK_TRANSFER)
   referenceNo       String?
   notes             String?
 
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  deletedAt         DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  tenant            Tenant          @relation(fields: [tenantId], references: [id])
-  vendor            Vendor          @relation(fields: [vendorId], references: [id])
-  purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  vendor          Vendor           @relation(fields: [vendorId], references: [id])
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
 
   @@map("purchase_payments")
 }
@@ -456,20 +474,20 @@ enum AppointmentStatus {
 
 /// A manually booked appointment (salon-style businesses).
 model Appointment {
-  id          String            @id @default(uuid())
-  tenantId    String
-  customerId  String
-  service     String
-  staffName   String?
+  id           String            @id @default(uuid())
+  tenantId     String
+  customerId   String
+  service      String
+  staffName    String?
   /// Date and start time of the appointment, stored together.
-  startsAt    DateTime
+  startsAt     DateTime
   /// How long it is expected to take, used for the calendar entry's end time.
-  durationMins Int              @default(60)
-  status      AppointmentStatus @default(SCHEDULED)
-  notes       String?
-  createdById String?
+  durationMins Int               @default(60)
+  status       AppointmentStatus @default(SCHEDULED)
+  notes        String?
+  createdById  String?
   /// Set once a bill has been raised from this appointment.
-  invoiceId   String?
+  invoiceId    String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -480,4 +498,218 @@ model Appointment {
 
   @@index([tenantId, startsAt])
   @@map("appointments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sales pipeline: Quotation → Sales Order → Invoice
+// Purchase pipeline: Purchase Order → Purchase Invoice
+//
+// These are standalone documents. They never mutate Invoice/PurchaseInvoice;
+// converting one copies its data forward and records the source id, so the
+// existing billing, purchase, reporting and dashboard code is untouched.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  PARTIALLY_DELIVERED
+  DELIVERED
+  INVOICED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  APPROVED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model Quotation {
+  id              String          @id @default(uuid())
+  tenantId        String
+  customerId      String
+  quotationNumber String
+  date            DateTime        @default(now())
+  validUntil      DateTime?
+  createdById     String?
+  status          QuotationStatus @default(DRAFT)
+  subTotal        Float           @default(0)
+  taxAmount       Float           @default(0)
+  discountAmount  Float           @default(0)
+  totalAmount     Float           @default(0)
+  paymentTerms    String?
+  deliveryTerms   String?
+  notes           String?
+
+  // Forward link once the customer accepts and it becomes an order
+  convertedSalesOrderId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  customer    Customer        @relation(fields: [customerId], references: [id])
+  items       QuotationItem[]
+  salesOrders SalesOrder[]
+
+  @@unique([tenantId, quotationNumber])
+  @@index([tenantId, date])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id             String  @id @default(uuid())
+  quotationId    String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product   Product?  @relation(fields: [productId], references: [id])
+
+  @@map("quotation_items")
+}
+
+model SalesOrder {
+  id                   String           @id @default(uuid())
+  tenantId             String
+  customerId           String
+  quotationId          String?
+  salesOrderNumber     String
+  date                 DateTime         @default(now())
+  expectedDeliveryDate DateTime?
+  createdById          String?
+  status               SalesOrderStatus @default(DRAFT)
+  subTotal             Float            @default(0)
+  taxAmount            Float            @default(0)
+  discountAmount       Float            @default(0)
+  totalAmount          Float            @default(0)
+  paymentTerms         String?
+  deliveryTerms        String?
+  notes                String?
+
+  // Ship-to party (the "ship-to" of the PDF; may differ from the customer)
+  shipToName    String?
+  shipToAddress String?
+  shipToGstin   String?
+  shipToState   String?
+
+  // Forward link once billed
+  convertedInvoiceId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id])
+  customer  Customer         @relation(fields: [customerId], references: [id])
+  quotation Quotation?       @relation(fields: [quotationId], references: [id])
+  items     SalesOrderItem[]
+
+  @@unique([tenantId, salesOrderNumber])
+  @@index([tenantId, date])
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id             String  @id @default(uuid())
+  salesOrderId   String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  deliveredQty   Int     @default(0)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product    Product?   @relation(fields: [productId], references: [id])
+
+  @@map("sales_order_items")
+}
+
+model PurchaseOrder {
+  id                   String              @id @default(uuid())
+  tenantId             String
+  vendorId             String
+  purchaseOrderNumber  String
+  date                 DateTime            @default(now())
+  expectedDeliveryDate DateTime?
+  createdById          String?
+  status               PurchaseOrderStatus @default(DRAFT)
+  subTotal             Float               @default(0)
+  taxAmount            Float               @default(0)
+  discountAmount       Float               @default(0)
+  totalAmount          Float               @default(0)
+  paymentTerms         String?
+  deliveryAddress      String?
+  termsAndConditions   String?
+  notes                String?
+
+  // Step 5 of the PDF: review and approve before sending to the supplier
+  approvedByName String?
+  approvedAt     DateTime?
+
+  // Forward link once the supplier bill is recorded
+  convertedPurchaseInvoiceId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant              @relation(fields: [tenantId], references: [id])
+  vendor Vendor              @relation(fields: [vendorId], references: [id])
+  items  PurchaseOrderItem[]
+
+  @@unique([tenantId, purchaseOrderNumber])
+  @@index([tenantId, date])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String  @id @default(uuid())
+  purchaseOrderId String
+  productId       String?
+  name            String
+  description     String?
+  qty             Int     @default(1)
+  receivedQty     Int     @default(0)
+  price           Float   @default(0)
+  taxRate         Float   @default(0)
+  taxAmount       Float   @default(0)
+  discountRate    Float   @default(0)
+  discountAmount  Float   @default(0)
+  total           Float   @default(0)
+  hsnCode         String?
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product?      @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
 }

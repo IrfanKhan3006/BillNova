@@ -51,6 +51,18 @@ class UpdateBusinessDto {
   advancePrefix?: string;
 
   @IsOptional()
+  @IsString()
+  quotationPrefix?: string;
+
+  @IsOptional()
+  @IsString()
+  salesOrderPrefix?: string;
+
+  @IsOptional()
+  @IsString()
+  purchaseOrderPrefix?: string;
+
+  @IsOptional()
   @IsNumber()
   dueDays?: number;
 

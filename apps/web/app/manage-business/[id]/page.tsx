@@ -67,6 +67,9 @@ interface Detail {
   paymentsEnabled: boolean;
   reportsEnabled: boolean;
   purchasesEnabled: boolean;
+  quotationsEnabled: boolean;
+  salesOrdersEnabled: boolean;
+  purchaseOrdersEnabled: boolean;
   createdAt: string;
   users: TenantUser[];
   _count: { invoices: number; purchaseInvoices: number; customers: number; products: number };
@@ -160,6 +163,9 @@ export default function ManageBusinessDetailPage() {
     { label: 'Payments', on: data.paymentsEnabled },
     { label: 'Reports', on: data.reportsEnabled },
     { label: 'Purchase Invoices', on: data.purchasesEnabled },
+    { label: 'Quotations', on: data.quotationsEnabled },
+    { label: 'Sales Orders', on: data.salesOrdersEnabled },
+    { label: 'Purchase Orders', on: data.purchaseOrdersEnabled },
   ];
 
   const planExpired =

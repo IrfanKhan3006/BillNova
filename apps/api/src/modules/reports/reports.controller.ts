@@ -67,6 +67,25 @@ export class ReportsController {
     );
   }
 
+  @Get('revenue')
+  @ApiOperation({
+    summary:
+      'Revenue dashboard: totals, growth, collections, outstanding, gross profit, top customers aur conversion',
+  })
+  async getRevenueReport(
+    @CurrentUser() user: any,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('basis') basis?: string,
+  ) {
+    return this.reportsService.getRevenueReport(
+      user.tenantId,
+      startDate,
+      endDate,
+      basis === 'GROSS' ? 'GROSS' : 'NET',
+    );
+  }
+
   @Get('tax')
   @ApiOperation({
     summary: 'Tax rates details breakdown (GSTR-1 data format) dekho',

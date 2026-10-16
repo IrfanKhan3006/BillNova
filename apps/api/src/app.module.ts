@@ -15,6 +15,9 @@ import { AdminModule } from './modules/admin/admin.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
+import { QuotationsModule } from './modules/quotations/quotations.module';
+import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
+import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 
 @Module({
@@ -34,6 +37,9 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
     ProductsModule,
     InvoicesModule,
     PurchasesModule,
+    QuotationsModule,
+    SalesOrdersModule,
+    PurchaseOrdersModule,
     PaymentsModule,
     DashboardModule,
     ReportsModule,

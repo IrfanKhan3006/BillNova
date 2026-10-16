@@ -29,9 +29,14 @@ import {
   FileText,
   Building2,
   CalendarClock,
+  FileSignature,
+  ClipboardList,
+  ScrollText,
+  TrendingUp,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { canManageBusiness } from '../lib/manageBusiness';
+import { isFeatureEnabled } from '../lib/features';
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -56,11 +61,15 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     { name: 'Create Invoice', href: '/billing', icon: Receipt, featureKey: 'billingEnabled' as const },
     { name: 'Invoices', href: '/invoices', icon: FileText, featureKey: 'billingEnabled' as const },
     { name: 'Advance Bills', href: '/advance-bills', icon: Clock, featureKey: 'billingEnabled' as const },
+    { name: 'Quotations', href: '/quotations', icon: FileSignature, featureKey: 'quotationsEnabled' as const },
+    { name: 'Sales Orders', href: '/sales-orders', icon: ClipboardList, featureKey: 'salesOrdersEnabled' as const },
+    { name: 'Purchase Orders', href: '/purchase-orders', icon: ScrollText, featureKey: 'purchaseOrdersEnabled' as const },
     { name: 'Purchase Invoices', href: '/purchases', icon: ShoppingBag, featureKey: 'purchasesEnabled' as const },
     { name: 'Appointments', href: '/appointments', icon: CalendarClock },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Products & Inventory', href: '/products', icon: Package, featureKey: 'productsEnabled' as const },
     { name: 'Payments', href: '/payments', icon: CreditCard, featureKey: 'paymentsEnabled' as const },
+    { name: 'Revenue', href: '/revenue', icon: TrendingUp, featureKey: 'reportsEnabled' as const },
     { name: 'Reports', href: '/reports', icon: BarChart3, featureKey: 'reportsEnabled' as const },
     { name: 'Team Users', href: '/team', icon: UserPlus, adminOnly: true },
     { name: 'Manage Business', href: '/manage-business', icon: Building2, manageBusinessOnly: true },
@@ -76,6 +85,9 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     '/billing',
     '/invoices',
     '/purchases',
+    '/quotations',
+    '/sales-orders',
+    '/purchase-orders',
     '/appointments',
     '/advance-bills',
     '/customers',
@@ -90,7 +102,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     if (user?.role === 'USER' && !USER_PATHS.includes(item.href)) return false;
     if ((item as any).adminOnly && (user?.role !== 'ADMIN' || !isPaidPlanActive)) return false;
     if (!item.featureKey) return true;
-    return user?.tenant?.[item.featureKey] !== false;
+    return isFeatureEnabled(user?.tenant, item.featureKey);
   });
 
   return (

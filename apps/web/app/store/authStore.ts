@@ -37,6 +37,9 @@ interface User {
     paymentsEnabled?: boolean;
     reportsEnabled?: boolean;
     purchasesEnabled?: boolean;
+    quotationsEnabled?: boolean;
+    salesOrdersEnabled?: boolean;
+    purchaseOrdersEnabled?: boolean;
     businessType?: string;
     trackInventory?: boolean;
     theme?: string;

@@ -74,6 +74,18 @@ export class UpdateTenantDto {
   purchasesEnabled?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  quotationsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  salesOrdersEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  purchaseOrdersEnabled?: boolean;
+
+  @IsOptional()
   @IsString()
   businessType?: string;
 
