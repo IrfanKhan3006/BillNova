@@ -54,6 +54,7 @@ const config: OrderDocumentConfig = {
   ],
   printTitle: 'SALES ORDER',
   createLabel: 'New Sales Order',
+  documentKind: 'SALES_ORDER',
   defaultCreateStatus: 'CONFIRMED',
   actions: [
     {

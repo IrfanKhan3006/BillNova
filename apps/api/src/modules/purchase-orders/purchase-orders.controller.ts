@@ -225,6 +225,14 @@ export class PurchaseOrdersController {
     );
   }
 
+  @Get(':id/share')
+  @ApiOperation({
+    summary: 'Purchase order ka public share token (WhatsApp link ke liye) lo',
+  })
+  async share(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.purchaseOrdersService.ensureShareToken(user.tenantId, id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a single purchase order by ID' })
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {

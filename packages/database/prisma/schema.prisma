@@ -553,6 +553,9 @@ model Quotation {
   deliveryTerms   String?
   notes           String?
 
+  // Public share link token (/doc?s=<token>), used by WhatsApp sharing
+  shareToken String? @unique
+
   // Forward link once the customer accepts and it becomes an order
   convertedSalesOrderId String?
 
@@ -615,6 +618,9 @@ model SalesOrder {
   shipToGstin   String?
   shipToState   String?
 
+  // Public share link token (/doc?s=<token>), used by WhatsApp sharing
+  shareToken String? @unique
+
   // Forward link once billed
   convertedInvoiceId String?
 
@@ -675,6 +681,9 @@ model PurchaseOrder {
   // Step 5 of the PDF: review and approve before sending to the supplier
   approvedByName String?
   approvedAt     DateTime?
+
+  // Public share link token (/doc?s=<token>), used by WhatsApp sharing
+  shareToken String? @unique
 
   // Forward link once the supplier bill is recorded
   convertedPurchaseInvoiceId String?

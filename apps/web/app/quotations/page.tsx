@@ -44,6 +44,7 @@ const config: OrderDocumentConfig = {
   ],
   printTitle: 'SALES QUOTATION',
   createLabel: 'New Quotation',
+  documentKind: 'QUOTATION',
   actions: [
     {
       key: 'send',

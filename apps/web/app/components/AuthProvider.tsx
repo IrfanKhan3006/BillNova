@@ -63,7 +63,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     // Contact page and public bill links are open to everyone (logged in or
     // not) — never redirect.
-    if (pathname === '/contact' || pathname === '/bill') return;
+    // Public, login-free pages: shared bill and shared order-document links.
+    if (pathname === '/contact' || pathname === '/bill' || pathname === '/doc') return;
 
     const isPublicPath = pathname === '/login' || pathname === '/register';
     const isLandingPage = pathname === '/';

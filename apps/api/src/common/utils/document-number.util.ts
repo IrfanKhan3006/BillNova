@@ -1,3 +1,6 @@
+import * as crypto from 'crypto';
+import { NotFoundException } from '@nestjs/common';
+
 /**
  * Shared numbering for the order documents (quotations, sales orders,
  * purchase orders).
@@ -143,4 +146,45 @@ export function computeDocumentTotals(
     discountAmount,
     totalAmount: subTotal + taxAmount,
   };
+}
+
+/**
+ * Random, unguessable token for a public document link (/doc?s=<token>).
+ * Same scheme as the invoice share token.
+ */
+export function newShareToken(): string {
+  return crypto.randomBytes(16).toString('base64url');
+}
+
+/**
+ * Returns a document's public share token, creating one on first use so
+ * documents made before sharing existed can still be shared.
+ */
+export async function ensureShareToken(
+  delegate: {
+    findFirst: (args: any) => Promise<any>;
+    update: (args: any) => Promise<any>;
+  },
+  tenantId: string,
+  id: string,
+  notFoundMessage: string,
+): Promise<{ shareToken: string }> {
+  const doc = await delegate.findFirst({
+    where: { id, tenantId, deletedAt: null },
+    select: { id: true, shareToken: true },
+  });
+
+  if (!doc) {
+    throw new NotFoundException(notFoundMessage);
+  }
+
+  if (doc.shareToken) return { shareToken: doc.shareToken };
+
+  const updated = await delegate.update({
+    where: { id: doc.id },
+    data: { shareToken: newShareToken() },
+    select: { shareToken: true },
+  });
+
+  return { shareToken: updated.shareToken };
 }

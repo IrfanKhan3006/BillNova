@@ -18,6 +18,7 @@ import { PurchasesModule } from './modules/purchases/purchases.module';
 import { QuotationsModule } from './modules/quotations/quotations.module';
 import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { PublicDocumentsModule } from './modules/public-documents/public-documents.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 
 @Module({
@@ -40,6 +41,7 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
     QuotationsModule,
     SalesOrdersModule,
     PurchaseOrdersModule,
+    PublicDocumentsModule,
     PaymentsModule,
     DashboardModule,
     ReportsModule,

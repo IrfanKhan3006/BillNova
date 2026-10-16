@@ -13,6 +13,12 @@ import { api } from '../lib/api';
 import { saveElementAsPdf } from '../lib/savePdf';
 import { downloadCsv, csvDate, csvAmount } from '../lib/exportCsv';
 import { toast, showConfirm } from '../store/uiStore';
+import { toWhatsAppNumber, buildWhatsAppLink } from '../lib/whatsappBill';
+import {
+  buildDocumentMessage,
+  buildDocumentLink,
+  DocumentKind,
+} from '../lib/whatsappDocument';
 import { useAuthStore } from '../store/authStore';
 import {
   Plus,
@@ -25,6 +31,7 @@ import {
   Calendar,
   FileText,
   Loader2,
+  MessageCircle,
 } from 'lucide-react';
 
 export interface PartyOption {
@@ -85,6 +92,8 @@ export interface OrderDocumentConfig {
   printTitle: string;
   actions: DocumentAction[];
   createLabel: string;
+  /** Which wording the WhatsApp message uses. */
+  documentKind: DocumentKind;
   /** Status assigned by the create form, if the document should not start as a draft. */
   defaultCreateStatus?: string;
 }
@@ -358,6 +367,52 @@ export default function OrderDocumentWorkspace({
         csvAmount(doc.totalAmount),
       ]),
     );
+  };
+
+  /**
+   * Opens WhatsApp with the message pre-filled for the party this document is
+   * for — the customer, or the supplier on a purchase order. The share token is
+   * fetched first so the link always points at a page the party can actually
+   * open; without a saved number we cannot address the chat, so we say so
+   * rather than opening an empty WhatsApp.
+   */
+  const handleWhatsApp = async () => {
+    if (!selected) return;
+
+    const party = selected[config.partyKind];
+    const phone = toWhatsAppNumber(party?.phone);
+    if (!phone) {
+      toast.error(
+        `No WhatsApp number saved for this ${config.partyLabel.toLowerCase()}. Add a phone number first.`,
+      );
+      return;
+    }
+
+    setBusyAction('whatsapp');
+    try {
+      const { shareToken } = await api.get(
+        `/${config.resource}/${selected.id}/share`,
+      );
+
+      const message = buildDocumentMessage({
+        kind: config.documentKind,
+        partyName: party?.name,
+        businessName: selected.tenant?.name,
+        businessPhone: selected.tenant?.phone,
+        documentNumber: selected[config.numberField],
+        totalAmount: selected.totalAmount,
+        secondaryDate: config.secondaryDateField
+          ? selected[config.secondaryDateField.key]
+          : null,
+        documentLink: buildDocumentLink(shareToken),
+      });
+
+      window.open(buildWhatsAppLink(phone, message), '_blank');
+    } catch (err: any) {
+      toast.error(err.message || 'Could not prepare the WhatsApp message.');
+    } finally {
+      setBusyAction(null);
+    }
   };
 
   const handlePdf = async () => {
@@ -777,6 +832,19 @@ export default function OrderDocumentWorkspace({
                       {action.label}
                     </button>
                   ))}
+                <button
+                  type="button"
+                  onClick={handleWhatsApp}
+                  disabled={busyAction !== null}
+                  className="flex items-center gap-1.5 rounded-xl bg-[#25D366] px-4 py-2 text-xs font-bold text-zinc-950 hover:bg-[#1eb855] transition disabled:opacity-50"
+                >
+                  {busyAction === 'whatsapp' ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <MessageCircle className="h-3.5 w-3.5" />
+                  )}
+                  Send on WhatsApp
+                </button>
                 <button
                   type="button"
                   onClick={handlePdf}

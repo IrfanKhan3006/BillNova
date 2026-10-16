@@ -59,6 +59,7 @@ const config: OrderDocumentConfig = {
   ],
   printTitle: 'PURCHASE ORDER',
   createLabel: 'New Purchase Order',
+  documentKind: 'PURCHASE_ORDER',
   actions: [
     {
       key: 'send',

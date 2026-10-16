@@ -8,6 +8,7 @@ import { PurchasesService } from '../purchases/purchases.service';
 import {
   generateDocumentNumber,
   computeDocumentTotals,
+  ensureShareToken,
 } from '../../common/utils/document-number.util';
 
 const TENANT_HEADER = {
@@ -331,6 +332,69 @@ export class PurchaseOrdersService {
     });
 
     return { message: 'Purchase order deleted.' };
+  }
+
+
+  /** Public share token for the WhatsApp link, created on first share. */
+  async ensureShareToken(tenantId: string, id: string) {
+    return ensureShareToken(
+      this.prisma.purchaseOrder,
+      tenantId,
+      id,
+      'Purchase order not found.',
+    );
+  }
+
+  /** Unauthenticated lookup for the public purchase order page (the supplier). */
+  async findByShareToken(shareToken: string) {
+    const order = await this.prisma.purchaseOrder.findFirst({
+      where: { shareToken, deletedAt: null },
+      select: {
+        purchaseOrderNumber: true,
+        date: true,
+        expectedDeliveryDate: true,
+        status: true,
+        subTotal: true,
+        taxAmount: true,
+        discountAmount: true,
+        totalAmount: true,
+        paymentTerms: true,
+        deliveryAddress: true,
+        termsAndConditions: true,
+        notes: true,
+        approvedByName: true,
+        approvedAt: true,
+        vendor: { select: { name: true, phone: true, address: true, gstin: true } },
+        items: {
+          select: {
+            name: true,
+            description: true,
+            qty: true,
+            price: true,
+            taxRate: true,
+            discountRate: true,
+            hsnCode: true,
+            total: true,
+          },
+        },
+        tenant: {
+          select: {
+            name: true,
+            address: true,
+            phone: true,
+            email: true,
+            gstin: true,
+            logoUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Purchase order not found or no longer available.');
+    }
+
+    return { kind: 'PURCHASE_ORDER' as const, ...order };
   }
 
   /** Same resolve-or-create behaviour the purchase invoice screen relies on. */

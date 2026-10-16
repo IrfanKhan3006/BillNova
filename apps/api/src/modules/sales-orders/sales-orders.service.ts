@@ -8,6 +8,7 @@ import { InvoicesService } from '../invoices/invoices.service';
 import {
   generateDocumentNumber,
   computeDocumentTotals,
+  ensureShareToken,
 } from '../../common/utils/document-number.util';
 
 const TENANT_HEADER = {
@@ -344,6 +345,68 @@ export class SalesOrdersService {
     });
 
     return { message: 'Sales order deleted.' };
+  }
+
+
+  /** Public share token for the WhatsApp link, created on first share. */
+  async ensureShareToken(tenantId: string, id: string) {
+    return ensureShareToken(
+      this.prisma.salesOrder,
+      tenantId,
+      id,
+      'Sales order not found.',
+    );
+  }
+
+  /** Unauthenticated lookup for the public sales order page. */
+  async findByShareToken(shareToken: string) {
+    const order = await this.prisma.salesOrder.findFirst({
+      where: { shareToken, deletedAt: null },
+      select: {
+        salesOrderNumber: true,
+        date: true,
+        expectedDeliveryDate: true,
+        status: true,
+        subTotal: true,
+        taxAmount: true,
+        discountAmount: true,
+        totalAmount: true,
+        paymentTerms: true,
+        deliveryTerms: true,
+        notes: true,
+        shipToName: true,
+        shipToAddress: true,
+        customer: { select: { name: true, phone: true, address: true, gstin: true } },
+        items: {
+          select: {
+            name: true,
+            description: true,
+            qty: true,
+            price: true,
+            taxRate: true,
+            discountRate: true,
+            hsnCode: true,
+            total: true,
+          },
+        },
+        tenant: {
+          select: {
+            name: true,
+            address: true,
+            phone: true,
+            email: true,
+            gstin: true,
+            logoUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Sales order not found or no longer available.');
+    }
+
+    return { kind: 'SALES_ORDER' as const, ...order };
   }
 
   private async createWithin(

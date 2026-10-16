@@ -262,6 +262,14 @@ export class SalesOrdersController {
     );
   }
 
+  @Get(':id/share')
+  @ApiOperation({
+    summary: 'Sales order ka public share token (WhatsApp link ke liye) lo',
+  })
+  async share(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.salesOrdersService.ensureShareToken(user.tenantId, id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a single sales order by ID' })
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {

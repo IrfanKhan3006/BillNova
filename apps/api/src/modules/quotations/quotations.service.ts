@@ -7,6 +7,7 @@ import { PrismaService } from '../../database/prisma.service';
 import {
   generateDocumentNumber,
   computeDocumentTotals,
+  ensureShareToken,
 } from '../../common/utils/document-number.util';
 
 const TENANT_HEADER = {
@@ -220,6 +221,69 @@ export class QuotationsService {
     });
 
     return { message: 'Quotation deleted.' };
+  }
+
+
+  /** Public share token for the WhatsApp link, created on first share. */
+  async ensureShareToken(tenantId: string, id: string) {
+    return ensureShareToken(
+      this.prisma.quotation,
+      tenantId,
+      id,
+      'Quotation not found.',
+    );
+  }
+
+  /**
+   * Unauthenticated lookup for the public quotation page. Returns only what the
+   * customer needs to read their own quote — never tenant plan/billing internals.
+   */
+  async findByShareToken(shareToken: string) {
+    const quotation = await this.prisma.quotation.findFirst({
+      where: { shareToken, deletedAt: null },
+      select: {
+        quotationNumber: true,
+        date: true,
+        validUntil: true,
+        status: true,
+        subTotal: true,
+        taxAmount: true,
+        discountAmount: true,
+        totalAmount: true,
+        paymentTerms: true,
+        deliveryTerms: true,
+        notes: true,
+        customer: { select: { name: true, phone: true, address: true, gstin: true } },
+        items: {
+          select: {
+            name: true,
+            description: true,
+            qty: true,
+            price: true,
+            taxRate: true,
+            discountRate: true,
+            hsnCode: true,
+            total: true,
+          },
+        },
+        tenant: {
+          select: {
+            name: true,
+            address: true,
+            phone: true,
+            email: true,
+            gstin: true,
+            logoUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!quotation) {
+      throw new NotFoundException('Quotation not found or no longer available.');
+    }
+
+    return { kind: 'QUOTATION' as const, ...quotation };
   }
 
   private isLapsed(quotation: { validUntil: Date | null; status: string }) {
