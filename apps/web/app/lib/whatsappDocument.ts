@@ -1,5 +1,6 @@
 /**
- * "Send on WhatsApp" for quotations, sales orders and purchase orders.
+ * "Send on WhatsApp" for the order documents, the credit/debit notes and
+ * delivery challans.
  *
  * Mirrors the bill sharing in `whatsappBill.ts`: the party receives a link to a
  * public page showing the real document, because a plain text message cannot
@@ -9,7 +10,13 @@
  * so both features treat Indian numbers the same way.
  */
 
-export type DocumentKind = 'QUOTATION' | 'SALES_ORDER' | 'PURCHASE_ORDER';
+export type DocumentKind =
+  | 'QUOTATION'
+  | 'SALES_ORDER'
+  | 'PURCHASE_ORDER'
+  | 'CREDIT_NOTE'
+  | 'DEBIT_NOTE'
+  | 'DELIVERY_CHALLAN';
 
 const formatAmount = (val: number) => {
   const num = Number(val) || 0;
@@ -35,6 +42,8 @@ export interface DocumentMessageInput {
   totalAmount: number;
   /** Valid-until for a quotation, expected delivery for an order. */
   secondaryDate?: string | Date | null;
+  /** The bill a note is raised against, shown as the GST reference. */
+  referenceNumber?: string | null;
   documentLink?: string | null;
 }
 
@@ -64,7 +73,7 @@ export function buildDocumentMessage(input: DocumentMessageInput): string {
     lines.push('');
     lines.push(`Thank you for your order. We have confirmed it for ${amount}.`);
     if (when) lines.push(`Expected delivery: ${when}.`);
-  } else {
+  } else if (input.kind === 'PURCHASE_ORDER') {
     lines.push(`Purchase Order ${input.documentNumber}`);
     lines.push('');
     lines.push(`Hi ${who},`);
@@ -72,6 +81,33 @@ export function buildDocumentMessage(input: DocumentMessageInput): string {
     lines.push(`Please find our purchase order for ${amount}.`);
     if (when) lines.push(`Required delivery by: ${when}.`);
     lines.push('Kindly confirm receipt of this order.');
+  } else if (input.kind === 'CREDIT_NOTE') {
+    lines.push(`Credit Note ${input.documentNumber}`);
+    lines.push('');
+    lines.push(`Hi ${who},`);
+    lines.push('');
+    lines.push(`We have raised a credit note of ${amount} in your favour.`);
+    if (input.referenceNumber) {
+      lines.push(`This is against bill ${input.referenceNumber}.`);
+    }
+    lines.push('The amount has been adjusted against your account.');
+  } else if (input.kind === 'DEBIT_NOTE') {
+    lines.push(`Debit Note ${input.documentNumber}`);
+    lines.push('');
+    lines.push(`Hi ${who},`);
+    lines.push('');
+    lines.push(`We have raised a debit note of ${amount} against your account.`);
+    if (input.referenceNumber) {
+      lines.push(`This is against bill ${input.referenceNumber}.`);
+    }
+    lines.push('Kindly confirm and adjust the same at your end.');
+  } else {
+    lines.push(`Delivery Challan ${input.documentNumber}`);
+    lines.push('');
+    lines.push(`Hi ${who},`);
+    lines.push('');
+    lines.push('Your goods have been dispatched. The delivery challan is below.');
+    lines.push('Please check the items on arrival and confirm receipt.');
   }
 
   if (input.documentLink) {

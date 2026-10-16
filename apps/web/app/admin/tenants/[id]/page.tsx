@@ -61,6 +61,9 @@ interface TenantDetail {
   quotationsEnabled: boolean;
   salesOrdersEnabled: boolean;
   purchaseOrdersEnabled: boolean;
+  creditNotesEnabled: boolean;
+  debitNotesEnabled: boolean;
+  challansEnabled: boolean;
   businessType: string;
   trackInventory: boolean;
   theme: string;
@@ -278,6 +281,9 @@ export default function TenantDetailPage({ params }: PageProps) {
     { label: 'Quotations', key: 'quotationsEnabled', val: tenant.quotationsEnabled === true },
     { label: 'Sales Orders', key: 'salesOrdersEnabled', val: tenant.salesOrdersEnabled === true },
     { label: 'Purchase Orders', key: 'purchaseOrdersEnabled', val: tenant.purchaseOrdersEnabled === true },
+    { label: 'Delivery Challans', key: 'challansEnabled', val: tenant.challansEnabled === true },
+    { label: 'Credit Notes', key: 'creditNotesEnabled', val: tenant.creditNotesEnabled === true },
+    { label: 'Debit Notes', key: 'debitNotesEnabled', val: tenant.debitNotesEnabled === true },
     {
       label: tenant.trackInventory !== false ? 'Track Stock / Qty' : 'Stock (Service Mode)',
       key: 'trackInventory',

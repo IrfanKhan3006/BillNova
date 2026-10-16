@@ -86,6 +86,18 @@ export class UpdateTenantDto {
   purchaseOrdersEnabled?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  creditNotesEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  debitNotesEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  challansEnabled?: boolean;
+
+  @IsOptional()
   @IsString()
   businessType?: string;
 

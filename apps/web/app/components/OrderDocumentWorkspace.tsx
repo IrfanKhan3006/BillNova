@@ -1,11 +1,12 @@
 'use client';
 
 /**
- * Shared workspace for the three order documents: quotations, sales orders and
- * purchase orders. They differ only in wording, the party they address
- * (customer vs vendor), their statuses and the actions that move them along the
- * pipeline, so all of that is config and the list/create/detail/print machinery
- * is written once here.
+ * Shared workspace for every line-item document: quotations, sales orders,
+ * purchase orders, credit notes, debit notes and delivery challans. They differ
+ * only in wording, the party they address (customer vs vendor), their statuses,
+ * the actions that move them along the pipeline and a few extra fields, so all
+ * of that is config and the list/create/detail/print machinery is written once
+ * here.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -96,6 +97,39 @@ export interface OrderDocumentConfig {
   documentKind: DocumentKind;
   /** Status assigned by the create form, if the document should not start as a draft. */
   defaultCreateStatus?: string;
+  /**
+   * A source document this one is raised against — the bill a credit note
+   * credits, the purchase bill a debit note debits, the order a challan ships.
+   * Picking one copies its lines in, which is how a full return is one step.
+   */
+  referenceField?: {
+    /** Payload key sent on create, e.g. 'invoiceId'. */
+    key: string;
+    label: string;
+    /** Where to load the selectable source documents from, e.g. '/invoices'. */
+    endpoint: string;
+    /** Field holding the source document's human-readable number. */
+    numberField: string;
+    /** Endpoint that creates this document from a source, e.g. 'from-invoice'. */
+    createFromPath: string;
+    hint?: string;
+  };
+  /** Fixed-choice fields: the reason for a note, the type of a challan. */
+  choiceFields?: {
+    key: string;
+    label: string;
+    options: { value: string; label: string }[];
+    defaultValue: string;
+  }[];
+  /** Yes/no fields, e.g. whether a return goes back into stock. */
+  toggleFields?: {
+    key: string;
+    label: string;
+    hint?: string;
+    defaultValue: boolean;
+  }[];
+  /** Extra rows for the printed sheet, e.g. the original bill reference. */
+  printMeta?: (doc: any) => { label: string; value: string }[];
 }
 
 interface LineDraft {
@@ -163,6 +197,18 @@ export default function OrderDocumentWorkspace({
   const [terms, setTerms] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
+  const [referenceId, setReferenceId] = useState('');
+  const [references, setReferences] = useState<any[]>([]);
+  const [choices, setChoices] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      (config.choiceFields || []).map((field) => [field.key, field.defaultValue]),
+    ),
+  );
+  const [toggles, setToggles] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      (config.toggleFields || []).map((field) => [field.key, field.defaultValue]),
+    ),
+  );
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -200,6 +246,33 @@ export default function OrderDocumentWorkspace({
     })();
   }, [config.partyEndpoint]);
 
+  // Source documents a new note or challan can be raised against.
+  useEffect(() => {
+    const reference = config.referenceField;
+    if (!reference) return;
+
+    (async () => {
+      try {
+        const data = await api.get(reference.endpoint);
+        setReferences(Array.isArray(data) ? data : data?.data || []);
+      } catch {
+        // The form still works without a source document.
+      }
+    })();
+  }, [config.referenceField]);
+
+  /**
+   * Only source documents belonging to the selected party can be chosen — a
+   * bill for one customer must never be creditable to another.
+   */
+  const referenceOptions = useMemo(() => {
+    if (!config.referenceField) return [];
+    if (!partyId) return [];
+    return references.filter(
+      (ref) => ref[config.partyKind]?.id === partyId || ref[`${config.partyKind}Id`] === partyId,
+    );
+  }, [config.referenceField, config.partyKind, references, partyId]);
+
   // ─── Derived totals for the create form ───────────────────────────────────
   const draftTotals = useMemo(() => {
     let subTotal = 0;
@@ -232,6 +305,17 @@ export default function OrderDocumentWorkspace({
     setTerms({});
     setNotes('');
     setLines([emptyLine()]);
+    setReferenceId('');
+    setChoices(
+      Object.fromEntries(
+        (config.choiceFields || []).map((field) => [field.key, field.defaultValue]),
+      ),
+    );
+    setToggles(
+      Object.fromEntries(
+        (config.toggleFields || []).map((field) => [field.key, field.defaultValue]),
+      ),
+    );
   };
 
   const updateLine = (index: number, patch: Partial<LineDraft>) => {
@@ -253,6 +337,36 @@ export default function OrderDocumentWorkspace({
       taxRate: Number(product.taxRate) || 0,
       hsnCode: product.hsnCode || '',
     });
+  };
+
+  /**
+   * Picking a source document pulls its lines in, so a full return or a full
+   * dispatch needs no retyping. The lines stay editable: trimming them down is
+   * how a partial return or a part dispatch is raised.
+   */
+  const pickReference = async (id: string) => {
+    setReferenceId(id);
+    if (!id || !config.referenceField) return;
+
+    try {
+      const source = await api.get(`${config.referenceField.endpoint}/${id}`);
+      const items = Array.isArray(source?.items) ? source.items : [];
+      if (items.length === 0) return;
+
+      setLines(
+        items.map((item: any) => ({
+          productId: item.productId || '',
+          name: item.name || '',
+          qty: Number(item.qty) || 1,
+          price: Number(item.price) || 0,
+          taxRate: Number(item.taxRate) || 0,
+          discountRate: Number(item.discountRate) || 0,
+          hsnCode: item.hsnCode || '',
+        })),
+      );
+    } catch {
+      toast.error('Could not read that document. Add the lines by hand.');
+    }
   };
 
   const handleCreate = async () => {
@@ -293,8 +407,23 @@ export default function OrderDocumentWorkspace({
       for (const field of config.termsFields) {
         if (terms[field.key]?.trim()) payload[field.key] = terms[field.key].trim();
       }
+      for (const field of config.choiceFields || []) {
+        payload[field.key] = choices[field.key] ?? field.defaultValue;
+      }
+      for (const field of config.toggleFields || []) {
+        payload[field.key] = toggles[field.key] ?? field.defaultValue;
+      }
 
-      const created = await api.post(`/${config.resource}`, payload);
+      // Raised against a source document, the server copies the reference
+      // across (and snapshots the GST bill details) on its own endpoint.
+      const reference = config.referenceField;
+      const created =
+        reference && referenceId
+          ? await api.post(`/${config.resource}/${reference.createFromPath}`, {
+              ...payload,
+              [reference.key]: referenceId,
+            })
+          : await api.post(`/${config.resource}`, payload);
       toast.success(`${created[config.numberField]} created.`);
       setShowCreate(false);
       resetForm();
@@ -404,6 +533,7 @@ export default function OrderDocumentWorkspace({
         secondaryDate: config.secondaryDateField
           ? selected[config.secondaryDateField.key]
           : null,
+        referenceNumber: selected.originalInvoiceNumber,
         documentLink: buildDocumentLink(shareToken),
       });
 
@@ -637,6 +767,99 @@ export default function OrderDocumentWorkspace({
                   </div>
                 )}
               </div>
+
+              {/* Source document, reasons and options */}
+              {(config.referenceField ||
+                config.choiceFields ||
+                config.toggleFields) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {config.referenceField && (
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        {config.referenceField.label}
+                      </label>
+                      <select
+                        value={referenceId}
+                        onChange={(e) => pickReference(e.target.value)}
+                        disabled={!partyId}
+                        className="mt-1.5 w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-sm text-white focus:border-purple-500/50 focus:outline-none disabled:opacity-50"
+                      >
+                        <option value="">
+                          {partyId
+                            ? 'None — raise it standalone'
+                            : `Select a ${config.partyLabel.toLowerCase()} first`}
+                        </option>
+                        {referenceOptions.map((ref) => (
+                          <option key={ref.id} value={ref.id}>
+                            {ref[config.referenceField!.numberField]}
+                            {ref.totalAmount != null
+                              ? ` · ${formatCurrency(ref.totalAmount)}`
+                              : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {config.referenceField.hint && (
+                        <p className="mt-1 text-[11px] text-zinc-500">
+                          {config.referenceField.hint}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {(config.choiceFields || []).map((field) => (
+                    <div key={field.key}>
+                      <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        {field.label}
+                      </label>
+                      <select
+                        value={choices[field.key] ?? field.defaultValue}
+                        onChange={(e) =>
+                          setChoices((prev) => ({
+                            ...prev,
+                            [field.key]: e.target.value,
+                          }))
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-sm text-white focus:border-purple-500/50 focus:outline-none"
+                      >
+                        {field.options.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+
+                  {(config.toggleFields || []).map((field) => (
+                    <label
+                      key={field.key}
+                      className="flex items-start gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 cursor-pointer sm:col-span-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={toggles[field.key] ?? field.defaultValue}
+                        onChange={(e) =>
+                          setToggles((prev) => ({
+                            ...prev,
+                            [field.key]: e.target.checked,
+                          }))
+                        }
+                        className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 accent-emerald-500"
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-white">
+                          {field.label}
+                        </span>
+                        {field.hint && (
+                          <span className="block text-[11px] text-zinc-500">
+                            {field.hint}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
 
               {/* Items */}
               <div>
@@ -930,6 +1153,11 @@ export default function OrderDocumentWorkspace({
                     </span>
                   )}
                 <span>Status: {selected.status.replace(/_/g, ' ')}</span>
+                {(config.printMeta?.(selected) || []).map((meta) => (
+                  <span key={meta.label}>
+                    {meta.label}: {meta.value}
+                  </span>
+                ))}
               </div>
 
               <table className="w-full mt-5 text-xs">

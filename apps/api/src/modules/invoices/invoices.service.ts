@@ -285,8 +285,16 @@ export class InvoicesService {
           hsnCode: item.hsnCode || product?.hsnCode || null,
         });
 
-        // Deduct from stock only if inventory tracking is enabled for this business
-        if (product && tenant.trackInventory && !product.isService) {
+        // Deduct from stock only if inventory tracking is enabled for this
+        // business. `skipStockMovement` is set by the delivery-challan flow:
+        // the goods already left stock when the challan was dispatched, so
+        // billing them must not deduct the same quantity a second time.
+        if (
+          product &&
+          tenant.trackInventory &&
+          !product.isService &&
+          !data.skipStockMovement
+        ) {
           await tx.product.update({
             where: { id: product.id },
             data: { stock: { decrement: qty } },

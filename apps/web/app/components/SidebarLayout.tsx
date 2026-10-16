@@ -33,6 +33,9 @@ import {
   ClipboardList,
   ScrollText,
   TrendingUp,
+  Truck,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { canManageBusiness } from '../lib/manageBusiness';
@@ -64,6 +67,9 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     { name: 'Quotations', href: '/quotations', icon: FileSignature, featureKey: 'quotationsEnabled' as const },
     { name: 'Sales Orders', href: '/sales-orders', icon: ClipboardList, featureKey: 'salesOrdersEnabled' as const },
     { name: 'Purchase Orders', href: '/purchase-orders', icon: ScrollText, featureKey: 'purchaseOrdersEnabled' as const },
+    { name: 'Delivery Challans', href: '/challans', icon: Truck, featureKey: 'challansEnabled' as const },
+    { name: 'Credit Notes', href: '/credit-notes', icon: Undo2, featureKey: 'creditNotesEnabled' as const },
+    { name: 'Debit Notes', href: '/debit-notes', icon: Redo2, featureKey: 'debitNotesEnabled' as const },
     { name: 'Purchase Invoices', href: '/purchases', icon: ShoppingBag, featureKey: 'purchasesEnabled' as const },
     { name: 'Appointments', href: '/appointments', icon: CalendarClock },
     { name: 'Customers', href: '/customers', icon: Users },
@@ -88,6 +94,9 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     '/quotations',
     '/sales-orders',
     '/purchase-orders',
+    '/challans',
+    '/credit-notes',
+    '/debit-notes',
     '/appointments',
     '/advance-bills',
     '/customers',

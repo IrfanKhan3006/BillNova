@@ -38,6 +38,9 @@ interface User {
     reportsEnabled?: boolean;
     purchasesEnabled?: boolean;
     quotationsEnabled?: boolean;
+    creditNotesEnabled?: boolean;
+    debitNotesEnabled?: boolean;
+    challansEnabled?: boolean;
     salesOrdersEnabled?: boolean;
     purchaseOrdersEnabled?: boolean;
     businessType?: string;

@@ -63,6 +63,18 @@ class UpdateBusinessDto {
   purchaseOrderPrefix?: string;
 
   @IsOptional()
+  @IsString()
+  creditNotePrefix?: string;
+
+  @IsOptional()
+  @IsString()
+  debitNotePrefix?: string;
+
+  @IsOptional()
+  @IsString()
+  challanPrefix?: string;
+
+  @IsOptional()
   @IsNumber()
   dueDays?: number;
 

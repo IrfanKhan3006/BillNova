@@ -18,6 +18,9 @@ import { PurchasesModule } from './modules/purchases/purchases.module';
 import { QuotationsModule } from './modules/quotations/quotations.module';
 import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { CreditNotesModule } from './modules/credit-notes/credit-notes.module';
+import { DebitNotesModule } from './modules/debit-notes/debit-notes.module';
+import { ChallansModule } from './modules/challans/challans.module';
 import { PublicDocumentsModule } from './modules/public-documents/public-documents.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 
@@ -41,6 +44,9 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
     QuotationsModule,
     SalesOrdersModule,
     PurchaseOrdersModule,
+    CreditNotesModule,
+    DebitNotesModule,
+    ChallansModule,
     PublicDocumentsModule,
     PaymentsModule,
     DashboardModule,

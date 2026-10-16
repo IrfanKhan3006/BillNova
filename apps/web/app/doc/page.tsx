@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Public view of a shared quotation, sales order or purchase order
+ * Public view of a shared quotation, sales order, purchase order,
+ * credit note, debit note or delivery challan
  * (/doc?s=<token>). Opened by the customer or supplier from the WhatsApp
  * message, so it must render without a login and must never show anything the
  * party should not see — the API already restricts the fields it returns.
@@ -34,10 +35,19 @@ interface PublicParty {
 }
 
 interface PublicDoc {
-  kind: 'QUOTATION' | 'SALES_ORDER' | 'PURCHASE_ORDER';
+  kind:
+    | 'QUOTATION'
+    | 'SALES_ORDER'
+    | 'PURCHASE_ORDER'
+    | 'CREDIT_NOTE'
+    | 'DEBIT_NOTE'
+    | 'DELIVERY_CHALLAN';
   quotationNumber?: string;
   salesOrderNumber?: string;
   purchaseOrderNumber?: string;
+  creditNoteNumber?: string;
+  debitNoteNumber?: string;
+  challanNumber?: string;
   date: string;
   validUntil?: string | null;
   expectedDeliveryDate?: string | null;
@@ -51,6 +61,16 @@ interface PublicDoc {
   deliveryAddress?: string | null;
   termsAndConditions?: string | null;
   notes?: string | null;
+  reason?: string | null;
+  reasonNote?: string | null;
+  originalInvoiceNumber?: string | null;
+  originalInvoiceDate?: string | null;
+  challanType?: string | null;
+  vehicleNumber?: string | null;
+  despatchedThrough?: string | null;
+  destination?: string | null;
+  shipToName?: string | null;
+  shipToAddress?: string | null;
   approvedByName?: string | null;
   approvedAt?: string | null;
   customer?: PublicParty;
@@ -78,6 +98,9 @@ const LABELS = {
   QUOTATION: { title: 'QUOTATION', lead: 'Your quotation from', party: 'Quotation For' },
   SALES_ORDER: { title: 'SALES ORDER', lead: 'Your order from', party: 'Order For' },
   PURCHASE_ORDER: { title: 'PURCHASE ORDER', lead: 'Purchase order from', party: 'Supplier' },
+  CREDIT_NOTE: { title: 'CREDIT NOTE', lead: 'Credit note from', party: 'Credit For' },
+  DEBIT_NOTE: { title: 'DEBIT NOTE', lead: 'Debit note from', party: 'Supplier' },
+  DELIVERY_CHALLAN: { title: 'DELIVERY CHALLAN', lead: 'Goods dispatched by', party: 'Deliver To' },
 } as const;
 
 export default function PublicDocumentPage() {
@@ -125,13 +148,26 @@ export default function PublicDocumentPage() {
   }
 
   const labels = LABELS[doc.kind];
-  const party = doc.kind === 'PURCHASE_ORDER' ? doc.vendor : doc.customer;
+  const party =
+    doc.kind === 'PURCHASE_ORDER' || doc.kind === 'DEBIT_NOTE'
+      ? doc.vendor
+      : doc.customer;
   const number =
-    doc.quotationNumber || doc.salesOrderNumber || doc.purchaseOrderNumber || '';
+    doc.quotationNumber ||
+    doc.salesOrderNumber ||
+    doc.purchaseOrderNumber ||
+    doc.creditNoteNumber ||
+    doc.debitNoteNumber ||
+    doc.challanNumber ||
+    '';
+  // The second date shown next to the document date differs per kind; a note
+  // shows the bill it was raised against instead, which is its GST reference.
   const secondary =
     doc.kind === 'QUOTATION'
       ? { label: 'Valid Until', value: doc.validUntil }
-      : { label: 'Expected Delivery', value: doc.expectedDeliveryDate };
+      : doc.kind === 'CREDIT_NOTE' || doc.kind === 'DEBIT_NOTE'
+        ? { label: 'Against Bill Dated', value: doc.originalInvoiceDate }
+        : { label: 'Expected Delivery', value: doc.expectedDeliveryDate };
 
   return (
     <main className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">
@@ -188,6 +224,16 @@ export default function PublicDocumentPage() {
               {secondary.value && (
                 <p className="text-xs text-zinc-600">
                   {secondary.label}: {shortDate(secondary.value)}
+                </p>
+              )}
+              {doc.originalInvoiceNumber && (
+                <p className="text-xs text-zinc-600">
+                  Against Bill: {doc.originalInvoiceNumber}
+                </p>
+              )}
+              {doc.challanType && doc.challanType !== 'DELIVERY' && (
+                <p className="text-xs text-zinc-600">
+                  Type: {doc.challanType.replace(/_/g, ' ')}
                 </p>
               )}
             </div>
@@ -289,6 +335,40 @@ export default function PublicDocumentPage() {
               <p>
                 <span className="font-semibold text-zinc-800">Terms:</span>{' '}
                 {doc.termsAndConditions}
+              </p>
+            )}
+            {doc.reason && (
+              <p>
+                <span className="font-semibold text-zinc-800">Reason:</span>{' '}
+                {doc.reason.replace(/_/g, ' ')}
+                {doc.reasonNote ? ` — ${doc.reasonNote}` : ''}
+              </p>
+            )}
+            {doc.despatchedThrough && (
+              <p>
+                <span className="font-semibold text-zinc-800">
+                  Despatched Through:
+                </span>{' '}
+                {doc.despatchedThrough}
+              </p>
+            )}
+            {doc.vehicleNumber && (
+              <p>
+                <span className="font-semibold text-zinc-800">Vehicle No.:</span>{' '}
+                {doc.vehicleNumber}
+              </p>
+            )}
+            {doc.destination && (
+              <p>
+                <span className="font-semibold text-zinc-800">Destination:</span>{' '}
+                {doc.destination}
+              </p>
+            )}
+            {doc.shipToName && (
+              <p>
+                <span className="font-semibold text-zinc-800">Ship To:</span>{' '}
+                {doc.shipToName}
+                {doc.shipToAddress ? `, ${doc.shipToAddress}` : ''}
               </p>
             )}
             {doc.notes && <p className="pt-1">{doc.notes}</p>}

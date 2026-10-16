@@ -36,6 +36,12 @@ export class BusinessService {
         salesOrderCounter: true,
         purchaseOrderPrefix: true,
         purchaseOrderCounter: true,
+        creditNotePrefix: true,
+        creditNoteCounter: true,
+        debitNotePrefix: true,
+        debitNoteCounter: true,
+        challanPrefix: true,
+        challanCounter: true,
         dueDays: true,
         invoiceTemplate: true,
         bankAccountName: true,
@@ -76,6 +82,9 @@ export class BusinessService {
       quotationPrefix,
       salesOrderPrefix,
       purchaseOrderPrefix,
+      creditNotePrefix,
+      debitNotePrefix,
+      challanPrefix,
       dueDays,
       invoiceTemplate,
       bankAccountName,
@@ -110,6 +119,15 @@ export class BusinessService {
           : undefined,
         purchaseOrderPrefix: purchaseOrderPrefix
           ? purchaseOrderPrefix.trim().toUpperCase()
+          : undefined,
+        creditNotePrefix: creditNotePrefix
+          ? creditNotePrefix.trim().toUpperCase()
+          : undefined,
+        debitNotePrefix: debitNotePrefix
+          ? debitNotePrefix.trim().toUpperCase()
+          : undefined,
+        challanPrefix: challanPrefix
+          ? challanPrefix.trim().toUpperCase()
           : undefined,
         dueDays,
         invoiceTemplate,

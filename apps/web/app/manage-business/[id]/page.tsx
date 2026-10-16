@@ -70,6 +70,9 @@ interface Detail {
   quotationsEnabled: boolean;
   salesOrdersEnabled: boolean;
   purchaseOrdersEnabled: boolean;
+  creditNotesEnabled: boolean;
+  debitNotesEnabled: boolean;
+  challansEnabled: boolean;
   createdAt: string;
   users: TenantUser[];
   _count: { invoices: number; purchaseInvoices: number; customers: number; products: number };
@@ -166,6 +169,9 @@ export default function ManageBusinessDetailPage() {
     { label: 'Quotations', on: data.quotationsEnabled },
     { label: 'Sales Orders', on: data.salesOrdersEnabled },
     { label: 'Purchase Orders', on: data.purchaseOrdersEnabled },
+    { label: 'Delivery Challans', on: data.challansEnabled },
+    { label: 'Credit Notes', on: data.creditNotesEnabled },
+    { label: 'Debit Notes', on: data.debitNotesEnabled },
   ];
 
   const planExpired =

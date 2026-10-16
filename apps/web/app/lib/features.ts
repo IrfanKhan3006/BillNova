@@ -16,12 +16,18 @@ export type FeatureKey =
   | 'purchasesEnabled'
   | 'quotationsEnabled'
   | 'salesOrdersEnabled'
-  | 'purchaseOrdersEnabled';
+  | 'purchaseOrdersEnabled'
+  | 'creditNotesEnabled'
+  | 'debitNotesEnabled'
+  | 'challansEnabled';
 
 const OPT_IN_FEATURES: FeatureKey[] = [
   'quotationsEnabled',
   'salesOrdersEnabled',
   'purchaseOrdersEnabled',
+  'creditNotesEnabled',
+  'debitNotesEnabled',
+  'challansEnabled',
 ];
 
 export function isFeatureEnabled(

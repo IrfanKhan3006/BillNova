@@ -62,6 +62,12 @@ model Tenant {
   salesOrderCounter    Int     @default(0)
   purchaseOrderPrefix  String  @default("PO")
   purchaseOrderCounter Int     @default(0)
+  creditNotePrefix     String  @default("CN")
+  creditNoteCounter    Int     @default(0)
+  debitNotePrefix      String  @default("DN")
+  debitNoteCounter     Int     @default(0)
+  challanPrefix        String  @default("DC")
+  challanCounter       Int     @default(0)
   dueDays              Int     @default(30)
   invoiceTemplate      String  @default("CLASSIC")
   defaultNotes         String? // Printed at the end of every new bill
@@ -80,6 +86,9 @@ model Tenant {
   quotationsEnabled     Boolean @default(false)
   salesOrdersEnabled    Boolean @default(false)
   purchaseOrdersEnabled Boolean @default(false)
+  creditNotesEnabled    Boolean @default(false)
+  debitNotesEnabled     Boolean @default(false)
+  challansEnabled       Boolean @default(false)
 
   // Business Type & Inventory Setting
   businessType   String  @default("RETAIL") // "RETAIL", "SERVICES_TRAVEL", "WHOLESALE", "MANUFACTURING", "SERVICES_GENERAL"
@@ -105,6 +114,9 @@ model Tenant {
   quotations        Quotation[]
   salesOrders       SalesOrder[]
   purchaseOrders    PurchaseOrder[]
+  creditNotes       CreditNote[]
+  debitNotes        DebitNote[]
+  challans          DeliveryChallan[]
 
   @@map("tenants")
 }
@@ -179,12 +191,14 @@ model Customer {
   updatedAt          DateTime  @updatedAt
   deletedAt          DateTime?
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
   invoices     Invoice[]
   payments     Payment[]
   appointments Appointment[]
   quotations   Quotation[]
   salesOrders  SalesOrder[]
+  creditNotes  CreditNote[]
+  challans     DeliveryChallan[]
 
   @@map("customers")
 }
@@ -230,6 +244,9 @@ model Product {
   quotationItems       QuotationItem[]
   salesOrderItems      SalesOrderItem[]
   purchaseOrderItems   PurchaseOrderItem[]
+  creditNoteItems      CreditNoteItem[]
+  debitNoteItems       DebitNoteItem[]
+  challanItems         DeliveryChallanItem[]
 
   @@map("products")
 }
@@ -296,10 +313,12 @@ model Invoice {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant   Tenant        @relation(fields: [tenantId], references: [id])
-  customer Customer      @relation(fields: [customerId], references: [id])
-  items    InvoiceItem[]
-  payments Payment[]
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  customer    Customer          @relation(fields: [customerId], references: [id])
+  items       InvoiceItem[]
+  payments    Payment[]
+  creditNotes CreditNote[]
+  challans    DeliveryChallan[]
 
   @@unique([tenantId, invoiceNumber])
   @@map("invoices")
@@ -388,6 +407,7 @@ model Vendor {
   purchaseInvoices PurchaseInvoice[]
   payments         PurchasePayment[]
   purchaseOrders   PurchaseOrder[]
+  debitNotes       DebitNote[]
 
   @@map("vendors")
 }
@@ -414,10 +434,11 @@ model PurchaseInvoice {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant   Tenant                @relation(fields: [tenantId], references: [id])
-  vendor   Vendor                @relation(fields: [vendorId], references: [id])
-  items    PurchaseInvoiceItem[]
-  payments PurchasePayment[]
+  tenant     Tenant                @relation(fields: [tenantId], references: [id])
+  vendor     Vendor                @relation(fields: [vendorId], references: [id])
+  items      PurchaseInvoiceItem[]
+  payments   PurchasePayment[]
+  debitNotes DebitNote[]
 
   @@unique([tenantId, purchaseNumber])
   @@map("purchase_invoices")
@@ -628,10 +649,11 @@ model SalesOrder {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant    Tenant           @relation(fields: [tenantId], references: [id])
-  customer  Customer         @relation(fields: [customerId], references: [id])
-  quotation Quotation?       @relation(fields: [quotationId], references: [id])
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  customer  Customer          @relation(fields: [customerId], references: [id])
+  quotation Quotation?        @relation(fields: [quotationId], references: [id])
   items     SalesOrderItem[]
+  challans  DeliveryChallan[]
 
   @@unique([tenantId, salesOrderNumber])
   @@index([tenantId, date])
@@ -721,4 +743,278 @@ model PurchaseOrderItem {
   product       Product?      @relation(fields: [productId], references: [id])
 
   @@map("purchase_order_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Credit Notes, Debit Notes & Delivery Challans
+//
+// A credit note reduces what a customer owes us (sales return, rate
+// difference, post-sale discount); a debit note reduces what we owe a vendor
+// (purchase return). Both are GST documents, so each carries the original
+// invoice reference and a reason.
+//
+// The ledger and stock effects only happen once the note leaves DRAFT, and the
+// `stockApplied` / `ledgerApplied` guards keep issuing and cancelling
+// idempotent — the same approach the invoice service uses when it reverses a
+// deleted bill.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CreditNoteStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum DebitNoteStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum ChallanStatus {
+  DRAFT
+  DISPATCHED
+  DELIVERED
+  INVOICED
+  CANCELLED
+}
+
+/**
+ * Why the note was raised. GST returns expect a reason against every note.
+ */
+enum NoteReason {
+  SALES_RETURN
+  PURCHASE_RETURN
+  RATE_DIFFERENCE
+  POST_SALE_DISCOUNT
+  DEFICIENCY_IN_SERVICE
+  CANCELLATION
+  OTHER
+}
+
+model CreditNote {
+  id               String           @id @default(uuid())
+  tenantId         String
+  customerId       String
+  /**
+   * The bill being credited. Optional: a note may be raised standalone.
+   */
+  invoiceId        String?
+  creditNoteNumber String
+  date             DateTime         @default(now())
+  createdById      String?
+  status           CreditNoteStatus @default(DRAFT)
+  reason           NoteReason       @default(SALES_RETURN)
+  reasonNote       String?
+
+  subTotal       Float @default(0)
+  taxAmount      Float @default(0)
+  discountAmount Float @default(0)
+  totalAmount    Float @default(0)
+
+  /**
+   * GST print reference, snapshotted so it survives the bill being edited.
+   */
+  originalInvoiceNumber String?
+  originalInvoiceDate   DateTime?
+
+  /**
+   * Whether issuing this note should put the returned goods back into stock.
+   */
+  restock Boolean @default(true)
+
+  // Effects already applied, so issue/cancel can be replayed safely.
+  stockApplied     Boolean @default(false)
+  ledgerApplied    Boolean @default(false)
+  /**
+   * How much of this note was set against the linked bill's amount due.
+   */
+  appliedToInvoice Float   @default(0)
+
+  notes      String?
+  shareToken String? @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+  customer Customer         @relation(fields: [customerId], references: [id])
+  invoice  Invoice?         @relation(fields: [invoiceId], references: [id])
+  items    CreditNoteItem[]
+
+  @@unique([tenantId, creditNoteNumber])
+  @@index([tenantId, date])
+  @@map("credit_notes")
+}
+
+model CreditNoteItem {
+  id             String  @id @default(uuid())
+  creditNoteId   String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  creditNote CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  product    Product?   @relation(fields: [productId], references: [id])
+
+  @@map("credit_note_items")
+}
+
+model DebitNote {
+  id                String          @id @default(uuid())
+  tenantId          String
+  vendorId          String
+  /**
+   * The purchase bill being debited. Optional: may be raised standalone.
+   */
+  purchaseInvoiceId String?
+  debitNoteNumber   String
+  date              DateTime        @default(now())
+  createdById       String?
+  status            DebitNoteStatus @default(DRAFT)
+  reason            NoteReason      @default(PURCHASE_RETURN)
+  reasonNote        String?
+
+  subTotal       Float @default(0)
+  taxAmount      Float @default(0)
+  discountAmount Float @default(0)
+  totalAmount    Float @default(0)
+
+  originalInvoiceNumber String?
+  originalInvoiceDate   DateTime?
+
+  /**
+   * Whether issuing this note should take the returned goods out of stock.
+   */
+  restock Boolean @default(true)
+
+  stockApplied     Boolean @default(false)
+  ledgerApplied    Boolean @default(false)
+  appliedToInvoice Float   @default(0)
+
+  notes      String?
+  shareToken String? @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  vendor          Vendor           @relation(fields: [vendorId], references: [id])
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+  items           DebitNoteItem[]
+
+  @@unique([tenantId, debitNoteNumber])
+  @@index([tenantId, date])
+  @@map("debit_notes")
+}
+
+model DebitNoteItem {
+  id             String  @id @default(uuid())
+  debitNoteId    String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  debitNote DebitNote @relation(fields: [debitNoteId], references: [id], onDelete: Cascade)
+  product   Product?  @relation(fields: [productId], references: [id])
+
+  @@map("debit_note_items")
+}
+
+/**
+ * Goods sent out before (or without) a bill. Stock leaves on dispatch, so the
+ * invoice raised from a challan must not move stock a second time.
+ */
+model DeliveryChallan {
+  id            String        @id @default(uuid())
+  tenantId      String
+  customerId    String
+  salesOrderId  String?
+  challanNumber String
+  date          DateTime      @default(now())
+  createdById   String?
+  status        ChallanStatus @default(DRAFT)
+  /**
+   * DELIVERY, JOB_WORK, SAMPLE, RETURNABLE — printed on the challan.
+   */
+  challanType   String        @default("DELIVERY")
+
+  subTotal       Float @default(0)
+  taxAmount      Float @default(0)
+  discountAmount Float @default(0)
+  totalAmount    Float @default(0)
+
+  // Dispatch details, mirroring the fields the invoice print already carries.
+  vehicleNumber     String?
+  despatchedThrough String?
+  destination       String?
+  termsOfDelivery   String?
+
+  // Ship-to party; may differ from the billed customer.
+  shipToName    String?
+  shipToAddress String?
+  shipToGstin   String?
+  shipToState   String?
+
+  notes      String?
+  shareToken String? @unique
+
+  /**
+   * Set once the goods have left, so billing does not deduct stock again.
+   */
+  stockApplied       Boolean @default(false)
+  convertedInvoiceId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant     Tenant                @relation(fields: [tenantId], references: [id])
+  customer   Customer              @relation(fields: [customerId], references: [id])
+  salesOrder SalesOrder?           @relation(fields: [salesOrderId], references: [id])
+  invoice    Invoice?              @relation(fields: [convertedInvoiceId], references: [id])
+  items      DeliveryChallanItem[]
+
+  @@unique([tenantId, challanNumber])
+  @@index([tenantId, date])
+  @@map("delivery_challans")
+}
+
+model DeliveryChallanItem {
+  id             String  @id @default(uuid())
+  challanId      String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  challan DeliveryChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id])
+
+  @@map("delivery_challan_items")
 }
