@@ -149,6 +149,8 @@ model User {
   role         Role    @default(USER)
   isActive     Boolean @default(true)
 
+  emailVerifiedAt DateTime? // set when the signup OTP was confirmed
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -1017,4 +1019,22 @@ model DeliveryChallanItem {
   product Product?        @relation(fields: [productId], references: [id])
 
   @@map("delivery_challan_items")
+}
+
+/// One-time codes emailed during signup (and any future email-verification flow).
+/// The code itself is never stored - only its SHA-256 hash.
+model EmailOtp {
+  id       String @id @default(uuid())
+  email    String
+  codeHash String
+  purpose  String @default("REGISTER")
+
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, purpose])
+  @@index([expiresAt])
+  @@map("email_otps")
 }

@@ -38,4 +38,12 @@ export class RegisterDto {
     message: 'Valid 10-digit phone number dalo',
   })
   phone?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Token returned by POST /auth/verify-email-otp. Required unless EMAIL_OTP_REQUIRED=false.',
+  })
+  @IsOptional()
+  @IsString()
+  emailVerificationToken?: string;
 }

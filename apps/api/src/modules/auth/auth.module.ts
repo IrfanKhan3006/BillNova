@@ -6,10 +6,12 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaModule } from '../../database/prisma.module'; // ← import dynamic module
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     PrismaModule, // ← import dynamic module
+    MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

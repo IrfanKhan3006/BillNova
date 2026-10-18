@@ -23,6 +23,7 @@ import { DebitNotesModule } from './modules/debit-notes/debit-notes.module';
 import { ChallansModule } from './modules/challans/challans.module';
 import { PublicDocumentsModule } from './modules/public-documents/public-documents.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { MailModule } from './modules/mail/mail.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
       // Real env vars always win; .env files are only a fallback (e.g. Hostinger).
       envFilePath: ['.env', '../../.env'],
     }),
+    MailModule,
     SubscriptionModule,
     HealthModule,
     AuthModule,

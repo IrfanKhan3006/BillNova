@@ -12,6 +12,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express'; // ye line hatao
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { SendEmailOtpDto } from './dto/send-email-otp.dto';
+import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { JwtAuthGuard, Public } from './guards/jwt-auth.guard';
@@ -22,6 +24,22 @@ import { CurrentUser } from './decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Post('send-email-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Email a 6-digit signup verification code' })
+  async sendEmailOtp(@Body() dto: SendEmailOtpDto) {
+    return this.authService.sendEmailOtp(dto.email);
+  }
+
+  @Public()
+  @Post('verify-email-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Confirm the signup code and get a register token' })
+  async verifyEmailOtp(@Body() dto: VerifyEmailOtpDto) {
+    return this.authService.verifyEmailOtp(dto.email, dto.code);
+  }
 
   @Public()
   @Post('register')
