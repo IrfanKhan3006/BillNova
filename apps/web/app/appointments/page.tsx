@@ -31,6 +31,8 @@ import {
   CalendarPlus,
   CalendarDays,
   List as ListIcon,
+  UserPlus,
+  Pencil,
 } from 'lucide-react';
 
 interface Customer {
@@ -79,6 +81,16 @@ const timeLabel = (iso: string) =>
 /** Local date/time inputs → an ISO string in the browser's own timezone. */
 const toIso = (date: string, time: string) => new Date(`${date}T${time}`).toISOString();
 
+/** ISO string → the `date` and `time` input values in the browser's own timezone. */
+const localParts = (iso: string) => {
+  const d = new Date(iso);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  const [date, rest] = d.toISOString().split('T');
+  return { date, time: rest.slice(0, 5) };
+};
+const localDate = (iso: string) => localParts(iso).date;
+const localTime = (iso: string) => localParts(iso).time;
+
 const todayStr = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -99,7 +111,11 @@ export default function AppointmentsPage() {
   const [calendarView, setCalendarView] = useState<CalendarView>('workweek');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showQuickCustomer, setShowQuickCustomer] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [quickCustomer, setQuickCustomer] = useState({ name: '', phone: '' });
 
   const [form, setForm] = useState({
     customerId: '',
@@ -191,6 +207,63 @@ export default function AppointmentsPage() {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  /** Blank form, back to "book a new one" mode. */
+  const resetForm = () => {
+    setEditingId(null);
+    setForm((prev) => ({
+      ...prev,
+      customerId: prev.customerId || customers[0]?.id || '',
+      service: '',
+      staffName: '',
+      date: todayStr(),
+      time: '10:00',
+      durationMins: 60,
+      notes: '',
+    }));
+  };
+
+  /** Loads an existing appointment into the form for editing. */
+  const startEdit = (appt: Appointment) => {
+    setEditingId(appt.id);
+    setShowQuickCustomer(false);
+    setForm({
+      customerId: appt.customer.id,
+      service: appt.service,
+      staffName: appt.staffName || '',
+      date: localDate(appt.startsAt),
+      time: localTime(appt.startsAt),
+      durationMins: appt.durationMins,
+      notes: appt.notes || '',
+    });
+    setShowForm(true);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /** Quick-add a customer without leaving the booking form. */
+  const handleQuickCustomer = async () => {
+    if (!quickCustomer.name.trim()) {
+      toast.error('Customer ka naam likhein.');
+      return;
+    }
+
+    setSavingCustomer(true);
+    try {
+      const created: Customer = await api.post('/customers', {
+        name: quickCustomer.name.trim(),
+        phone: quickCustomer.phone.trim() || undefined,
+      });
+      setCustomers((prev) => [created, ...prev]);
+      setForm((prev) => ({ ...prev, customerId: created.id }));
+      setQuickCustomer({ name: '', phone: '' });
+      setShowQuickCustomer(false);
+      toast.success(`Customer "${created.name}" add ho gaya.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Customer add nahi ho paya.');
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.customerId) {
@@ -203,14 +276,33 @@ export default function AppointmentsPage() {
     }
 
     setSaving(true);
+    const payload = {
+      customerId: form.customerId,
+      service: form.service.trim(),
+      staffName: form.staffName.trim() || '',
+      startsAt: toIso(form.date, form.time),
+      durationMins: form.durationMins,
+      notes: form.notes.trim() || '',
+    };
+
     try {
+      if (editingId) {
+        const updated: Appointment = await api.patch(`/appointments/${editingId}`, payload);
+        setAppointments((prev) =>
+          prev
+            .map((a) => (a.id === editingId ? { ...a, ...updated } : a))
+            .sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
+        );
+        setShowForm(false);
+        resetForm();
+        toast.success('Appointment updated.');
+        return;
+      }
+
       const created: Appointment = await api.post('/appointments', {
-        customerId: form.customerId,
-        service: form.service.trim(),
-        staffName: form.staffName.trim() || undefined,
-        startsAt: toIso(form.date, form.time),
-        durationMins: form.durationMins,
-        notes: form.notes.trim() || undefined,
+        ...payload,
+        staffName: payload.staffName || undefined,
+        notes: payload.notes || undefined,
       });
       setAppointments((prev) =>
         [...prev, created].sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
@@ -221,7 +313,9 @@ export default function AppointmentsPage() {
       // Straight into WhatsApp, which is the point of booking it.
       sendWhatsApp(created);
     } catch (err: any) {
-      toast.error(err.message || 'Appointment book nahi ho paya.');
+      toast.error(
+        err.message || (editingId ? 'Appointment update nahi hua.' : 'Appointment book nahi ho paya.'),
+      );
     } finally {
       setSaving(false);
     }
@@ -240,6 +334,10 @@ export default function AppointmentsPage() {
     try {
       await api.delete(`/appointments/${appt.id}`);
       setAppointments((prev) => prev.filter((a) => a.id !== appt.id));
+      if (editingId === appt.id) {
+        setShowForm(false);
+        resetForm();
+      }
       toast.success('Appointment deleted.');
     } catch (err: any) {
       toast.error(err.message || 'Delete nahi hua.');
@@ -287,7 +385,15 @@ export default function AppointmentsPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => {
+              if (showForm) {
+                setShowForm(false);
+                resetForm();
+              } else {
+                resetForm();
+                setShowForm(true);
+              }
+            }}
             className="flex items-center gap-2 self-start rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-zinc-950 transition hover:bg-emerald-400"
           >
             {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
@@ -307,20 +413,87 @@ export default function AppointmentsPage() {
             onSubmit={handleCreate}
             className="space-y-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5"
           >
-            <h2 className="font-bold text-zinc-900 dark:text-white">New Appointment</h2>
+            <h2 className="font-bold text-zinc-900 dark:text-white">
+              {editingId ? 'Edit Appointment' : 'New Appointment'}
+            </h2>
 
             {customers.length === 0 ? (
-              <p className="text-sm text-amber-500">
-                Pehle ek customer add karein — Customers page par jaakar naam aur WhatsApp number
-                save karein.
-              </p>
+              <div className="space-y-3">
+                <p className="text-sm text-amber-500">
+                  Abhi koi customer nahi hai — yahin se ek add kar lein.
+                </p>
+                {showQuickCustomer ? null : (
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickCustomer(true)}
+                    className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-zinc-950 transition hover:bg-emerald-400"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" /> New Customer
+                  </button>
+                )}
+              {showQuickCustomer && (
+                <div className="rounded-xl border border-emerald-500/30 bg-white p-4 dark:bg-zinc-950">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
+                        Naam *
+                      </label>
+                      <input
+                        value={quickCustomer.name}
+                        onChange={(e) => setQuickCustomer({ ...quickCustomer, name: e.target.value })}
+                        placeholder="Customer ka naam"
+                        className="mt-1.5 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder-zinc-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
+                        WhatsApp Number
+                      </label>
+                      <input
+                        value={quickCustomer.phone}
+                        onChange={(e) => setQuickCustomer({ ...quickCustomer, phone: e.target.value })}
+                        placeholder="e.g. 9876543210"
+                        className="mt-1.5 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder-zinc-600"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleQuickCustomer}
+                      disabled={savingCustomer}
+                      className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-60"
+                    >
+                      {savingCustomer ? 'Saving...' : 'Save Customer'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickCustomer(false)}
+                      className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-bold text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+              </div>
             ) : (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
-                      Customer *
-                    </label>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
+                        Customer *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickCustomer((v) => !v)}
+                        className="flex items-center gap-1 text-xs font-bold text-emerald-500 transition hover:text-emerald-400"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        {showQuickCustomer ? 'Cancel' : 'New Customer'}
+                      </button>
+                    </div>
                     <select
                       value={form.customerId}
                       onChange={(e) => setForm({ ...form, customerId: e.target.value })}
@@ -332,6 +505,35 @@ export default function AppointmentsPage() {
                         </option>
                       ))}
                     </select>
+
+                    {showQuickCustomer && (
+                      <div className="mt-3 space-y-3 rounded-xl border border-emerald-500/30 bg-white p-3 dark:bg-zinc-950">
+                        <input
+                          value={quickCustomer.name}
+                          onChange={(e) =>
+                            setQuickCustomer({ ...quickCustomer, name: e.target.value })
+                          }
+                          placeholder="Customer ka naam *"
+                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder-zinc-600"
+                        />
+                        <input
+                          value={quickCustomer.phone}
+                          onChange={(e) =>
+                            setQuickCustomer({ ...quickCustomer, phone: e.target.value })
+                          }
+                          placeholder="WhatsApp number"
+                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder-zinc-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleQuickCustomer}
+                          disabled={savingCustomer}
+                          className="w-full rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-60"
+                        >
+                          {savingCustomer ? 'Saving...' : 'Save Customer'}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -413,17 +615,45 @@ export default function AppointmentsPage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex items-center gap-2 rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-bold text-zinc-950 transition hover:bg-[#1ebe5b] disabled:opacity-60"
+                    className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-zinc-950 transition disabled:opacity-60 ${
+                      editingId
+                        ? 'bg-emerald-500 hover:bg-emerald-400'
+                        : 'bg-[#25D366] hover:bg-[#1ebe5b]'
+                    }`}
                   >
-                    <MessageCircle className="h-4 w-4" />
-                    {saving ? 'Booking...' : 'Book & Send on WhatsApp'}
+                    {editingId ? (
+                      <Pencil className="h-4 w-4" />
+                    ) : (
+                      <MessageCircle className="h-4 w-4" />
+                    )}
+                    {saving
+                      ? editingId
+                        ? 'Updating...'
+                        : 'Booking...'
+                      : editingId
+                        ? 'Update Appointment'
+                        : 'Book & Send on WhatsApp'}
                   </button>
+                  {editingId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForm(false);
+                        resetForm();
+                      }}
+                      className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    >
+                      Cancel
+                    </button>
+                  )}
                   <p className="text-[11px] text-zinc-500">
-                    Book hote hi WhatsApp khulega — aapko bas Send dabana hai.
+                    {editingId
+                      ? 'Changes save karne ke baad customer ko dobara WhatsApp bhej sakte hain.'
+                      : 'Book hote hi WhatsApp khulega — aapko bas Send dabana hai.'}
                   </p>
                 </div>
               </>
@@ -507,6 +737,12 @@ export default function AppointmentsPage() {
                       {a.notes && <p className="mt-1 text-xs italic text-zinc-500">{a.notes}</p>}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => startEdit(a)}
+                        className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-500 hover:bg-emerald-500/20"
+                      >
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </button>
                       <button
                         onClick={() => sendWhatsApp(a)}
                         className="flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-bold text-zinc-950 hover:bg-[#1ebe5b]"
@@ -613,6 +849,13 @@ export default function AppointmentsPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => startEdit(a)}
+                          title="Appointment edit karein"
+                          className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-500 hover:bg-emerald-500/20"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </button>
                         <button
                           onClick={() => sendWhatsApp(a)}
                           title="Confirmation WhatsApp par bhejein"
