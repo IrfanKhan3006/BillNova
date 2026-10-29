@@ -26,6 +26,9 @@ import {
   Phone,
   Search,
   Pencil,
+  Link2,
+  Copy,
+  MessageCircle,
 } from 'lucide-react';
 
 type Plan = 'FREE' | 'BASIC' | 'STARTER' | 'PRO' | 'ENTERPRISE';
@@ -91,6 +94,9 @@ interface PageProps {
 
 const ROLE_LABEL: Record<string, string> = { ADMIN: 'Admin', USER: 'User' };
 
+/** Matches RESET_LINK_TTL_HOURS in the API's auth.service.ts. */
+const LINK_VALID_HOURS = 48;
+
 const card = 'rounded-2xl border border-zinc-800 bg-zinc-900/20 shadow-xl';
 const cardHead = 'flex items-center justify-between border-b border-zinc-800 bg-zinc-900/40 px-6 py-4';
 
@@ -108,6 +114,9 @@ export default function TenantDetailPage({ params }: PageProps) {
   const [billSearch, setBillSearch] = useState('');
   const [maxUsersInput, setMaxUsersInput] = useState<string>('');
   const [now] = useState(() => Date.now()); // read once, not on every render
+  const [resetLinkFor, setResetLinkFor] = useState<string | null>(null);
+  const [resetLink, setResetLink] = useState<{ url: string; expiresAt: string } | null>(null);
+  const [linkLoading, setLinkLoading] = useState(false);
 
   const load = async () => {
     try {
@@ -228,6 +237,42 @@ export default function TenantDetailPage({ params }: PageProps) {
       router.push('/admin/tenants');
     } catch (err: any) {
       toast.error(err.message || 'Delete failed.');
+    }
+  };
+
+  /**
+   * Generates a one-time link the business itself opens to set a new password.
+   * Nothing is emailed from here — the Super Admin passes the link on (copy or
+   * WhatsApp), and the user lands logged in after saving.
+   */
+  const generateResetLink = async (userId: string) => {
+    setLinkLoading(true);
+    setResetLinkFor(userId);
+    setResetLink(null);
+    try {
+      const res = await api.post(`/admin/users/${userId}/password-reset-link`, {});
+      const origin =
+        process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '') ||
+        (typeof window !== 'undefined' ? window.location.origin : '');
+      setResetLink({
+        url: `${origin}/set-password?t=${encodeURIComponent(res.token)}`,
+        expiresAt: res.expiresAt,
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Could not create the reset link.');
+      setResetLinkFor(null);
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const copyResetLink = async () => {
+    if (!resetLink) return;
+    try {
+      await navigator.clipboard.writeText(resetLink.url);
+      toast.success('Link copied — business ko bhej dein.');
+    } catch {
+      toast.error('Copy nahi hua — link select karke manually copy karein.');
     }
   };
 
@@ -616,17 +661,82 @@ export default function TenantDetailPage({ params }: PageProps) {
                       </td>
                       <td className="py-3 text-zinc-400">{new Date(u.createdAt).toLocaleDateString('en-IN')}</td>
                       <td className="py-3 pr-6 text-right">
-                        <button
-                          onClick={() => {
-                            setPasswordFor(passwordFor === u.id ? null : u.id);
-                            setNewPassword('');
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition"
-                        >
-                          <Key className="h-3.5 w-3.5" /> Reset Password
-                        </button>
+                        <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              if (resetLinkFor === u.id) {
+                                setResetLinkFor(null);
+                                setResetLink(null);
+                              } else {
+                                setPasswordFor(null);
+                                generateResetLink(u.id);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                            {resetLinkFor === u.id ? 'Hide Link' : 'Reset Link'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setResetLinkFor(null);
+                              setResetLink(null);
+                              setPasswordFor(passwordFor === u.id ? null : u.id);
+                              setNewPassword('');
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition"
+                          >
+                            <Key className="h-3.5 w-3.5" /> Set Manually
+                          </button>
+                        </div>
                       </td>
                     </tr>
+                    {resetLinkFor === u.id && (
+                      <tr>
+                        <td colSpan={5} className="px-6 pb-4">
+                          {linkLoading ? (
+                            <p className="text-xs text-zinc-400">Link ban raha hai...</p>
+                          ) : resetLink ? (
+                            <div className="space-y-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+                              <p className="text-xs text-zinc-300">
+                                Ye link <span className="font-semibold text-white">{u.email}</span>{' '}
+                                ke liye hai — business ko bhej dein. Wo apna naya password set karke
+                                seedha login ho jayega.
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                  readOnly
+                                  value={resetLink.url}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  className="min-w-[240px] flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-xs text-emerald-300 focus:outline-none"
+                                />
+                                <button
+                                  onClick={copyResetLink}
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-zinc-950 hover:bg-emerald-400"
+                                >
+                                  <Copy className="h-3.5 w-3.5" /> Copy
+                                </button>
+                                <a
+                                  href={`https://wa.me/?text=${encodeURIComponent(
+                                    `${tenant.name}: apna BillCraft password set karne ke liye ye link kholein — ${resetLink.url} (${LINK_VALID_HOURS} ghante tak valid hai)`,
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-2 text-xs font-bold text-zinc-950 hover:bg-[#1ebe5b]"
+                                >
+                                  <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                                </a>
+                              </div>
+                              <p className="text-[11px] text-zinc-500">
+                                Ek hi baar chalega aur{' '}
+                                {new Date(resetLink.expiresAt).toLocaleString('en-IN')} tak valid
+                                hai. Naya link banate hi purana band ho jata hai.
+                              </p>
+                            </div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    )}
                     {passwordFor === u.id && (
                       <tr>
                         <td colSpan={5} className="px-6 pb-4">

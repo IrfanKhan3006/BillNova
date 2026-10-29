@@ -20,6 +20,7 @@ const OTP_RESEND_SECONDS = 60; // one code per minute per email
 const OTP_MAX_PER_HOUR = 5;
 const OTP_MAX_ATTEMPTS = 5; // wrong guesses allowed per code
 const VERIFICATION_TOKEN_TTL = '30m'; // time to finish the signup form
+const RESET_LINK_TTL_HOURS = 48; // a Super Admin's reset link stays usable this long
 
 @Injectable()
 export class AuthService {
@@ -274,6 +275,135 @@ export class AuthService {
     );
 
     return { verified: true, emailVerificationToken };
+  }
+
+  // ─── Password reset links (Super Admin issued) ────────────────────────────
+  /**
+   * Mints a one-time link for a user. The raw token is returned ONCE (only to
+   * the Super Admin who asked for it) and only its hash is stored, so a leaked
+   * database row cannot be turned back into a working link. Any older unused
+   * link for the same user dies here, so the newest link is the only live one.
+   */
+  async createPasswordResetToken(userId: string, createdById?: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      include: { tenant: { select: { name: true, deletedAt: true } } },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found.');
+    }
+    if (user.tenant?.deletedAt) {
+      throw new BadRequestException(
+        'This business is suspended — restore it before resetting a password.',
+      );
+    }
+
+    const token = crypto.randomBytes(32).toString('base64url');
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + RESET_LINK_TTL_HOURS * 60 * 60 * 1000,
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: now },
+      }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          userId,
+          tokenHash: this.hashToken(token),
+          createdById: createdById ?? null,
+          expiresAt,
+        },
+      }),
+    ]);
+
+    return {
+      token,
+      expiresAt,
+      expiresInHours: RESET_LINK_TTL_HOURS,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        businessName: user.tenant?.name ?? null,
+      },
+    };
+  }
+
+  /**
+   * What the set-password page shows before anything is typed: whose account
+   * the link belongs to, so the user can see the email is theirs.
+   */
+  async getPasswordResetTarget(token: string) {
+    const record = await this.findLivePasswordResetToken(token);
+
+    return {
+      email: record.user.email,
+      name: record.user.name,
+      businessName: record.user.tenant?.name ?? null,
+      expiresAt: record.expiresAt,
+    };
+  }
+
+  /**
+   * Sets the new password, kills every existing session (an old device must not
+   * stay logged in after a reset) and logs this user straight in.
+   */
+  async completePasswordReset(
+    token: string,
+    password: string,
+    meta: { userAgent?: string; ipAddress?: string },
+  ) {
+    const record = await this.findLivePasswordResetToken(token);
+    const now = new Date();
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { passwordHash: await hashPassword(password) },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: { usedAt: now },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: record.userId, isRevoked: false },
+        data: { isRevoked: true },
+      }),
+    ]);
+
+    // Same payload as a normal login, so the web app can drop the user
+    // straight into the dashboard.
+    return this.login({ email: record.user.email, password } as LoginDto, meta);
+  }
+
+  /** One place that decides whether a reset link is still usable. */
+  private async findLivePasswordResetToken(token: string) {
+    const record = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash: this.hashToken(token) },
+      include: {
+        user: {
+          include: { tenant: { select: { name: true, deletedAt: true } } },
+        },
+      },
+    });
+
+    if (!record || record.usedAt || record.expiresAt <= new Date()) {
+      throw new BadRequestException(
+        'This password link is no longer valid. Please ask for a new one.',
+      );
+    }
+    if (!record.user.isActive || record.user.deletedAt) {
+      throw new BadRequestException('This account is inactive.');
+    }
+    if (record.user.tenant?.deletedAt) {
+      throw new BadRequestException('This business has been deactivated.');
+    }
+
+    return record;
   }
 
   // ─── Login ────────────────────────────────────────────────────────────────

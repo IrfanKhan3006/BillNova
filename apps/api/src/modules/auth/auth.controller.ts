@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Body,
+  Param,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -14,6 +15,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { SendEmailOtpDto } from './dto/send-email-otp.dto';
 import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto';
+import { CompletePasswordResetDto } from './dto/complete-password-reset.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { JwtAuthGuard, Public } from './guards/jwt-auth.guard';
@@ -39,6 +41,27 @@ export class AuthController {
   @ApiOperation({ summary: 'Confirm the signup code and get a register token' })
   async verifyEmailOtp(@Body() dto: VerifyEmailOtpDto) {
     return this.authService.verifyEmailOtp(dto.email, dto.code);
+  }
+
+  @Public()
+  @Get('password-reset/:token')
+  @ApiOperation({ summary: 'Whose account a reset link belongs to' })
+  async getPasswordReset(@Param('token') token: string) {
+    return this.authService.getPasswordResetTarget(token);
+  }
+
+  @Public()
+  @Post('password-reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Set a new password from a reset link and log in' })
+  async completePasswordReset(
+    @Body() dto: CompletePasswordResetDto,
+    @Req() req: any,
+  ) {
+    return this.authService.completePasswordReset(dto.token, dto.password, {
+      userAgent: req.headers['user-agent'],
+      ipAddress: req.ip,
+    });
   }
 
   @Public()

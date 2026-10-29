@@ -155,8 +155,9 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
-  refreshTokens RefreshToken[]
+  tenant             Tenant?              @relation(fields: [tenantId], references: [id])
+  refreshTokens      RefreshToken[]
+  passwordResetLinks PasswordResetToken[]
 
   @@unique([tenantId, email])
   @@map("users")
@@ -178,6 +179,27 @@ model RefreshToken {
   tenant Tenant? @relation(fields: [tenantId], references: [id])
 
   @@map("refresh_tokens")
+}
+
+/**
+ * A one-time link the Super Admin hands to a business so its own user can set a
+ * new password (and land logged in) without anyone mailing a plain password.
+ */
+model PasswordResetToken {
+  id          String  @id @default(uuid())
+  userId      String
+  tokenHash   String  @unique
+  createdById String? // the Super Admin who generated the link
+
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 model Customer {

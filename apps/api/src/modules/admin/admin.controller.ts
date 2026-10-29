@@ -21,6 +21,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
 import { UpdateInvoiceDto } from '../invoices/invoices.controller';
 
@@ -281,6 +282,18 @@ export class AdminController {
   @ApiOperation({ summary: 'Deleted business wapas restore kro' })
   async restoreTenant(@Param('id') id: string) {
     return this.adminService.restoreTenant(id);
+  }
+
+  @Post('users/:id/password-reset-link')
+  @ApiOperation({
+    summary:
+      'Super Admin: ek one-time link banao jisse business khud apna naya password set kare',
+  })
+  async createPasswordResetLink(
+    @Param('id') id: string,
+    @CurrentUser() admin: any,
+  ) {
+    return this.adminService.createPasswordResetLink(id, admin?.id);
   }
 
   @Patch('users/:id/password')

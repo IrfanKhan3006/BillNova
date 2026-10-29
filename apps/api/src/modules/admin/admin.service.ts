@@ -15,6 +15,7 @@ import { InvoicesService } from '../invoices/invoices.service';
 import { UpdateInvoiceDto } from '../invoices/invoices.controller';
 import { TenantPlan } from '@prisma/client';
 import { hashPassword } from '../../common/utils/password.util';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class AdminService {
@@ -22,6 +23,7 @@ export class AdminService {
     private prisma: PrismaService,
     private subscriptionService: SubscriptionService,
     private invoicesService: InvoicesService,
+    private authService: AuthService,
   ) {}
 
   // ─── Platform Analytics ───────────────────────────────────────────────────
@@ -517,6 +519,23 @@ export class AdminService {
         },
       });
     });
+  }
+
+  /**
+   * One-time password link for a business user. The Super Admin passes it on to
+   * the business; nobody has to mail a plain password, and the user lands
+   * logged in after setting their own.
+   */
+  async createPasswordResetLink(userId: string, createdById?: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    return this.authService.createPasswordResetToken(userId, createdById);
   }
 
   async changeUserPassword(userId: string, newPassword: string) {
