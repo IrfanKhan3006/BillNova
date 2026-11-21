@@ -1757,10 +1757,10 @@ export default function BillingPage() {
                 <thead>
                   <tr className={`uppercase font-bold border-t border-b ${isEmerald ? 'bg-emerald-50 text-emerald-950 border-emerald-200' : isBlue ? 'bg-slate-100 text-slate-850 border-slate-300' : 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
                     <th className="py-2.5 px-2 w-8">#</th>
-                    <th className="py-2.5 px-2">Item Description</th>
+                    <th className="py-2.5 px-2">Particulars</th>
                     <th className="py-2.5 px-2 text-center w-24">HSN/SAC</th>
                     <th className="py-2.5 px-2 text-right">Price</th>
-                    <th className="py-2.5 px-2 text-center">{isTravel ? 'Pack' : 'Qty'}</th>
+                    <th className="py-2.5 px-2 text-center">Qty</th>
                     <th className="py-2.5 px-2 text-right">GST %</th>
                     <th className="py-2.5 px-2 text-right">Total</th>
                   </tr>
