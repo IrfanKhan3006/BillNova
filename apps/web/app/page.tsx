@@ -569,7 +569,7 @@ export default function Home() {
                   </div>
                   <p className="plan-blurb">{plan.blurb}</p>
                   <Link
-                    href="/pricing"
+                    href="/login"
                     className={`btn ${plan.featured ? 'btn-primary' : 'btn-secondary'}`}
                     style={{ width: '100%' }}
                   >

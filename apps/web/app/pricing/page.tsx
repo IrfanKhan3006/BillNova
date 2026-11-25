@@ -104,7 +104,7 @@ export default function PricingPage() {
                   </div>
                   <p className="plan-blurb">{plan.blurb}</p>
                   <Link
-                    href={isAuthenticated ? '/billing' : '/register'}
+                    href="/login"
                     className={`btn ${plan.featured ? 'btn-primary' : 'btn-secondary'}`}
                     style={{ width: '100%' }}
                   >
