@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, BarChart3, Building2, Check, FileText } from 'lucide-react';
+import { BarChart3, Building2, Check, FileText } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import '../landing-page/landing.css';
 import './pricing.css';
@@ -28,7 +28,7 @@ const PLANS: Plan[] = [
     id: 'starter',
     name: 'Starter',
     tier: 'Essential Business Management',
-    price: { yearly: '₹3,000', monthly: '₹250' },
+    price: { yearly: '₹3,000', monthly: '₹300' },
     blurb:
       'For startups, freelancers and small shops that need clean invoicing and day-to-day business control.',
     featureHeading: '11 features included',
@@ -50,7 +50,7 @@ const PLANS: Plan[] = [
     id: 'business',
     name: 'Business',
     tier: 'Complete Business Management',
-    price: { yearly: '₹6,000', monthly: '₹500' },
+    price: { yearly: '₹6,000', monthly: '₹600' },
     blurb:
       'For growing companies running the full sales, purchase and financial cycle with a team.',
     featureHeading: '16 features — everything in Starter, plus',
@@ -69,7 +69,7 @@ const PLANS: Plan[] = [
     id: 'premium',
     name: 'Premium',
     tier: 'Advanced Business Management',
-    price: { yearly: '₹10,000', monthly: '₹834' },
+    price: { yearly: '₹10,000', monthly: '₹1,000' },
     blurb:
       'For established businesses running several businesses under one login, with a setup tailored to them.',
     featureHeading: '21 features — everything in Business, plus',
@@ -139,7 +139,7 @@ export default function PricingPage() {
           </Link>
           <div className="nav-actions" style={{ display: 'flex' }}>
             <Link href="/" className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-              <ArrowLeft style={{ width: 16, height: 16 }} /> Home
+              Home
             </Link>
             <Link
               href={isAuthenticated ? '/dashboard' : '/register'}
