@@ -1,0 +1,306 @@
+/* -------------------------------------------------------------
+   PRICING PAGE — builds on landing.css tokens (.landing-page-root)
+------------------------------------------------------------- */
+
+/* Billing period toggle */
+.landing-page-root .billing-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+    padding: 0.3rem;
+}
+
+.landing-page-root .billing-toggle button {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    background: none;
+    border: 0;
+    border-radius: 9999px;
+    padding: 0.5rem 1.1rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.landing-page-root .billing-toggle button[aria-pressed='true'] {
+    background: var(--primary);
+    color: #09090b;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.22);
+}
+
+/* Plan cards */
+.landing-page-root .plans-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    align-items: start;
+}
+
+.landing-page-root .plan-card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    min-width: 0;
+}
+
+.landing-page-root .plan-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    transform: translateX(-100%);
+    transition: var(--transition);
+}
+
+.landing-page-root .plan-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--border-color-glow);
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.06);
+}
+
+.landing-page-root .plan-card:hover::before {
+    transform: translateX(100%);
+    transition: all 0.8s ease;
+}
+
+.landing-page-root .plan-card.featured {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.05) 100%),
+        rgba(20, 20, 22, 0.7);
+    border-color: rgba(16, 185, 129, 0.25);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.landing-page-root .plan-badge {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    font-family: var(--font-display);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 9999px;
+    padding: 0.3rem 0.7rem;
+}
+
+.landing-page-root .plan-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    background: rgba(16, 185, 129, 0.06);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    border-radius: 0.75rem;
+    display: grid;
+    place-items: center;
+    color: var(--primary);
+}
+
+.landing-page-root .plan-card h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+}
+
+.landing-page-root .plan-tier {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.landing-page-root .plan-price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.landing-page-root .plan-price .amount {
+    font-family: var(--font-display);
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.landing-page-root .plan-price .period {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.landing-page-root .plan-blurb {
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+}
+
+.landing-page-root .plan-divider {
+    border-top: 1px solid var(--border-color);
+    padding-top: 1.1rem;
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.landing-page-root .plan-features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0;
+}
+
+.landing-page-root .plan-features li {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    min-width: 0;
+}
+
+.landing-page-root .plan-features svg {
+    flex: 0 0 auto;
+    margin-top: 0.25rem;
+    color: var(--primary);
+}
+
+.landing-page-root .plan-carry {
+    margin-top: auto;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+/* Comparison table */
+.landing-page-root .compare-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 1.25rem;
+    background: rgba(20, 20, 22, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.landing-page-root .compare-table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 600px;
+}
+
+.landing-page-root .compare-table caption {
+    text-align: left;
+    padding: 1rem 1.5rem;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.landing-page-root .compare-table th,
+.landing-page-root .compare-table td {
+    text-align: left;
+    padding: 0.85rem 1.5rem;
+    font-size: 0.92rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.landing-page-root .compare-table thead th {
+    background: var(--bg-surface);
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.landing-page-root .compare-table thead th:not(:first-child),
+.landing-page-root .compare-table td {
+    text-align: center;
+    width: 16%;
+}
+
+.landing-page-root .compare-table tbody th {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.landing-page-root .compare-table tbody tr:hover th,
+.landing-page-root .compare-table tbody tr:hover td {
+    background: var(--bg-surface-hover);
+}
+
+.landing-page-root .compare-table tbody tr:last-child th,
+.landing-page-root .compare-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.landing-page-root .compare-table .group-row th {
+    font-family: var(--font-display);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: rgba(16, 185, 129, 0.08);
+    text-align: left;
+}
+
+.landing-page-root .compare-table .has-feature {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.landing-page-root .compare-table .no-feature {
+    color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+    .landing-page-root .plans-grid {
+        grid-template-columns: 1fr;
+        max-width: 460px;
+        margin: 0 auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-page-root .plan-card:hover {
+        transform: none;
+    }
+}
+
+/* Light mode */
+html:not(.dark) .landing-page-root .billing-toggle button[aria-pressed='true'],
+html.light .landing-page-root .billing-toggle button[aria-pressed='true'] {
+    color: #ffffff;
+}
+
+html:not(.dark) .landing-page-root .plan-card.featured,
+html.light .landing-page-root .plan-card.featured {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.07) 0%, rgba(99, 102, 241, 0.05) 100%), #ffffff;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+}
+
+html:not(.dark) .landing-page-root .compare-wrapper,
+html.light .landing-page-root .compare-wrapper {
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+}

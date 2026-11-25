@@ -167,6 +167,7 @@ export default function Home() {
           
           <ul className="nav-links">
             <li><a href="#features">Features</a></li>
+            <li><Link href="/pricing">Pricing</Link></li>
             <li><a href="#demo">Interactive Demo</a></li>
             <li><a href="#dashboard">Dashboard Preview</a></li>
             <li><a href="#faq">FAQ</a></li>

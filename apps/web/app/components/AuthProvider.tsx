@@ -72,7 +72,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       pathname === '/contact' ||
       pathname === '/bill' ||
       pathname === '/doc' ||
-      pathname === '/set-password'
+      pathname === '/set-password' ||
+      pathname === '/pricing'
     )
       return;
 
