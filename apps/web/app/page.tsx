@@ -24,7 +24,9 @@ import {
   ArrowUpRight,
   X
 } from 'lucide-react';
+import { PLANS } from './lib/plans';
 import './landing-page/landing.css';
+import './pricing/pricing.css';
 import ThemeToggle from './components/ThemeToggle';
 
 interface InvoiceItem {
@@ -167,7 +169,7 @@ export default function Home() {
           
           <ul className="nav-links">
             <li><a href="#features">Features</a></li>
-            <li><Link href="/pricing">Pricing</Link></li>
+            <li><a href="#pricing">Pricing</a></li>
             <li><a href="#demo">Interactive Demo</a></li>
             <li><a href="#dashboard">Dashboard Preview</a></li>
             <li><a href="#faq">FAQ</a></li>
@@ -540,6 +542,68 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section className="features" id="pricing">
+        <div className="container">
+          <div className="section-header">
+            <h2>Simple yearly <span className="emerald-text">pricing</span></h2>
+            <p>Three plans that grow with your business. Every plan is billed once a year, GST invoice included.</p>
+          </div>
+
+          <div className="plans-grid">
+            {PLANS.map((plan) => {
+              const Icon = plan.icon;
+              return (
+                <article key={plan.id} className={`glass-card plan-card${plan.featured ? ' featured' : ''}`}>
+                  {plan.featured && <span className="plan-badge">Most popular</span>}
+                  <div className="plan-icon">
+                    <Icon style={{ width: 24, height: 24 }} />
+                  </div>
+                  <div>
+                    <h2>{plan.name}</h2>
+                    <span className="plan-tier">{plan.tier}</span>
+                  </div>
+                  <div className="plan-price">
+                    <span className="amount">{plan.price.yearly}</span>
+                    <span className="period">/ year</span>
+                  </div>
+                  <p className="plan-blurb">{plan.blurb}</p>
+                  <Link
+                    href="/pricing"
+                    className={`btn ${plan.featured ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ width: '100%' }}
+                  >
+                    Choose {plan.name}
+                  </Link>
+                  <p className="plan-divider">{plan.featureHeading}</p>
+                  <ul className="plan-features">
+                    {plan.features.slice(0, 6).map((feature) => (
+                      <li key={feature}>
+                        <CheckCircle style={{ width: 15, height: 15 }} />
+                        {feature}
+                      </li>
+                    ))}
+                    {plan.features.length > 6 && (
+                      <li style={{ color: 'var(--text-muted)' }}>
+                        <Plus style={{ width: 15, height: 15 }} />
+                        {plan.features.length - 6} more features
+                      </li>
+                    )}
+                  </ul>
+                  {plan.carry && <p className="plan-carry">{plan.carry}</p>}
+                </article>
+              );
+            })}
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
+            <Link href="/pricing" className="btn btn-secondary">
+              Compare all features <ArrowRight style={{ width: 16, height: 16 }} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ Accordion Section */}
       <section className="faq" id="faq">
         <div className="container">
@@ -620,6 +684,7 @@ export default function Home() {
               <h4>Product</h4>
               <ul>
                 <li><a href="#features">Features</a></li>
+                <li><a href="#pricing">Pricing</a></li>
                 <li><a href="#demo">Live Simulator</a></li>
                 <li><a href="#dashboard">ERP Dashboard</a></li>
                 <li><a href="#">API Documentation</a></li>
