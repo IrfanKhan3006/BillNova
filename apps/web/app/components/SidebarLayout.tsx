@@ -38,6 +38,7 @@ import {
   Redo2,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import InstallAppButton from './InstallAppButton';
 import { canManageBusiness } from '../lib/manageBusiness';
 import { isFeatureEnabled } from '../lib/features';
 
@@ -164,6 +165,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
               <p className="text-[10px] text-zinc-500 font-semibold tracking-wider uppercase truncate">{user?.role}</p>
             </div>
           </div>
+          <InstallAppButton />
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-300 transition duration-150"
@@ -176,7 +178,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
       {/* Mobile Drawer Trigger & Navbar */}
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/30 backdrop-blur-md sticky top-0 z-40 no-print">
+        <header className="flex md:hidden items-center justify-between px-6 py-4 pt-[calc(1rem+env(safe-area-inset-top))] border-b border-zinc-800/80 bg-zinc-900/30 backdrop-blur-md sticky top-0 z-40 no-print">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-zinc-950 font-bold text-md">
               B
@@ -200,7 +202,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             {/* Overlay */}
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
             
-            <aside className="relative flex w-64 flex-col bg-zinc-900 border-r border-zinc-800 p-4 justify-between h-full z-40">
+            <aside className="relative flex w-64 flex-col bg-zinc-900 border-r border-zinc-800 p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] justify-between h-full z-40">
               <div className="flex min-h-0 flex-col gap-5">
                 <div className="flex items-center justify-between px-2">
                   <div className="flex items-center gap-3">
@@ -247,6 +249,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-semibold">{user?.role}</p>
                   </div>
                 </div>
+                <InstallAppButton />
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition"
@@ -327,7 +330,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-6 md:p-8 pb-[calc(1.5rem+env(safe-area-inset-bottom))] overflow-y-auto max-w-7xl w-full mx-auto">
           {children}
         </main>
       </div>
