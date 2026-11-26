@@ -147,6 +147,31 @@ pnpm exec turbo link
 pnpm exec turbo link
 ```
 
+## Branching and deploys
+
+`develop` is the working branch; `main` mirrors what is live.
+
+**Update `main` through a GitHub pull request, not a local merge.** The
+`bill-nova-web` project on Vercel verifies commit signatures, and a commit
+pushed from a laptop without a signing key is unsigned — Vercel then blocks the
+deployment with *"the commit signature couldn't be verified"*. GitHub signs the
+merge commit it creates for a PR, which is why every earlier merge into `main`
+deployed cleanly.
+
+```sh
+git push origin develop
+gh pr create --base main --head develop --fill
+gh pr merge --merge        # GitHub signs this commit
+git checkout main && git pull
+```
+
+The alternatives, if the PR step ever becomes a nuisance: register an SSH
+signing key on GitHub (`git config gpg.format ssh` plus
+`user.signingkey ~/.ssh/id_ed25519.pub`, and add that key to GitHub as a
+*signing* key, not just an auth key), or turn the check off in the Vercel
+project's Git settings — `bill-nova-api` already has it off, which is why the
+API deploys while the web app does not.
+
 ## Useful Links
 
 Learn more about the power of Turborepo:
