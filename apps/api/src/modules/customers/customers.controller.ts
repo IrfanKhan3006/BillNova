@@ -77,6 +77,11 @@ class UpdateCustomerDto {
   outstandingBalance?: number;
 }
 
+class CustomerCommentDto {
+  @IsString()
+  body: string;
+}
+
 @ApiTags('Customers')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -118,6 +123,37 @@ export class CustomersController {
   @ApiOperation({ summary: 'Delete a customer' })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     return this.customersService.remove(user.tenantId, id);
+  }
+
+  @Get(':id/comments')
+  @ApiOperation({ summary: 'Customer ke saare comments (newest pehle)' })
+  async listComments(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.customersService.listComments(user.tenantId, id);
+  }
+
+  @Post(':id/comments')
+  @ApiOperation({ summary: 'Customer par ek naya comment add karo' })
+  async addComment(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: CustomerCommentDto,
+  ) {
+    return this.customersService.addComment(
+      user.tenantId,
+      id,
+      dto.body,
+      user.id,
+    );
+  }
+
+  @Delete(':id/comments/:commentId')
+  @ApiOperation({ summary: 'Ek comment hatao' })
+  async removeComment(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.customersService.removeComment(user.tenantId, id, commentId);
   }
 
   @Get(':id/ledger')

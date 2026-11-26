@@ -102,6 +102,7 @@ model Tenant {
   users             User[]
   refreshTokens     RefreshToken[]
   customers         Customer[]
+  customerComments  CustomerComment[]
   vendors           Vendor[]
   productCategories ProductCategory[]
   products          Product[]
@@ -224,8 +225,26 @@ model Customer {
   salesOrders  SalesOrder[]
   creditNotes  CreditNote[]
   challans     DeliveryChallan[]
+  comments     CustomerComment[]
 
   @@map("customers")
+}
+
+// Dated comment thread kept against a customer
+model CustomerComment {
+  id          String    @id @default(uuid())
+  tenantId    String
+  customerId  String
+  body        String
+  createdById String? // user who wrote it
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, createdAt])
+  @@map("customer_comments")
 }
 
 model ProductCategory {

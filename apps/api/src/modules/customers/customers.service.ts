@@ -78,6 +78,62 @@ export class CustomersService {
     });
   }
 
+  async listComments(tenantId: string, customerId: string) {
+    await this.findOne(tenantId, customerId);
+
+    const comments = await this.prisma.customerComment.findMany({
+      where: { tenantId, customerId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Attach the author's name so the thread reads like a history
+    const authorIds = [
+      ...new Set(comments.map((c) => c.createdById).filter(Boolean)),
+    ] as string[];
+    const authors = authorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: authorIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const nameById = new Map(authors.map((a) => [a.id, a.name]));
+
+    return comments.map((c) => ({
+      ...c,
+      authorName: c.createdById ? nameById.get(c.createdById) ?? null : null,
+    }));
+  }
+
+  async addComment(
+    tenantId: string,
+    customerId: string,
+    body: string,
+    createdById?: string,
+  ) {
+    await this.findOne(tenantId, customerId);
+
+    return this.prisma.customerComment.create({
+      data: { tenantId, customerId, body: body.trim(), createdById },
+    });
+  }
+
+  async removeComment(tenantId: string, customerId: string, commentId: string) {
+    await this.findOne(tenantId, customerId);
+
+    const comment = await this.prisma.customerComment.findFirst({
+      where: { id: commentId, tenantId, customerId, deletedAt: null },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found.');
+    }
+
+    return this.prisma.customerComment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    });
+  }
+
   async getLedger(tenantId: string, id: string) {
     await this.findOne(tenantId, id);
 
