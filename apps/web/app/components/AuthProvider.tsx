@@ -5,7 +5,23 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../lib/api';
 
-const USER_PATHS = ['/dashboard', '/billing', '/invoices', '/purchases'];
+// What a team (sub) user may open. Everything else sends them to the dashboard.
+const USER_PATHS = [
+  '/dashboard',
+  '/billing',
+  '/invoices',
+  '/purchases',
+  '/quotations',
+  '/sales-orders',
+  '/purchase-orders',
+  '/challans',
+  '/credit-notes',
+  '/debit-notes',
+  '/appointments',
+  '/advance-bills',
+  '/customers',
+  '/products',
+];
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { hydrate, isAuthenticated, isLoading } = useAuthStore();
@@ -34,7 +50,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('billnova_theme') : null;
-    const theme = stored || user?.tenant?.theme || 'DARK';
+    const theme = stored || user?.tenant?.theme || 'LIGHT';
     const root = document.documentElement;
     if (theme === 'LIGHT') {
       root.classList.remove('dark');
@@ -48,8 +64,19 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (isLoading) return;
 
-    // Contact page is open to everyone (logged in or not) — never redirect.
-    if (pathname === '/contact') return;
+    // Contact page and public bill links are open to everyone (logged in or
+    // not) — never redirect.
+    // Public, login-free pages: shared bill, shared order-document links and
+    // the Super Admin's one-time set-password link.
+    if (
+      pathname === '/contact' ||
+      pathname === '/bill' ||
+      pathname === '/doc' ||
+      pathname === '/set-password' ||
+      pathname === '/pricing' ||
+      pathname === '/mobile-app'
+    )
+      return;
 
     const isPublicPath = pathname === '/login' || pathname === '/register';
     const isLandingPage = pathname === '/';
@@ -62,7 +89,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           router.push('/admin/dashboard');
         }
       } else if (user?.role === 'USER') {
-        // Team users only get billing and purchases.
         if (!USER_PATHS.some((p) => pathname.startsWith(p)) && !isLandingPage) {
           router.push('/dashboard');
         }

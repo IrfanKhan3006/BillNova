@@ -7,6 +7,13 @@ import { api } from '../lib/api';
 import { compressImage } from '../lib/imageUtils';
 import { useAuthStore } from '../store/authStore';
 import { parseNoteSections } from '../lib/noteSections';
+import { saveElementAsPdf } from '../lib/savePdf';
+import {
+  buildBillLink,
+  buildWhatsAppLink,
+  buildWhatsAppMessage,
+  toWhatsAppNumber,
+} from '../lib/whatsappBill';
 import {
   Plus,
   Trash2,
@@ -16,6 +23,7 @@ import {
   Calendar,
   FileText,
   Printer,
+  Download,
   CheckCircle,
   X,
   Sparkles,
@@ -23,6 +31,7 @@ import {
   Zap,
   AlertTriangle,
   Pencil,
+  MessageCircle,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from '../store/uiStore';
@@ -545,6 +554,18 @@ export default function BillingPage() {
               termsOfDelivery: fullInvoice.termsOfDelivery || '',
               vehicleNumber: fullInvoice.vehicleNumber || '',
             });
+          } else {
+            // Opened from an appointment's "Create Bill": prefill the customer
+            // and put the booked service in as the first line item.
+            const prefillCustomerId = urlParams.get('customerId');
+            const prefillItemName = urlParams.get('itemName');
+            if (prefillCustomerId) setSelectedCustomerId(prefillCustomerId);
+            if (prefillItemName) {
+              setItems((prev) => [
+                { ...prev[0], name: prefillItemName },
+                ...prev.slice(1),
+              ]);
+            }
           }
         }
       } catch (err) {
@@ -1017,9 +1038,100 @@ export default function BillingPage() {
     }
   };
 
+  // A bill raised from an appointment marks that appointment as billed, so the
+  // Appointments list shows it was settled. A failure here must not break the
+  // bill that was already created.
+  useEffect(() => {
+    if (!createdInvoice || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const appointmentId = params.get('appointmentId');
+    if (!appointmentId) return;
+    params.delete('appointmentId');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    api
+      .patch(`/appointments/${appointmentId}`, {
+        invoiceId: createdInvoice.id,
+        status: 'COMPLETED',
+      })
+      .catch((e) => console.error('Could not mark the appointment as billed:', e));
+  }, [createdInvoice]);
+
   const handlePrint = () => {
     window.print();
   };
+
+  const [savingPdf, setSavingPdf] = useState(false);
+  const handleSavePdf = async () => {
+    const sheet = document.querySelector('.print-invoice-sheet') as HTMLElement | null;
+    if (!sheet || !createdInvoice) return;
+    setSavingPdf(true);
+    try {
+      const name = await saveElementAsPdf(sheet, String(createdInvoice.invoiceNumber || 'invoice'));
+      toast.success(`Bill saved as ${name}.pdf`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save bill');
+    } finally {
+      setSavingPdf(false);
+    }
+  };
+
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+  const handleSendWhatsApp = async () => {
+    if (!createdInvoice) return;
+
+    const phone = toWhatsAppNumber(createdInvoice.customer?.phone);
+    if (!phone) {
+      toast.error(
+        createdInvoice.customer?.phone
+          ? 'This customer\'s phone number is not valid. Fix it on the Customers page.'
+          : 'This customer has no phone number saved. Add one first.',
+      );
+      return;
+    }
+
+    setSendingWhatsApp(true);
+    try {
+      // Public bill link — generated on demand so older bills work too.
+      let billLink: string | null = null;
+      try {
+        const { shareToken } = await api.get(`/invoices/${createdInvoice.id}/share`);
+        billLink = buildBillLink(shareToken);
+      } catch (e) {
+        console.error('Could not create the public bill link:', e);
+      }
+
+      const message = buildWhatsAppMessage({
+        customerName: createdInvoice.customer?.name,
+        businessName: user?.tenant?.name,
+        businessPhone: user?.tenant?.phone,
+        invoiceNumber: createdInvoice.invoiceNumber,
+        totalAmount: createdInvoice.totalAmount,
+        amountDue: createdInvoice.amountDue,
+        billLink,
+        googleReviewUrl: user?.tenant?.googleReviewUrl,
+        template: user?.tenant?.whatsappTemplate,
+      });
+
+      window.open(buildWhatsAppLink(phone, message), '_blank', 'noopener,noreferrer');
+    } finally {
+      setSendingWhatsApp(false);
+    }
+  };
+
+  // Opened from a list's download icon (?invoiceId=..&download=1): save the PDF once rendered
+  useEffect(() => {
+    if (!createdInvoice || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('download') !== '1') return;
+    params.delete('download');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    const t = setTimeout(() => { handleSavePdf(); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createdInvoice]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -1273,6 +1385,23 @@ export default function BillingPage() {
                 <span>Print Invoice</span>
               </button>
               <button
+                onClick={handleSavePdf}
+                disabled={savingPdf}
+                className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-400 disabled:opacity-60"
+              >
+                <Download className="h-4 w-4" />
+                <span>{savingPdf ? 'Saving...' : 'Save Bill'}</span>
+              </button>
+              <button
+                onClick={handleSendWhatsApp}
+                disabled={sendingWhatsApp}
+                title="Customer ke WhatsApp par bill bhejein"
+                className="flex items-center gap-2 rounded-lg bg-[#25D366] px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-[#1ebe5b] disabled:opacity-60"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>{sendingWhatsApp ? 'Opening...' : 'Send on WhatsApp'}</span>
+              </button>
+              <button
                 onClick={resetBilling}
                 className="flex items-center gap-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 px-4 py-2 text-xs font-semibold text-white border border-zinc-700"
               >
@@ -1290,7 +1419,7 @@ export default function BillingPage() {
           const isBlue = activeTemplate === 'ELEGANT_BLUE';
           
           return (
-            <div className={`print-invoice-sheet bg-white text-zinc-900 p-8 rounded-2xl border max-w-4xl mx-auto mt-6 shadow-md ${isEmerald ? 'border-emerald-300' : isBlue ? 'border-blue-300' : 'border-zinc-300'}`}>
+            <div className={`print-invoice-sheet bg-white text-zinc-900 p-4 sm:p-8 rounded-2xl border w-full max-w-4xl mx-auto mt-6 shadow-md overflow-hidden ${isEmerald ? 'border-emerald-300' : isBlue ? 'border-blue-300' : 'border-zinc-300'}`}>
               {/* e-Invoice Bar */}
               {(createdInvoice.irn || createdInvoice.ackNo) && (
                 <div className="flex justify-between items-start border-b border-zinc-200 pb-4 mb-4 text-[10px] text-zinc-650">
@@ -1623,15 +1752,16 @@ export default function BillingPage() {
                 </div>
               )}
 
-              {/* Table */}
-              <table className="w-full text-left text-xs border-collapse mt-4">
+              {/* Table — scrolls inside its own box on a phone, so the sheet never breaks */}
+              <div className="invoice-table-scroll -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
+              <table className="w-full min-w-[560px] sm:min-w-0 text-left text-xs border-collapse mt-4">
                 <thead>
                   <tr className={`uppercase font-bold border-t border-b ${isEmerald ? 'bg-emerald-50 text-emerald-950 border-emerald-200' : isBlue ? 'bg-slate-100 text-slate-850 border-slate-300' : 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
                     <th className="py-2.5 px-2 w-8">#</th>
-                    <th className="py-2.5 px-2">Item Description</th>
+                    <th className="py-2.5 px-2">Particulars</th>
                     <th className="py-2.5 px-2 text-center w-24">HSN/SAC</th>
                     <th className="py-2.5 px-2 text-right">Price</th>
-                    <th className="py-2.5 px-2 text-center">{isTravel ? 'Pack' : 'Qty'}</th>
+                    <th className="py-2.5 px-2 text-center">Qty</th>
                     <th className="py-2.5 px-2 text-right">GST %</th>
                     <th className="py-2.5 px-2 text-right">Total</th>
                   </tr>
@@ -1650,11 +1780,12 @@ export default function BillingPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {/* Payment Details & Summary Calculations */}
               <div className="flex flex-col sm:flex-row justify-between items-start gap-6 mt-6 border-t border-zinc-200 pt-6">
                 {/* Left side: Payment Info & UPI QR Code */}
-                <div className="flex-1 space-y-4 text-xs min-w-[260px] w-full">
+                <div className="flex-1 space-y-4 text-xs sm:min-w-[260px] w-full min-w-0">
                   {((user as any)?.tenant?.bankAccountName || (user as any)?.tenant?.bankAccountNumber || (user as any)?.tenant?.bankIfsc) && (
                     <div>
                       <h4 className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${isEmerald ? 'text-emerald-800' : isBlue ? 'text-blue-800' : 'text-zinc-500'}`}>Payment Bank Details</h4>
@@ -1680,9 +1811,14 @@ export default function BillingPage() {
                         {(() => {
                           const upiId = (user as any)?.tenant?.upiId || '';
                           const businessName = user?.tenant?.name || '';
-                          const totalAmt = createdInvoice.totalAmount;
+                          // An advance bill's QR asks for the advance itself, not
+                          // the full value of the bill; a regular bill asks for
+                          // its total.
+                          const payAmt = createdInvoice.isAdvance
+                            ? createdInvoice.amountPaid || createdInvoice.totalAmount
+                            : createdInvoice.totalAmount;
                           // UPI URL structure: upi://pay?pa=upiId&pn=name&am=amount&cu=INR
-                          const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(businessName)}&am=${totalAmt}&cu=INR`;
+                          const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(businessName)}&am=${payAmt}&cu=INR`;
                           return (
                             <QRCodeSVG
                               value={upiUrl}

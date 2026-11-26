@@ -19,6 +19,7 @@ import {
   Pencil,
   Plus,
   Printer,
+  Download,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -524,6 +525,13 @@ function AdminDashboard() {
                                   <Printer className="h-3 w-3" />
                                   <span>Print</span>
                                 </Link>
+                                <Link
+                                  href={`/billing?invoiceId=${inv.id}&download=1`}
+                                  title={`Download ${inv.invoiceNumber}.pdf`}
+                                  className="inline-flex items-center rounded-md px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:hover:bg-blue-500/25 dark:text-blue-300 transition"
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Link>
                               </div>
                             </td>
                           </tr>
@@ -605,6 +613,13 @@ function AdminDashboard() {
                                 className="text-[11px] font-bold text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition"
                               >
                                 Print
+                              </Link>
+                              <Link
+                                href={`/billing?invoiceId=${inv.id}&download=1`}
+                                title={`Download ${inv.invoiceNumber}.pdf`}
+                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition"
+                              >
+                                <Download className="h-3.5 w-3.5" />
                               </Link>
                             </div>
                           </td>

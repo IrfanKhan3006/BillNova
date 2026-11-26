@@ -22,7 +22,7 @@ import { Type } from 'class-transformer';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard, Public } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { InvoicesService } from './invoices.service';
 
@@ -232,7 +232,7 @@ export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Sabhi invoices ki list dekho' })
+  @ApiOperation({ summary: 'List every invoice' })
   async list(
     @CurrentUser() user: any,
     @Query('customerId') customerId?: string,
@@ -251,9 +251,17 @@ export class InvoicesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Ek invoice ka complete details dekho' })
+  @ApiOperation({ summary: 'Get one invoice in full' })
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {
     return this.invoicesService.findOne(user.tenantId, id);
+  }
+
+  @Get(':id/share')
+  @ApiOperation({
+    summary: 'Get the public share token used in the WhatsApp bill link',
+  })
+  async share(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.invoicesService.ensureShareToken(user.tenantId, id);
   }
 
   @Post()
@@ -280,5 +288,18 @@ export class InvoicesController {
   @ApiOperation({ summary: 'Delete or cancel an invoice' })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     return this.invoicesService.remove(user.tenantId, id);
+  }
+}
+
+@ApiTags('Public Bill')
+@Public()
+@Controller('public/bills')
+export class PublicBillsController {
+  constructor(private readonly invoicesService: InvoicesService) {}
+
+  @Get(':token')
+  @ApiOperation({ summary: 'View a bill via its public share link (no login)' })
+  async findByToken(@Param('token') token: string) {
+    return this.invoicesService.findByShareToken(token);
   }
 }

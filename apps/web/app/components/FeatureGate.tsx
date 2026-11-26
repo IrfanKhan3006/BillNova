@@ -4,9 +4,10 @@ import React from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '../store/authStore';
 import { KeyRound } from 'lucide-react';
+import { isFeatureEnabled, FeatureKey } from '../lib/features';
 
 interface FeatureGateProps {
-  featureKey: 'billingEnabled' | 'productsEnabled' | 'paymentsEnabled' | 'reportsEnabled' | 'purchasesEnabled';
+  featureKey: FeatureKey;
   featureName: string;
   children: React.ReactNode;
 }
@@ -19,8 +20,8 @@ export default function FeatureGate({ featureKey, featureName, children }: Featu
     return <>{children}</>;
   }
 
-  // Retrieve setting, default to enabled if undefined
-  const isEnabled = user?.tenant?.[featureKey] !== false;
+  // Opt-out modules default to enabled; opt-in ones must be switched on.
+  const isEnabled = isFeatureEnabled(user?.tenant, featureKey);
 
   if (!isEnabled) {
     return (

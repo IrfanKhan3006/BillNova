@@ -39,6 +39,10 @@ class CreateCustomerDto {
   gstin?: string;
 
   @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
   @IsNumber()
   outstandingBalance?: number;
 }
@@ -65,8 +69,17 @@ class UpdateCustomerDto {
   gstin?: string;
 
   @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
   @IsNumber()
   outstandingBalance?: number;
+}
+
+class CustomerCommentDto {
+  @IsString()
+  body: string;
 }
 
 @ApiTags('Customers')
@@ -77,13 +90,13 @@ export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Sabhi customers ki list dekho' })
+  @ApiOperation({ summary: 'List every customer' })
   async list(@CurrentUser() user: any, @Query('search') search?: string) {
     return this.customersService.list(user.tenantId, search);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Ek customer ka details dekho' })
+  @ApiOperation({ summary: 'Get a single customer' })
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {
     return this.customersService.findOne(user.tenantId, id);
   }
@@ -112,9 +125,40 @@ export class CustomersController {
     return this.customersService.remove(user.tenantId, id);
   }
 
+  @Get(':id/comments')
+  @ApiOperation({ summary: 'List the comments on a customer, newest first' })
+  async listComments(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.customersService.listComments(user.tenantId, id);
+  }
+
+  @Post(':id/comments')
+  @ApiOperation({ summary: 'Add a comment to a customer' })
+  async addComment(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: CustomerCommentDto,
+  ) {
+    return this.customersService.addComment(
+      user.tenantId,
+      id,
+      dto.body,
+      user.id,
+    );
+  }
+
+  @Delete(':id/comments/:commentId')
+  @ApiOperation({ summary: 'Delete a comment' })
+  async removeComment(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.customersService.removeComment(user.tenantId, id, commentId);
+  }
+
   @Get(':id/ledger')
   @ApiOperation({
-    summary: 'Customer ka complete ledger (ledger transactions) dekho',
+    summary: 'Get the full ledger for a customer',
   })
   async getLedger(@CurrentUser() user: any, @Param('id') id: string) {
     return this.customersService.getLedger(user.tenantId, id);

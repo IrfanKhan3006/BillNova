@@ -9,8 +9,8 @@ datasource db {
 }
 
 enum Role {
-  ADMIN       // Registers the business; full access to it
-  USER        // Created by ADMIN; can only create/print bills & purchases
+  ADMIN // Registers the business; full access to it
+  USER // Created by ADMIN; can only create/print bills & purchases
   SUPER_ADMIN // Platform owner
 }
 
@@ -23,26 +23,26 @@ enum TenantPlan {
 }
 
 model Tenant {
-  id    String     @id @default(uuid())
-  name  String
-  slug  String     @unique
-  plan  TenantPlan @default(FREE)
+  id   String     @id @default(uuid())
+  name String
+  slug String     @unique
+  plan TenantPlan @default(FREE)
 
   // Subscription & Plan Limits
   subscriptionStatus String    @default("TRIAL") // "TRIAL", "ACTIVE", "EXPIRED", "SUSPENDED"
-  planExpiresAt     DateTime?
-  maxFreeInvoices   Int        @default(7)
-  planPrice         Float      @default(3000)
-  upgradeRequested  Boolean    @default(false)
-  maxUsers          Int        @default(2) // team (USER role) accounts allowed
+  planExpiresAt      DateTime?
+  maxFreeInvoices    Int       @default(7)
+  planPrice          Float     @default(3000)
+  upgradeRequested   Boolean   @default(false)
+  maxUsers           Int       @default(2) // team (USER role) accounts allowed
   upgradeRequestedAt DateTime?
 
-  gstin     String?
-  stateCode String?
-  address   String?
-  phone     String?
-  email     String?
-  logoUrl   String?
+  gstin           String?
+  stateCode       String?
+  address         String?
+  phone           String?
+  email           String?
+  logoUrl         String?
   customHeaderUrl String?
 
   bankAccountName   String?
@@ -50,27 +50,50 @@ model Tenant {
   bankIfsc          String?
   upiId             String?
 
-  invoicePrefix  String @default("INV")
-  invoiceCounter Int    @default(0)
-  purchasePrefix String @default("PUR")
-  purchaseCounter Int   @default(0)
-  advancePrefix  String @default("ADV")
-  advanceCounter Int    @default(0)
-  dueDays        Int    @default(30)
-  invoiceTemplate String @default("CLASSIC")
-  defaultNotes    String? // Printed at the end of every new bill
+  invoicePrefix        String  @default("INV")
+  invoiceCounter       Int     @default(0)
+  purchasePrefix       String  @default("PUR")
+  purchaseCounter      Int     @default(0)
+  advancePrefix        String  @default("ADV")
+  advanceCounter       Int     @default(0)
+  quotationPrefix      String  @default("QT")
+  quotationCounter     Int     @default(0)
+  salesOrderPrefix     String  @default("SO")
+  salesOrderCounter    Int     @default(0)
+  purchaseOrderPrefix  String  @default("PO")
+  purchaseOrderCounter Int     @default(0)
+  creditNotePrefix     String  @default("CN")
+  creditNoteCounter    Int     @default(0)
+  debitNotePrefix      String  @default("DN")
+  debitNoteCounter     Int     @default(0)
+  challanPrefix        String  @default("DC")
+  challanCounter       Int     @default(0)
+  dueDays              Int     @default(30)
+  invoiceTemplate      String  @default("CLASSIC")
+  defaultNotes         String? // Printed at the end of every new bill
+
+  // WhatsApp bill sharing
+  googleReviewUrl     String? // Google review link used in the WhatsApp bill message
+  whatsappTemplate    String? // Custom WhatsApp message template (placeholders: {customer} {amount} {billLink} {review} {phone} {business} {invoiceNo})
+  appointmentTemplate String? // WhatsApp appointment confirmation template (placeholders: {customer} {date} {time} {service} {staff} {phone} {business})
 
   // Gating Toggles
-  billingEnabled   Boolean @default(true)
-  productsEnabled  Boolean @default(true)
-  paymentsEnabled  Boolean @default(true)
-  reportsEnabled   Boolean @default(true)
-  purchasesEnabled Boolean @default(true)
+  billingEnabled        Boolean @default(true)
+  productsEnabled       Boolean @default(true)
+  paymentsEnabled       Boolean @default(true)
+  reportsEnabled        Boolean @default(true)
+  purchasesEnabled      Boolean @default(true)
+  quotationsEnabled     Boolean @default(false)
+  salesOrdersEnabled    Boolean @default(false)
+  purchaseOrdersEnabled Boolean @default(false)
+  creditNotesEnabled    Boolean @default(false)
+  debitNotesEnabled     Boolean @default(false)
+  challansEnabled       Boolean @default(false)
 
   // Business Type & Inventory Setting
-  businessType     String  @default("RETAIL") // "RETAIL", "SERVICES_TRAVEL", "WHOLESALE", "MANUFACTURING", "SERVICES_GENERAL"
-  trackInventory   Boolean @default(true)
-  theme            String  @default("DARK")   // "DARK", "LIGHT"
+  businessType   String  @default("RETAIL") // "RETAIL", "SERVICES_TRAVEL", "WHOLESALE", "MANUFACTURING", "SERVICES_GENERAL"
+  trackInventory Boolean @default(true)
+  theme          String  @default("LIGHT") // "LIGHT", "DARK"
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -79,6 +102,7 @@ model Tenant {
   users             User[]
   refreshTokens     RefreshToken[]
   customers         Customer[]
+  customerComments  CustomerComment[]
   vendors           Vendor[]
   productCategories ProductCategory[]
   products          Product[]
@@ -87,6 +111,13 @@ model Tenant {
   purchaseInvoices  PurchaseInvoice[]
   purchasePayments  PurchasePayment[]
   enquiries         Enquiry[]
+  appointments      Appointment[]
+  quotations        Quotation[]
+  salesOrders       SalesOrder[]
+  purchaseOrders    PurchaseOrder[]
+  creditNotes       CreditNote[]
+  debitNotes        DebitNote[]
+  challans          DeliveryChallan[]
 
   @@map("tenants")
 }
@@ -104,7 +135,7 @@ model Enquiry {
   status      String   @default("NEW") // NEW | DONE
   createdAt   DateTime @default(now())
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([status, createdAt])
   @@map("enquiries")
@@ -119,12 +150,15 @@ model User {
   role         Role    @default(USER)
   isActive     Boolean @default(true)
 
+  emailVerifiedAt DateTime? // set when the signup OTP was confirmed
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
-  refreshTokens RefreshToken[]
+  tenant             Tenant?              @relation(fields: [tenantId], references: [id])
+  refreshTokens      RefreshToken[]
+  passwordResetLinks PasswordResetToken[]
 
   @@unique([tenantId, email])
   @@map("users")
@@ -148,6 +182,27 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+/**
+ * A one-time link the Super Admin hands to a business so its own user can set a
+ * new password (and land logged in) without anyone mailing a plain password.
+ */
+model PasswordResetToken {
+  id          String  @id @default(uuid())
+  userId      String
+  tokenHash   String  @unique
+  createdById String? // the Super Admin who generated the link
+
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
 model Customer {
   id                 String    @id @default(uuid())
   tenantId           String
@@ -156,16 +211,40 @@ model Customer {
   phone              String?
   address            String?
   gstin              String?
+  notes              String? // free-text comment about this customer
   outstandingBalance Float     @default(0)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   deletedAt          DateTime?
 
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-  invoices  Invoice[]
-  payments  Payment[]
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  invoices     Invoice[]
+  payments     Payment[]
+  appointments Appointment[]
+  quotations   Quotation[]
+  salesOrders  SalesOrder[]
+  creditNotes  CreditNote[]
+  challans     DeliveryChallan[]
+  comments     CustomerComment[]
 
   @@map("customers")
+}
+
+// Dated comment thread kept against a customer
+model CustomerComment {
+  id          String    @id @default(uuid())
+  tenantId    String
+  customerId  String
+  body        String
+  createdById String? // user who wrote it
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, createdAt])
+  @@map("customer_comments")
 }
 
 model ProductCategory {
@@ -206,6 +285,12 @@ model Product {
   category             ProductCategory?      @relation(fields: [categoryId], references: [id])
   invoiceItems         InvoiceItem[]
   purchaseInvoiceItems PurchaseInvoiceItem[]
+  quotationItems       QuotationItem[]
+  salesOrderItems      SalesOrderItem[]
+  purchaseOrderItems   PurchaseOrderItem[]
+  creditNoteItems      CreditNoteItem[]
+  debitNoteItems       DebitNoteItem[]
+  challanItems         DeliveryChallanItem[]
 
   @@map("products")
 }
@@ -235,17 +320,18 @@ model Invoice {
   amountPaid     Float         @default(0)
   amountDue      Float         @default(0)
   notes          String?
+  shareToken     String?       @unique // public bill link token (/bill?s=<token>)
 
   // Advance Bill tracking & Auto-conversion
-  isAdvance                  Boolean   @default(false)
-  advanceConverted           Boolean   @default(false)
+  isAdvance                  Boolean @default(false)
+  advanceConverted           Boolean @default(false)
   convertedInvoiceId         String?
   convertedFromAdvanceNumber String?
 
   // e-Invoice fields
-  irn            String?
-  ackNo          String?
-  ackDate        DateTime?
+  irn     String?
+  ackNo   String?
+  ackDate DateTime?
 
   // Consignee details
   consigneeName    String?
@@ -254,27 +340,29 @@ model Invoice {
   consigneeState   String?
 
   // Dispatch details
-  deliveryNote     String?
-  deliveryNoteDate DateTime?
-  paymentTerms     String?
-  supplierRef      String?
-  otherReferences  String?
-  buyersOrderNo    String?
-  buyersOrderDate  DateTime?
-  despatchDocNo    String?
+  deliveryNote      String?
+  deliveryNoteDate  DateTime?
+  paymentTerms      String?
+  supplierRef       String?
+  otherReferences   String?
+  buyersOrderNo     String?
+  buyersOrderDate   DateTime?
+  despatchDocNo     String?
   despatchedThrough String?
-  destination      String?
-  termsOfDelivery  String?
-  vehicleNumber    String?
+  destination       String?
+  termsOfDelivery   String?
+  vehicleNumber     String?
 
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  deletedAt      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
-  customer Customer @relation(fields: [customerId], references: [id])
-  items    InvoiceItem[]
-  payments Payment[]
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  customer    Customer          @relation(fields: [customerId], references: [id])
+  items       InvoiceItem[]
+  payments    Payment[]
+  creditNotes CreditNote[]
+  challans    DeliveryChallan[]
 
   @@unique([tenantId, invoiceNumber])
   @@map("invoices")
@@ -342,7 +430,7 @@ enum PurchaseStatus {
 }
 
 model Vendor {
-  id                 String            @id @default(uuid())
+  id                 String    @id @default(uuid())
   tenantId           String
   name               String
   email              String?
@@ -350,91 +438,645 @@ model Vendor {
   address            String?
   gstin              String?
   stateCode          String?
-  outstandingBalance Float             @default(0)
+  outstandingBalance Float     @default(0)
   bankAccountName    String?
   bankAccountNumber  String?
   bankIfsc           String?
   upiId              String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
   deletedAt          DateTime?
 
-  tenant             Tenant            @relation(fields: [tenantId], references: [id])
-  purchaseInvoices   PurchaseInvoice[]
-  payments           PurchasePayment[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  purchaseInvoices PurchaseInvoice[]
+  payments         PurchasePayment[]
+  purchaseOrders   PurchaseOrder[]
+  debitNotes       DebitNote[]
 
   @@map("vendors")
 }
 
 model PurchaseInvoice {
-  id             String                @id @default(uuid())
+  id             String         @id @default(uuid())
   tenantId       String
   vendorId       String
   purchaseNumber String
   billNumber     String?
-  date           DateTime              @default(now())
+  date           DateTime       @default(now())
   createdById    String? // User who recorded the purchase
   dueDate        DateTime?
-  status         PurchaseStatus        @default(RECEIVED)
-  subTotal       Float                 @default(0)
-  taxAmount      Float                 @default(0)
-  discountAmount Float                 @default(0)
-  totalAmount    Float                 @default(0)
-  amountPaid     Float                 @default(0)
-  amountDue      Float                 @default(0)
+  status         PurchaseStatus @default(RECEIVED)
+  subTotal       Float          @default(0)
+  taxAmount      Float          @default(0)
+  discountAmount Float          @default(0)
+  totalAmount    Float          @default(0)
+  amountPaid     Float          @default(0)
+  amountDue      Float          @default(0)
   notes          String?
 
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  deletedAt      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  tenant         Tenant                @relation(fields: [tenantId], references: [id])
-  vendor         Vendor                @relation(fields: [vendorId], references: [id])
-  items          PurchaseInvoiceItem[]
-  payments       PurchasePayment[]
+  tenant     Tenant                @relation(fields: [tenantId], references: [id])
+  vendor     Vendor                @relation(fields: [vendorId], references: [id])
+  items      PurchaseInvoiceItem[]
+  payments   PurchasePayment[]
+  debitNotes DebitNote[]
 
   @@unique([tenantId, purchaseNumber])
   @@map("purchase_invoices")
 }
 
 model PurchaseInvoiceItem {
-  id                String          @id @default(uuid())
+  id                String  @id @default(uuid())
   purchaseInvoiceId String
   productId         String?
   name              String
-  qty               Int             @default(1)
-  price             Float           @default(0)
-  taxRate           Float           @default(0)
-  taxAmount         Float           @default(0)
-  discountRate      Float           @default(0)
-  discountAmount    Float           @default(0)
-  total             Float           @default(0)
+  qty               Int     @default(1)
+  price             Float   @default(0)
+  taxRate           Float   @default(0)
+  taxAmount         Float   @default(0)
+  discountRate      Float   @default(0)
+  discountAmount    Float   @default(0)
+  total             Float   @default(0)
   hsnCode           String?
 
-  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
-  product           Product?        @relation(fields: [productId], references: [id])
+  purchaseInvoice PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  product         Product?        @relation(fields: [productId], references: [id])
 
   @@map("purchase_invoice_items")
 }
 
 model PurchasePayment {
-  id                String          @id @default(uuid())
+  id                String        @id @default(uuid())
   tenantId          String
   vendorId          String
   purchaseInvoiceId String?
   amount            Float
-  date              DateTime        @default(now())
-  method            PaymentMethod   @default(BANK_TRANSFER)
+  date              DateTime      @default(now())
+  method            PaymentMethod @default(BANK_TRANSFER)
   referenceNo       String?
   notes             String?
 
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  deletedAt         DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  tenant            Tenant          @relation(fields: [tenantId], references: [id])
-  vendor            Vendor          @relation(fields: [vendorId], references: [id])
-  purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  vendor          Vendor           @relation(fields: [vendorId], references: [id])
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
 
   @@map("purchase_payments")
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+/// A manually booked appointment (salon-style businesses).
+model Appointment {
+  id           String            @id @default(uuid())
+  tenantId     String
+  customerId   String
+  service      String
+  staffName    String?
+  /// Date and start time of the appointment, stored together.
+  startsAt     DateTime
+  /// How long it is expected to take, used for the calendar entry's end time.
+  durationMins Int               @default(60)
+  status       AppointmentStatus @default(SCHEDULED)
+  notes        String?
+  createdById  String?
+  /// Set once a bill has been raised from this appointment.
+  invoiceId    String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([tenantId, startsAt])
+  @@map("appointments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sales pipeline: Quotation → Sales Order → Invoice
+// Purchase pipeline: Purchase Order → Purchase Invoice
+//
+// These are standalone documents. They never mutate Invoice/PurchaseInvoice;
+// converting one copies its data forward and records the source id, so the
+// existing billing, purchase, reporting and dashboard code is untouched.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  PARTIALLY_DELIVERED
+  DELIVERED
+  INVOICED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  APPROVED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model Quotation {
+  id              String          @id @default(uuid())
+  tenantId        String
+  customerId      String
+  quotationNumber String
+  date            DateTime        @default(now())
+  validUntil      DateTime?
+  createdById     String?
+  status          QuotationStatus @default(DRAFT)
+  subTotal        Float           @default(0)
+  taxAmount       Float           @default(0)
+  discountAmount  Float           @default(0)
+  totalAmount     Float           @default(0)
+  paymentTerms    String?
+  deliveryTerms   String?
+  notes           String?
+
+  // Public share link token (/doc?s=<token>), used by WhatsApp sharing
+  shareToken String? @unique
+
+  // Forward link once the customer accepts and it becomes an order
+  convertedSalesOrderId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  customer    Customer        @relation(fields: [customerId], references: [id])
+  items       QuotationItem[]
+  salesOrders SalesOrder[]
+
+  @@unique([tenantId, quotationNumber])
+  @@index([tenantId, date])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id             String  @id @default(uuid())
+  quotationId    String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product   Product?  @relation(fields: [productId], references: [id])
+
+  @@map("quotation_items")
+}
+
+model SalesOrder {
+  id                   String           @id @default(uuid())
+  tenantId             String
+  customerId           String
+  quotationId          String?
+  salesOrderNumber     String
+  date                 DateTime         @default(now())
+  expectedDeliveryDate DateTime?
+  createdById          String?
+  status               SalesOrderStatus @default(DRAFT)
+  subTotal             Float            @default(0)
+  taxAmount            Float            @default(0)
+  discountAmount       Float            @default(0)
+  totalAmount          Float            @default(0)
+  paymentTerms         String?
+  deliveryTerms        String?
+  notes                String?
+
+  // Ship-to party (the "ship-to" of the PDF; may differ from the customer)
+  shipToName    String?
+  shipToAddress String?
+  shipToGstin   String?
+  shipToState   String?
+
+  // Public share link token (/doc?s=<token>), used by WhatsApp sharing
+  shareToken String? @unique
+
+  // Forward link once billed
+  convertedInvoiceId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  customer  Customer          @relation(fields: [customerId], references: [id])
+  quotation Quotation?        @relation(fields: [quotationId], references: [id])
+  items     SalesOrderItem[]
+  challans  DeliveryChallan[]
+
+  @@unique([tenantId, salesOrderNumber])
+  @@index([tenantId, date])
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id             String  @id @default(uuid())
+  salesOrderId   String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  deliveredQty   Int     @default(0)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product    Product?   @relation(fields: [productId], references: [id])
+
+  @@map("sales_order_items")
+}
+
+model PurchaseOrder {
+  id                   String              @id @default(uuid())
+  tenantId             String
+  vendorId             String
+  purchaseOrderNumber  String
+  date                 DateTime            @default(now())
+  expectedDeliveryDate DateTime?
+  createdById          String?
+  status               PurchaseOrderStatus @default(DRAFT)
+  subTotal             Float               @default(0)
+  taxAmount            Float               @default(0)
+  discountAmount       Float               @default(0)
+  totalAmount          Float               @default(0)
+  paymentTerms         String?
+  deliveryAddress      String?
+  termsAndConditions   String?
+  notes                String?
+
+  // Step 5 of the PDF: review and approve before sending to the supplier
+  approvedByName String?
+  approvedAt     DateTime?
+
+  // Public share link token (/doc?s=<token>), used by WhatsApp sharing
+  shareToken String? @unique
+
+  // Forward link once the supplier bill is recorded
+  convertedPurchaseInvoiceId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant              @relation(fields: [tenantId], references: [id])
+  vendor Vendor              @relation(fields: [vendorId], references: [id])
+  items  PurchaseOrderItem[]
+
+  @@unique([tenantId, purchaseOrderNumber])
+  @@index([tenantId, date])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String  @id @default(uuid())
+  purchaseOrderId String
+  productId       String?
+  name            String
+  description     String?
+  qty             Int     @default(1)
+  receivedQty     Int     @default(0)
+  price           Float   @default(0)
+  taxRate         Float   @default(0)
+  taxAmount       Float   @default(0)
+  discountRate    Float   @default(0)
+  discountAmount  Float   @default(0)
+  total           Float   @default(0)
+  hsnCode         String?
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product?      @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Credit Notes, Debit Notes & Delivery Challans
+//
+// A credit note reduces what a customer owes us (sales return, rate
+// difference, post-sale discount); a debit note reduces what we owe a vendor
+// (purchase return). Both are GST documents, so each carries the original
+// invoice reference and a reason.
+//
+// The ledger and stock effects only happen once the note leaves DRAFT, and the
+// `stockApplied` / `ledgerApplied` guards keep issuing and cancelling
+// idempotent — the same approach the invoice service uses when it reverses a
+// deleted bill.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CreditNoteStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum DebitNoteStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum ChallanStatus {
+  DRAFT
+  DISPATCHED
+  DELIVERED
+  INVOICED
+  CANCELLED
+}
+
+/**
+ * Why the note was raised. GST returns expect a reason against every note.
+ */
+enum NoteReason {
+  SALES_RETURN
+  PURCHASE_RETURN
+  RATE_DIFFERENCE
+  POST_SALE_DISCOUNT
+  DEFICIENCY_IN_SERVICE
+  CANCELLATION
+  OTHER
+}
+
+model CreditNote {
+  id               String           @id @default(uuid())
+  tenantId         String
+  customerId       String
+  /**
+   * The bill being credited. Optional: a note may be raised standalone.
+   */
+  invoiceId        String?
+  creditNoteNumber String
+  date             DateTime         @default(now())
+  createdById      String?
+  status           CreditNoteStatus @default(DRAFT)
+  reason           NoteReason       @default(SALES_RETURN)
+  reasonNote       String?
+
+  subTotal       Float @default(0)
+  taxAmount      Float @default(0)
+  discountAmount Float @default(0)
+  totalAmount    Float @default(0)
+
+  /**
+   * GST print reference, snapshotted so it survives the bill being edited.
+   */
+  originalInvoiceNumber String?
+  originalInvoiceDate   DateTime?
+
+  /**
+   * Whether issuing this note should put the returned goods back into stock.
+   */
+  restock Boolean @default(true)
+
+  // Effects already applied, so issue/cancel can be replayed safely.
+  stockApplied     Boolean @default(false)
+  ledgerApplied    Boolean @default(false)
+  /**
+   * How much of this note was set against the linked bill's amount due.
+   */
+  appliedToInvoice Float   @default(0)
+
+  notes      String?
+  shareToken String? @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+  customer Customer         @relation(fields: [customerId], references: [id])
+  invoice  Invoice?         @relation(fields: [invoiceId], references: [id])
+  items    CreditNoteItem[]
+
+  @@unique([tenantId, creditNoteNumber])
+  @@index([tenantId, date])
+  @@map("credit_notes")
+}
+
+model CreditNoteItem {
+  id             String  @id @default(uuid())
+  creditNoteId   String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  creditNote CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  product    Product?   @relation(fields: [productId], references: [id])
+
+  @@map("credit_note_items")
+}
+
+model DebitNote {
+  id                String          @id @default(uuid())
+  tenantId          String
+  vendorId          String
+  /**
+   * The purchase bill being debited. Optional: may be raised standalone.
+   */
+  purchaseInvoiceId String?
+  debitNoteNumber   String
+  date              DateTime        @default(now())
+  createdById       String?
+  status            DebitNoteStatus @default(DRAFT)
+  reason            NoteReason      @default(PURCHASE_RETURN)
+  reasonNote        String?
+
+  subTotal       Float @default(0)
+  taxAmount      Float @default(0)
+  discountAmount Float @default(0)
+  totalAmount    Float @default(0)
+
+  originalInvoiceNumber String?
+  originalInvoiceDate   DateTime?
+
+  /**
+   * Whether issuing this note should take the returned goods out of stock.
+   */
+  restock Boolean @default(true)
+
+  stockApplied     Boolean @default(false)
+  ledgerApplied    Boolean @default(false)
+  appliedToInvoice Float   @default(0)
+
+  notes      String?
+  shareToken String? @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  vendor          Vendor           @relation(fields: [vendorId], references: [id])
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+  items           DebitNoteItem[]
+
+  @@unique([tenantId, debitNoteNumber])
+  @@index([tenantId, date])
+  @@map("debit_notes")
+}
+
+model DebitNoteItem {
+  id             String  @id @default(uuid())
+  debitNoteId    String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  debitNote DebitNote @relation(fields: [debitNoteId], references: [id], onDelete: Cascade)
+  product   Product?  @relation(fields: [productId], references: [id])
+
+  @@map("debit_note_items")
+}
+
+/**
+ * Goods sent out before (or without) a bill. Stock leaves on dispatch, so the
+ * invoice raised from a challan must not move stock a second time.
+ */
+model DeliveryChallan {
+  id            String        @id @default(uuid())
+  tenantId      String
+  customerId    String
+  salesOrderId  String?
+  challanNumber String
+  date          DateTime      @default(now())
+  createdById   String?
+  status        ChallanStatus @default(DRAFT)
+  /**
+   * DELIVERY, JOB_WORK, SAMPLE, RETURNABLE — printed on the challan.
+   */
+  challanType   String        @default("DELIVERY")
+
+  subTotal       Float @default(0)
+  taxAmount      Float @default(0)
+  discountAmount Float @default(0)
+  totalAmount    Float @default(0)
+
+  // Dispatch details, mirroring the fields the invoice print already carries.
+  vehicleNumber     String?
+  despatchedThrough String?
+  destination       String?
+  termsOfDelivery   String?
+
+  // Ship-to party; may differ from the billed customer.
+  shipToName    String?
+  shipToAddress String?
+  shipToGstin   String?
+  shipToState   String?
+
+  notes      String?
+  shareToken String? @unique
+
+  /**
+   * Set once the goods have left, so billing does not deduct stock again.
+   */
+  stockApplied       Boolean @default(false)
+  convertedInvoiceId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant     Tenant                @relation(fields: [tenantId], references: [id])
+  customer   Customer              @relation(fields: [customerId], references: [id])
+  salesOrder SalesOrder?           @relation(fields: [salesOrderId], references: [id])
+  invoice    Invoice?              @relation(fields: [convertedInvoiceId], references: [id])
+  items      DeliveryChallanItem[]
+
+  @@unique([tenantId, challanNumber])
+  @@index([tenantId, date])
+  @@map("delivery_challans")
+}
+
+model DeliveryChallanItem {
+  id             String  @id @default(uuid())
+  challanId      String
+  productId      String?
+  name           String
+  description    String?
+  qty            Int     @default(1)
+  price          Float   @default(0)
+  taxRate        Float   @default(0)
+  taxAmount      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  total          Float   @default(0)
+  hsnCode        String?
+
+  challan DeliveryChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id])
+
+  @@map("delivery_challan_items")
+}
+
+/// One-time codes emailed during signup (and any future email-verification flow).
+/// The code itself is never stored - only its SHA-256 hash.
+model EmailOtp {
+  id       String @id @default(uuid())
+  email    String
+  codeHash String
+  purpose  String @default("REGISTER")
+
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, purpose])
+  @@index([expiresAt])
+  @@map("email_otps")
 }

@@ -2,11 +2,16 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Phone, Mail, MessageCircle, Copy, Check, ArrowLeft } from 'lucide-react';
+import { Phone, Mail, MessageCircle, Copy, Check, ArrowLeft, MapPin, Navigation } from 'lucide-react';
 import '../landing-page/landing.css';
 import ThemeToggle from '../components/ThemeToggle';
 
 const PHONE = '+91-88849-79997';
+const ADDRESS =
+  'Novel Office, 1st Floor, Tower-B, Brigade Tech Park, Pattandur Agrahara, Whitefield, Bengaluru, Karnataka 560066';
+const MAPS_URL = 'https://maps.app.goo.gl/sVQAWXVoQmUkL5vTA';
+const MAP_EMBED_URL =
+  'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3887.778696817703!2d77.73779941065544!3d12.986001687278028!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6b34649ad2011cf%3A0xc4d103e181942520!2sTourist%20Leader!5e0!3m2!1sen!2sin!4v1795626267788!5m2!1sen!2sin';
 const PHONE_RAW = '918884979997';
 const EMAIL = 'support@billcrafts.com';
 
@@ -79,6 +84,83 @@ export default function ContactPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Visit us */}
+          <div className="glass-card" style={{ marginTop: '3rem', padding: '1.75rem', textAlign: 'left' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '1.25rem',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', minWidth: 0 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    flex: '0 0 auto',
+                    borderRadius: 12,
+                    background: 'var(--primary-glow)',
+                    color: 'var(--primary)',
+                    display: 'grid',
+                    placeItems: 'center',
+                  }}
+                >
+                  <MapPin style={{ width: 22, height: 22 }} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    Visit our office
+                  </p>
+                  <p style={{ fontSize: '1.05rem', fontWeight: 600, marginTop: 4, lineHeight: 1.5 }}>
+                    {ADDRESS}
+                  </p>
+                </div>
+              </div>
+              <a
+                href={MAPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary"
+                style={{ padding: '0.6rem 1.1rem', fontSize: '0.88rem' }}
+              >
+                <Navigation style={{ width: 16, height: 16 }} /> Get Directions
+              </a>
+            </div>
+
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                aspectRatio: '16 / 9',
+                minHeight: 260,
+                borderRadius: '0.9rem',
+                overflow: 'hidden',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <iframe
+                src={MAP_EMBED_URL}
+                title="BillCraft office location on Google Maps"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            </div>
           </div>
         </div>
       </section>

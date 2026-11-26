@@ -30,6 +30,18 @@ export class BusinessService {
         purchaseCounter: true,
         advancePrefix: true,
         advanceCounter: true,
+        quotationPrefix: true,
+        quotationCounter: true,
+        salesOrderPrefix: true,
+        salesOrderCounter: true,
+        purchaseOrderPrefix: true,
+        purchaseOrderCounter: true,
+        creditNotePrefix: true,
+        creditNoteCounter: true,
+        debitNotePrefix: true,
+        debitNoteCounter: true,
+        challanPrefix: true,
+        challanCounter: true,
         dueDays: true,
         invoiceTemplate: true,
         bankAccountName: true,
@@ -37,6 +49,9 @@ export class BusinessService {
         bankIfsc: true,
         upiId: true,
         defaultNotes: true,
+        googleReviewUrl: true,
+        whatsappTemplate: true,
+        appointmentTemplate: true,
         businessType: true,
         trackInventory: true,
         theme: true,
@@ -64,6 +79,12 @@ export class BusinessService {
       customHeaderUrl,
       invoicePrefix,
       advancePrefix,
+      quotationPrefix,
+      salesOrderPrefix,
+      purchaseOrderPrefix,
+      creditNotePrefix,
+      debitNotePrefix,
+      challanPrefix,
       dueDays,
       invoiceTemplate,
       bankAccountName,
@@ -71,6 +92,9 @@ export class BusinessService {
       bankIfsc,
       upiId,
       defaultNotes,
+      googleReviewUrl,
+      whatsappTemplate,
+      appointmentTemplate,
       theme,
     } = updateData;
 
@@ -87,6 +111,24 @@ export class BusinessService {
         customHeaderUrl,
         invoicePrefix,
         advancePrefix: advancePrefix ? advancePrefix.trim().toUpperCase() : undefined,
+        quotationPrefix: quotationPrefix
+          ? quotationPrefix.trim().toUpperCase()
+          : undefined,
+        salesOrderPrefix: salesOrderPrefix
+          ? salesOrderPrefix.trim().toUpperCase()
+          : undefined,
+        purchaseOrderPrefix: purchaseOrderPrefix
+          ? purchaseOrderPrefix.trim().toUpperCase()
+          : undefined,
+        creditNotePrefix: creditNotePrefix
+          ? creditNotePrefix.trim().toUpperCase()
+          : undefined,
+        debitNotePrefix: debitNotePrefix
+          ? debitNotePrefix.trim().toUpperCase()
+          : undefined,
+        challanPrefix: challanPrefix
+          ? challanPrefix.trim().toUpperCase()
+          : undefined,
         dueDays,
         invoiceTemplate,
         bankAccountName,
@@ -94,6 +136,9 @@ export class BusinessService {
         bankIfsc,
         upiId,
         defaultNotes,
+        googleReviewUrl,
+        whatsappTemplate,
+        appointmentTemplate,
         theme,
       },
     });

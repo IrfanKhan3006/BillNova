@@ -1692,3 +1692,71 @@ html.light .landing-page-root .modal-actions-title {
     color: #09090b;
 }
 
+
+/* -------------------------------------------------------------
+   MOBILE NAV PANEL (hamburger menu)
+------------------------------------------------------------- */
+.landing-page-root .mobile-nav-panel {
+    display: none;
+}
+
+.landing-page-root .mobile-nav-overlay {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .landing-page-root .mobile-nav-panel {
+        display: block;
+        border-top: 1px solid var(--border-color);
+        background: var(--bg-surface-card);
+        padding: 0.75rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
+        max-height: calc(100vh - 4.5rem);
+        overflow-y: auto;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .landing-page-root .mobile-nav-panel nav {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .landing-page-root .mobile-nav-panel nav a {
+        display: block;
+        padding: 0.85rem 0.25rem;
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 0.98rem;
+        border-bottom: 1px solid var(--border-color);
+        transition: var(--transition);
+    }
+
+    .landing-page-root .mobile-nav-panel nav a:last-child {
+        border-bottom: none;
+    }
+
+    .landing-page-root .mobile-nav-panel nav a:active,
+    .landing-page-root .mobile-nav-panel nav a:hover {
+        color: var(--primary);
+    }
+
+    .landing-page-root .mobile-nav-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-top: 1rem;
+    }
+
+    .landing-page-root .mobile-nav-actions .btn {
+        width: 100%;
+    }
+
+    .landing-page-root .mobile-nav-overlay {
+        display: block;
+        position: fixed;
+        inset: 4.5rem 0 0 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 99;
+    }
+}

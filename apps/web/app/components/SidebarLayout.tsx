@@ -27,8 +27,20 @@ import {
   Wallet,
   UserPlus,
   FileText,
+  Building2,
+  CalendarClock,
+  FileSignature,
+  ClipboardList,
+  ScrollText,
+  TrendingUp,
+  Truck,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import InstallApp from './InstallApp';
+import { canManageBusiness } from '../lib/manageBusiness';
+import { isFeatureEnabled } from '../lib/features';
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -53,34 +65,61 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     { name: 'Create Invoice', href: '/billing', icon: Receipt, featureKey: 'billingEnabled' as const },
     { name: 'Invoices', href: '/invoices', icon: FileText, featureKey: 'billingEnabled' as const },
     { name: 'Advance Bills', href: '/advance-bills', icon: Clock, featureKey: 'billingEnabled' as const },
+    { name: 'Quotations', href: '/quotations', icon: FileSignature, featureKey: 'quotationsEnabled' as const },
+    { name: 'Sales Orders', href: '/sales-orders', icon: ClipboardList, featureKey: 'salesOrdersEnabled' as const },
+    { name: 'Purchase Orders', href: '/purchase-orders', icon: ScrollText, featureKey: 'purchaseOrdersEnabled' as const },
+    { name: 'Delivery Challans', href: '/challans', icon: Truck, featureKey: 'challansEnabled' as const },
+    { name: 'Credit Notes', href: '/credit-notes', icon: Undo2, featureKey: 'creditNotesEnabled' as const },
+    { name: 'Debit Notes', href: '/debit-notes', icon: Redo2, featureKey: 'debitNotesEnabled' as const },
     { name: 'Purchase Invoices', href: '/purchases', icon: ShoppingBag, featureKey: 'purchasesEnabled' as const },
+    { name: 'Appointments', href: '/appointments', icon: CalendarClock },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Products & Inventory', href: '/products', icon: Package, featureKey: 'productsEnabled' as const },
     { name: 'Payments', href: '/payments', icon: CreditCard, featureKey: 'paymentsEnabled' as const },
+    { name: 'Revenue', href: '/revenue', icon: TrendingUp, featureKey: 'reportsEnabled' as const },
     { name: 'Reports', href: '/reports', icon: BarChart3, featureKey: 'reportsEnabled' as const },
     { name: 'Team Users', href: '/team', icon: UserPlus, adminOnly: true },
+    { name: 'Manage Business', href: '/manage-business', icon: Building2, manageBusinessOnly: true },
     { name: 'Business Settings', href: '/business', icon: Settings },
   ];
 
   // Team users are unlocked once a paid plan is active (not during the free trial).
   const isPaidPlanActive =
     !!planStatus && planStatus.plan !== 'FREE' && !planStatus.isExpired;
-  const USER_PATHS = ['/dashboard', '/billing', '/invoices', '/purchases'];
+  // What a team (sub) user may open. Everything else is ADMIN-only.
+  const USER_PATHS = [
+    '/dashboard',
+    '/billing',
+    '/invoices',
+    '/purchases',
+    '/quotations',
+    '/sales-orders',
+    '/purchase-orders',
+    '/challans',
+    '/credit-notes',
+    '/debit-notes',
+    '/appointments',
+    '/advance-bills',
+    '/customers',
+    '/products',
+  ];
 
   // Only show modules enabled on the tenant's plan (Super Admin sees all)
   const visibleNavItems = navItems.filter((item) => {
+    // Checked before the Super Admin pass-through: they have /admin already.
+    if ((item as any).manageBusinessOnly) return canManageBusiness(user);
     if (user?.role === 'SUPER_ADMIN') return true;
     if (user?.role === 'USER' && !USER_PATHS.includes(item.href)) return false;
     if ((item as any).adminOnly && (user?.role !== 'ADMIN' || !isPaidPlanActive)) return false;
     if (!item.featureKey) return true;
-    return user?.tenant?.[item.featureKey] !== false;
+    return isFeatureEnabled(user?.tenant, item.featureKey);
   });
 
   return (
     <div className="flex min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/30 backdrop-blur-md sticky top-0 h-screen p-4 justify-between no-print z-20">
-        <div className="flex flex-col gap-8">
+        <div className="flex min-h-0 flex-col gap-5">
           {/* Logo / Title */}
           <div className="flex items-center gap-3 px-2 py-1">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-zinc-950 font-bold text-lg shadow-sm">
@@ -93,7 +132,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex flex-col gap-1.5">
+          <nav className="-mr-1 flex min-h-0 flex-col gap-0.5 overflow-y-auto pr-1">
             {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -101,7 +140,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 font-semibold shadow-xs'
                       : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800/30 border border-transparent'
@@ -116,7 +155,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         </div>
 
         {/* User Card & Logout */}
-        <div className="flex flex-col gap-3 border-t border-zinc-200 dark:border-zinc-800/80 pt-4 pb-6">
+        <div className="mt-3 flex shrink-0 flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800/80 pt-3 pb-2">
           <div className="flex items-center gap-3 px-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
               <UserIcon className="h-4 w-4" />
@@ -126,6 +165,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
               <p className="text-[10px] text-zinc-500 font-semibold tracking-wider uppercase truncate">{user?.role}</p>
             </div>
           </div>
+          <InstallApp compact />
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-300 transition duration-150"
@@ -138,7 +178,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
       {/* Mobile Drawer Trigger & Navbar */}
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/30 backdrop-blur-md sticky top-0 z-40 no-print">
+        <header className="flex md:hidden items-center justify-between px-6 py-4 pt-[calc(1rem+env(safe-area-inset-top))] border-b border-zinc-800/80 bg-zinc-900/30 backdrop-blur-md sticky top-0 z-40 no-print">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-zinc-950 font-bold text-md">
               B
@@ -162,8 +202,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             {/* Overlay */}
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
             
-            <aside className="relative flex w-64 flex-col bg-zinc-900 border-r border-zinc-800 p-4 justify-between h-full z-40">
-              <div className="flex flex-col gap-8">
+            <aside className="relative flex w-64 flex-col bg-zinc-900 border-r border-zinc-800 p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] justify-between h-full z-40">
+              <div className="flex min-h-0 flex-col gap-5">
                 <div className="flex items-center justify-between px-2">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-zinc-950 font-bold text-md">
@@ -176,7 +216,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   </button>
                 </div>
 
-                <nav className="flex flex-col gap-1">
+                <nav className="-mr-1 flex min-h-0 flex-col gap-0.5 overflow-y-auto pr-1">
                   {visibleNavItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
@@ -185,7 +225,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition ${
                           isActive
                             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                             : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
@@ -209,6 +249,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-semibold">{user?.role}</p>
                   </div>
                 </div>
+                <InstallApp compact />
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition"
@@ -289,7 +330,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-6 md:p-8 pb-[calc(1.5rem+env(safe-area-inset-bottom))] overflow-y-auto max-w-7xl w-full mx-auto">
           {children}
         </main>
       </div>

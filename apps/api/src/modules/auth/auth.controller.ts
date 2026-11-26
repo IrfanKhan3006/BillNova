@@ -3,15 +3,19 @@ import {
   Post,
   Get,
   Body,
+  Param,
   HttpCode,
   HttpStatus,
   UseGuards,
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Request } from 'express'; // ye line hatao
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { SendEmailOtpDto } from './dto/send-email-otp.dto';
+import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto';
+import { CompletePasswordResetDto } from './dto/complete-password-reset.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { JwtAuthGuard, Public } from './guards/jwt-auth.guard';
@@ -22,6 +26,43 @@ import { CurrentUser } from './decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Post('send-email-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Email a 6-digit signup verification code' })
+  async sendEmailOtp(@Body() dto: SendEmailOtpDto) {
+    return this.authService.sendEmailOtp(dto.email);
+  }
+
+  @Public()
+  @Post('verify-email-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Confirm the signup code and get a register token' })
+  async verifyEmailOtp(@Body() dto: VerifyEmailOtpDto) {
+    return this.authService.verifyEmailOtp(dto.email, dto.code);
+  }
+
+  @Public()
+  @Get('password-reset/:token')
+  @ApiOperation({ summary: 'Whose account a reset link belongs to' })
+  async getPasswordReset(@Param('token') token: string) {
+    return this.authService.getPasswordResetTarget(token);
+  }
+
+  @Public()
+  @Post('password-reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Set a new password from a reset link and log in' })
+  async completePasswordReset(
+    @Body() dto: CompletePasswordResetDto,
+    @Req() req: any,
+  ) {
+    return this.authService.completePasswordReset(dto.token, dto.password, {
+      userAgent: req.headers['user-agent'],
+      ipAddress: req.ip,
+    });
+  }
 
   @Public()
   @Post('register')
@@ -61,7 +102,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign out from this device' })
   async logout(@CurrentUser() user: any, @Body() dto: RefreshDto) {
     await this.authService.logout(user.id, dto.refreshToken);
-    return { message: 'Logout ho gaye.' };
+    return { message: 'Signed out.' };
   }
 
   @Post('logout-all')
@@ -70,7 +111,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign out from all active devices' })
   async logoutAll(@CurrentUser() user: any) {
     await this.authService.logoutAll(user.id);
-    return { message: 'Sabhi devices se logout ho gaye.' };
+    return { message: 'Signed out of every device.' };
   }
 
   @Get('me')

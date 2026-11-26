@@ -21,6 +21,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
 import { UpdateInvoiceDto } from '../invoices/invoices.controller';
 
@@ -74,6 +75,30 @@ export class UpdateTenantDto {
   purchasesEnabled?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  quotationsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  salesOrdersEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  purchaseOrdersEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  creditNotesEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  debitNotesEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  challansEnabled?: boolean;
+
+  @IsOptional()
   @IsString()
   businessType?: string;
 
@@ -121,25 +146,25 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get('dashboard')
-  @ApiOperation({ summary: 'Platform statistics metrics dekho' })
+  @ApiOperation({ summary: 'Get platform statistics' })
   async getDashboard() {
     return this.adminService.getDashboardStats();
   }
 
   @Get('tenants')
-  @ApiOperation({ summary: 'Sabhi businesses ki list dekho' })
+  @ApiOperation({ summary: 'List every business' })
   async listTenants() {
     return this.adminService.listTenants();
   }
 
   @Get('requests')
-  @ApiOperation({ summary: 'Businesses jinhone plan activation request ki hai unki list dekho' })
+  @ApiOperation({ summary: 'List businesses that have requested plan activation' })
   async listUpgradeRequests() {
     return this.adminService.listUpgradeRequests();
   }
 
   @Get('enquiries')
-  @ApiOperation({ summary: 'Extra users enquiries ki list dekho' })
+  @ApiOperation({ summary: 'List extra-user enquiries' })
   async listEnquiries() {
     return this.adminService.listEnquiries();
   }
@@ -175,7 +200,7 @@ export class AdminController {
   }
 
   @Get('tenants/:id/invoices/:invoiceId')
-  @ApiOperation({ summary: 'Kisi business ka ek bill detail me dekho' })
+  @ApiOperation({ summary: 'Get one bill of a business in full' })
   async getTenantInvoice(
     @Param('id') id: string,
     @Param('invoiceId') invoiceId: string,
@@ -242,7 +267,7 @@ export class AdminController {
   }
 
   @Delete('tenants/:id/permanent')
-  @ApiOperation({ summary: 'Business ko soft delete kro (email dobara register ho sake)' })
+  @ApiOperation({ summary: 'Soft delete a business so its email can register again' })
   async deleteTenant(@Param('id') id: string) {
     return this.adminService.softDeleteTenant(id);
   }
@@ -257,6 +282,18 @@ export class AdminController {
   @ApiOperation({ summary: 'Deleted business wapas restore kro' })
   async restoreTenant(@Param('id') id: string) {
     return this.adminService.restoreTenant(id);
+  }
+
+  @Post('users/:id/password-reset-link')
+  @ApiOperation({
+    summary:
+      'Super Admin: create a one-time link the business uses to set its own new password',
+  })
+  async createPasswordResetLink(
+    @Param('id') id: string,
+    @CurrentUser() admin: any,
+  ) {
+    return this.adminService.createPasswordResetLink(id, admin?.id);
   }
 
   @Patch('users/:id/password')

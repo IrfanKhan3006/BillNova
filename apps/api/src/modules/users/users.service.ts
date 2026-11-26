@@ -11,10 +11,18 @@ import { hashPassword } from '../../common/utils/password.util';
 
 export const MAX_TEAM_USERS = 2;
 
-// Team logins look like "ravi@irfantradingco.com" — domain built from the business name.
-export function teamEmailDomain(businessName: string) {
-  const base = businessName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'business';
-  return `${base}.com`;
+/**
+ * Team logins look like "ravi@billcrafts.com".
+ *
+ * The domain used to be built from the business name, which gave every
+ * business its own username space. It is now one platform domain, so a
+ * username is taken platform-wide: createTeamUser already checks that and
+ * returns a clear "already taken" error.
+ */
+export const DEFAULT_TEAM_EMAIL_DOMAIN = 'billcrafts.com';
+
+export function teamEmailDomain() {
+  return process.env.TEAM_EMAIL_DOMAIN?.trim() || DEFAULT_TEAM_EMAIL_DOMAIN;
 }
 
 @Injectable()
@@ -51,7 +59,7 @@ export class UsersService {
     return {
       enabled: this.isPlanActive(tenant),
       maxUsers: tenant.maxUsers ?? MAX_TEAM_USERS,
-      emailDomain: teamEmailDomain(tenant.name),
+      emailDomain: teamEmailDomain(),
       users,
     };
   }
@@ -83,7 +91,7 @@ export class UsersService {
         'Username can only have letters, numbers, dot, dash and underscore.',
       );
     }
-    const email = `${username}@${teamEmailDomain(tenant.name)}`;
+    const email = `${username}@${teamEmailDomain()}`;
 
     // Login is by email alone, so it must be unique across all active accounts.
     const existing = await this.prisma.user.findFirst({

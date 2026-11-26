@@ -17,6 +17,7 @@ import {
   X,
   AlertCircle,
   Printer,
+  MessageSquare,
 } from 'lucide-react';
 import { toast, showConfirm } from '../store/uiStore';
 
@@ -27,7 +28,15 @@ interface Customer {
   phone?: string;
   address?: string;
   gstin?: string;
+  notes?: string;
   outstandingBalance: number;
+}
+
+interface CustomerComment {
+  id: string;
+  body: string;
+  createdAt: string;
+  authorName?: string | null;
 }
 
 interface LedgerItem {
@@ -44,6 +53,10 @@ interface LedgerItem {
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [comments, setComments] = useState<CustomerComment[]>([]);
+  const [commentDraft, setCommentDraft] = useState('');
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [isCommentHistoryOpen, setIsCommentHistoryOpen] = useState(false);
   const [ledger, setLedger] = useState<LedgerItem[]>([]);
   
   const [search, setSearch] = useState('');
@@ -95,13 +108,73 @@ export default function CustomersPage() {
     }
   };
 
+  const loadComments = async (customerId: string) => {
+    try {
+      const res = await api.get(`/customers/${customerId}/comments`);
+      setComments(Array.isArray(res) ? res : []);
+    } catch (err: any) {
+      console.error('Failed to load comments', err);
+      setComments([]);
+    }
+  };
+
   useEffect(() => {
     if (selectedCustomer) {
       loadLedger(selectedCustomer.id);
+      loadComments(selectedCustomer.id);
+      setCommentDraft('');
     } else {
       setLedger([]);
+      setComments([]);
     }
   }, [selectedCustomer]);
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCustomer) return;
+    const body = commentDraft.trim();
+    if (!body) return;
+
+    try {
+      setCommentSaving(true);
+      const created = await api.post(`/customers/${selectedCustomer.id}/comments`, { body });
+      setComments((prev) => [created, ...prev]);
+      setCommentDraft('');
+      toast.success('Comment added.');
+    } catch (err: any) {
+      toast.error(err.message || 'Could not add the comment.');
+    } finally {
+      setCommentSaving(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!selectedCustomer) return;
+    const ok = await showConfirm({
+      title: 'Delete comment',
+      message: 'This comment will be removed from the customer history.',
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+
+    try {
+      await api.delete(`/customers/${selectedCustomer.id}/comments/${commentId}`);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      toast.success('Comment deleted.');
+    } catch (err: any) {
+      toast.error(err.message || 'Could not delete the comment.');
+    }
+  };
+
+  const formatCommentDate = (value: string) =>
+    new Date(value).toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -328,6 +401,63 @@ export default function CustomersPage() {
                     </span>
                   </div>
 
+                  {/* Comments */}
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-zinc-500" />
+                        Comments
+                        {comments.length > 0 && (
+                          <span className="text-xs font-semibold text-zinc-500">({comments.length})</span>
+                        )}
+                      </h3>
+                      {comments.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsCommentHistoryOpen(true)}
+                          className="text-xs font-semibold text-emerald-400 hover:text-emerald-300"
+                        >
+                          View full history
+                        </button>
+                      )}
+                    </div>
+
+                    <form onSubmit={handleAddComment} className="flex flex-col gap-2">
+                      <textarea
+                        rows={2}
+                        value={commentDraft}
+                        onChange={(e) => setCommentDraft(e.target.value)}
+                        placeholder="Write a comment about this customer..."
+                        className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          type="submit"
+                          disabled={commentSaving || !commentDraft.trim()}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                        >
+                          {commentSaving ? 'Adding...' : 'Add Comment'}
+                        </button>
+                      </div>
+                    </form>
+
+                    {comments.length === 0 ? (
+                      <p className="mt-3 text-xs text-zinc-500">No comments yet.</p>
+                    ) : (
+                      <ul className="mt-3 space-y-3">
+                        {comments.slice(0, 3).map((c) => (
+                          <li key={c.id} className="border-l-2 border-zinc-800 pl-3">
+                            <p className="text-sm text-zinc-200 whitespace-pre-wrap">{c.body}</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">
+                              {formatCommentDate(c.createdAt)}
+                              {c.authorName ? ` · ${c.authorName}` : ''}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
                   {/* Ledger History List */}
                   <div>
                     <h3 className="text-sm font-bold text-white mb-4">Ledger Statement</h3>
@@ -529,6 +659,78 @@ export default function CustomersPage() {
                     className="rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-4 py-2 text-sm font-semibold"
                   >
                     Save Customer
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Comment history modal */}
+        {isCommentHistoryOpen && selectedCustomer && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-zinc-800 p-5">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Comment History</h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    {selectedCustomer.name} · {comments.length} comment{comments.length === 1 ? '' : 's'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCommentHistoryOpen(false)}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  aria-label="Close comment history"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5">
+                {comments.length === 0 ? (
+                  <p className="text-sm text-zinc-500">No comments yet.</p>
+                ) : (
+                  <ol className="relative border-l border-zinc-800 pl-5 space-y-5">
+                    {comments.map((c) => (
+                      <li key={c.id} className="relative">
+                        <span className="absolute -left-[26px] top-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-xs font-semibold text-zinc-400">
+                            {formatCommentDate(c.createdAt)}
+                            {c.authorName ? ` · ${c.authorName}` : ''}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteComment(c.id)}
+                            className="text-zinc-600 hover:text-red-400"
+                            title="Delete comment"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <p className="mt-1 text-sm text-zinc-200 whitespace-pre-wrap">{c.body}</p>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+
+              <form onSubmit={handleAddComment} className="border-t border-zinc-800 p-5 flex flex-col gap-2">
+                <textarea
+                  rows={2}
+                  value={commentDraft}
+                  onChange={(e) => setCommentDraft(e.target.value)}
+                  placeholder="Add another comment..."
+                  className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={commentSaving || !commentDraft.trim()}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    {commentSaving ? 'Adding...' : 'Add Comment'}
                   </button>
                 </div>
               </form>

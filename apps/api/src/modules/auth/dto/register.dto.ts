@@ -27,7 +27,7 @@ export class RegisterDto {
 
   @ApiProperty({ example: 'password123' })
   @IsString()
-  @MinLength(6, { message: 'Password kam se kam 6 characters ka hona chahiye' })
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
   @MaxLength(100)
   password: string;
 
@@ -38,4 +38,12 @@ export class RegisterDto {
     message: 'Valid 10-digit phone number dalo',
   })
   phone?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Token returned by POST /auth/verify-email-otp. Required unless EMAIL_OTP_REQUIRED=false.',
+  })
+  @IsOptional()
+  @IsString()
+  emailVerificationToken?: string;
 }

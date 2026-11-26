@@ -9,9 +9,12 @@ import { Save, AlertCircle, CheckCircle, Building, Search, CreditCard, Sparkles,
 import { toast } from '../store/uiStore';
 import { useSubscriptionStore } from '../store/subscriptionStore';
 import { parseNoteSections, composeNoteSections, NoteSection } from '../lib/noteSections';
+import { DEFAULT_WHATSAPP_TEMPLATE, WHATSAPP_PLACEHOLDERS } from '../lib/whatsappBill';
+import { DEFAULT_APPOINTMENT_TEMPLATE, APPOINTMENT_PLACEHOLDERS } from '../lib/whatsappAppointment';
 
 export default function BusinessSettingsPage() {
   const { updateUserTenant } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const { planStatus, openUpgradeModal, fetchPlanStatus } = useSubscriptionStore();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -36,6 +39,9 @@ export default function BusinessSettingsPage() {
     bankIfsc: '',
     upiId: '',
     defaultNotes: '',
+    googleReviewUrl: '',
+    whatsappTemplate: '',
+    appointmentTemplate: '',
     customHeaderUrl: '',
   });
 
@@ -61,6 +67,9 @@ export default function BusinessSettingsPage() {
           bankIfsc: res.bankIfsc || '',
           upiId: res.upiId || '',
           defaultNotes: res.defaultNotes || '',
+          googleReviewUrl: res.googleReviewUrl || '',
+          whatsappTemplate: res.whatsappTemplate || '',
+          appointmentTemplate: res.appointmentTemplate || '',
           customHeaderUrl: res.customHeaderUrl || '',
         });
       } catch (err: any) {
@@ -155,6 +164,9 @@ export default function BusinessSettingsPage() {
         bankIfsc: res.bankIfsc,
         upiId: res.upiId,
         defaultNotes: res.defaultNotes,
+        googleReviewUrl: res.googleReviewUrl,
+        whatsappTemplate: res.whatsappTemplate,
+        appointmentTemplate: res.appointmentTemplate,
         customHeaderUrl: res.customHeaderUrl,
         address: res.address,
         phone: res.phone,
@@ -582,6 +594,76 @@ export default function BusinessSettingsPage() {
                   })()}
                   <p className="text-[11px] text-zinc-500">Both headings are editable and printed in bold on every new bill. Leave a section empty to hide it.</p>
                 </div>
+
+                {/* WhatsApp bill sharing */}
+                <div className="md:col-span-2 space-y-4 rounded-xl border border-[#25D366]/30 bg-[#25D366]/5 p-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">WhatsApp Bill Message</h3>
+                    <p className="mt-1 text-[11px] text-zinc-400">
+                      Used by the <span className="font-semibold text-[#25D366]">Send on WhatsApp</span> button after a bill is generated.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-zinc-300">Google Review Link</label>
+                    <input
+                      type="url"
+                      name="googleReviewUrl"
+                      value={form.googleReviewUrl}
+                      onChange={handleChange}
+                      placeholder="https://g.page/r/..../review"
+                      className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+                    />
+                    <p className="mt-1.5 text-[11px] text-zinc-500">Leave empty to drop the review line from the message.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-zinc-300">Message Template</label>
+                    <textarea
+                      name="whatsappTemplate"
+                      value={form.whatsappTemplate}
+                      onChange={handleChange}
+                      rows={11}
+                      placeholder={DEFAULT_WHATSAPP_TEMPLATE}
+                      className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none font-mono text-xs leading-relaxed"
+                    />
+                    <p className="mt-1.5 text-[11px] text-zinc-500">
+                      Leave empty to use the default shown above. Placeholders:{' '}
+                      {WHATSAPP_PLACEHOLDERS.map((ph) => (
+                        <code key={ph} className="mr-1 rounded bg-zinc-800 px-1 py-0.5 text-[10px] text-emerald-300">{ph}</code>
+                      ))}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Appointment confirmation — salon-style businesses only */}
+                {(
+                  <div className="md:col-span-2 space-y-4 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white">Appointment Confirmation Message</h3>
+                      <p className="mt-1 text-[11px] text-zinc-400">
+                        This message is sent on WhatsApp as soon as an appointment is booked.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-zinc-300">Message Template</label>
+                      <textarea
+                        name="appointmentTemplate"
+                        value={form.appointmentTemplate}
+                        onChange={handleChange}
+                        rows={11}
+                        placeholder={DEFAULT_APPOINTMENT_TEMPLATE}
+                        className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none font-mono text-xs leading-relaxed"
+                      />
+                      <p className="mt-1.5 text-[11px] text-zinc-500">
+                        Leave empty to use the default shown above. Placeholders:{' '}
+                        {APPOINTMENT_PLACEHOLDERS.map((ph) => (
+                          <code key={ph} className="mr-1 rounded bg-zinc-800 px-1 py-0.5 text-[10px] text-sky-300">{ph}</code>
+                        ))}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

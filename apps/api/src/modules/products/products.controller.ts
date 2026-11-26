@@ -135,7 +135,7 @@ export class ProductsController {
 
   // ─── Categories ────────────────────────────────────────────────────────────
   @Get('categories')
-  @ApiOperation({ summary: 'Sabhi categories ki list dekho' })
+  @ApiOperation({ summary: 'List every product category' })
   async listCategories(@CurrentUser() user: any) {
     return this.productsService.listCategories(user.tenantId);
   }
@@ -170,7 +170,7 @@ export class ProductsController {
 
   // ─── Products ─────────────────────────────────────────────────────────────
   @Get()
-  @ApiOperation({ summary: 'Sabhi products ki list dekho' })
+  @ApiOperation({ summary: 'List every product' })
   async list(
     @CurrentUser() user: any,
     @Query('search') search?: string,
@@ -180,7 +180,7 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Ek product ka details dekho' })
+  @ApiOperation({ summary: 'Get a single product' })
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {
     return this.productsService.findOne(user.tenantId, id);
   }
