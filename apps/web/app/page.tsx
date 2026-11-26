@@ -40,6 +40,9 @@ interface InvoiceItem {
 export default function Home() {
   const { isAuthenticated } = useAuthStore();
 
+  // 0. Mobile nav drawer
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   // 1. FAQ Accordion State
   const [faqActiveIndex, setFaqActiveIndex] = useState<number | null>(null);
 
@@ -194,12 +197,57 @@ export default function Home() {
             <div className="mobile-theme-toggle" style={{ display: 'none' }}>
               <ThemeToggle />
             </div>
-            <button className="mobile-menu-btn" onClick={() => window.location.href = '#demo'}>
-              <Menu style={{ width: '20px', height: '20px' }} />
+            <button
+              className="mobile-menu-btn"
+              aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileNavOpen}
+              onClick={() => setMobileNavOpen((open) => !open)}
+            >
+              {mobileNavOpen ? (
+                <X style={{ width: '20px', height: '20px' }} />
+              ) : (
+                <Menu style={{ width: '20px', height: '20px' }} />
+              )}
             </button>
           </div>
         </div>
+
+        {mobileNavOpen && (
+          <div className="mobile-nav-panel">
+            <nav>
+              <a href="#features" onClick={() => setMobileNavOpen(false)}>Features</a>
+              <a href="#pricing" onClick={() => setMobileNavOpen(false)}>Pricing</a>
+              <Link href="/mobile-app" onClick={() => setMobileNavOpen(false)}>Get App</Link>
+              <a href="#demo" onClick={() => setMobileNavOpen(false)}>Interactive Demo</a>
+              <a href="#dashboard" onClick={() => setMobileNavOpen(false)}>Dashboard Preview</a>
+              <a href="#faq" onClick={() => setMobileNavOpen(false)}>FAQ</a>
+              <Link href="/contact" onClick={() => setMobileNavOpen(false)}>Contact</Link>
+            </nav>
+            <div className="mobile-nav-actions">
+              <a href="#demo" className="btn btn-secondary" onClick={() => setMobileNavOpen(false)}>
+                Try Simulator
+              </a>
+              {isAuthenticated ? (
+                <Link href="/dashboard" className="btn btn-primary" onClick={() => setMobileNavOpen(false)}>
+                  Go to Dashboard
+                </Link>
+              ) : (
+                <Link href="/login" className="btn btn-primary" onClick={() => setMobileNavOpen(false)}>
+                  Sign In
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </header>
+
+      {mobileNavOpen && (
+        <div
+          className="mobile-nav-overlay"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Hero Section */}
       <section className="hero">
