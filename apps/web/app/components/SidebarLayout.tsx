@@ -38,7 +38,7 @@ import {
   Redo2,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
-import InstallAppButton from './InstallAppButton';
+import InstallApp from './InstallApp';
 import { canManageBusiness } from '../lib/manageBusiness';
 import { isFeatureEnabled } from '../lib/features';
 
@@ -165,7 +165,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
               <p className="text-[10px] text-zinc-500 font-semibold tracking-wider uppercase truncate">{user?.role}</p>
             </div>
           </div>
-          <InstallAppButton />
+          <InstallApp compact />
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-300 transition duration-150"
@@ -249,7 +249,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-semibold">{user?.role}</p>
                   </div>
                 </div>
-                <InstallAppButton />
+                <InstallApp compact />
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition"
