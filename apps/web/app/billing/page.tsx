@@ -1419,7 +1419,7 @@ export default function BillingPage() {
           const isBlue = activeTemplate === 'ELEGANT_BLUE';
           
           return (
-            <div className={`print-invoice-sheet bg-white text-zinc-900 p-8 rounded-2xl border max-w-4xl mx-auto mt-6 shadow-md ${isEmerald ? 'border-emerald-300' : isBlue ? 'border-blue-300' : 'border-zinc-300'}`}>
+            <div className={`print-invoice-sheet bg-white text-zinc-900 p-4 sm:p-8 rounded-2xl border w-full max-w-4xl mx-auto mt-6 shadow-md overflow-hidden ${isEmerald ? 'border-emerald-300' : isBlue ? 'border-blue-300' : 'border-zinc-300'}`}>
               {/* e-Invoice Bar */}
               {(createdInvoice.irn || createdInvoice.ackNo) && (
                 <div className="flex justify-between items-start border-b border-zinc-200 pb-4 mb-4 text-[10px] text-zinc-650">
@@ -1752,8 +1752,9 @@ export default function BillingPage() {
                 </div>
               )}
 
-              {/* Table */}
-              <table className="w-full text-left text-xs border-collapse mt-4">
+              {/* Table — scrolls inside its own box on a phone, so the sheet never breaks */}
+              <div className="invoice-table-scroll -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
+              <table className="w-full min-w-[560px] sm:min-w-0 text-left text-xs border-collapse mt-4">
                 <thead>
                   <tr className={`uppercase font-bold border-t border-b ${isEmerald ? 'bg-emerald-50 text-emerald-950 border-emerald-200' : isBlue ? 'bg-slate-100 text-slate-850 border-slate-300' : 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
                     <th className="py-2.5 px-2 w-8">#</th>
@@ -1779,11 +1780,12 @@ export default function BillingPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {/* Payment Details & Summary Calculations */}
               <div className="flex flex-col sm:flex-row justify-between items-start gap-6 mt-6 border-t border-zinc-200 pt-6">
                 {/* Left side: Payment Info & UPI QR Code */}
-                <div className="flex-1 space-y-4 text-xs min-w-[260px] w-full">
+                <div className="flex-1 space-y-4 text-xs sm:min-w-[260px] w-full min-w-0">
                   {((user as any)?.tenant?.bankAccountName || (user as any)?.tenant?.bankAccountNumber || (user as any)?.tenant?.bankIfsc) && (
                     <div>
                       <h4 className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${isEmerald ? 'text-emerald-800' : isBlue ? 'text-blue-800' : 'text-zinc-500'}`}>Payment Bank Details</h4>

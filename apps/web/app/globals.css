@@ -210,5 +210,18 @@ html.light header {
     max-width: 100% !important;
     color: black !important;
     background: white !important;
+    overflow: visible !important;
+  }
+
+  /* On screen the items table scrolls inside its own box on a narrow phone;
+     on paper it must lay out in full, with no scrollbar and no min width. */
+  .invoice-table-scroll {
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .invoice-table-scroll table {
+    min-width: 0 !important;
   }
 }
