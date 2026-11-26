@@ -17,6 +17,7 @@ import {
   X,
   AlertCircle,
   Printer,
+  MessageSquare,
 } from 'lucide-react';
 import { toast, showConfirm } from '../store/uiStore';
 
@@ -27,6 +28,7 @@ interface Customer {
   phone?: string;
   address?: string;
   gstin?: string;
+  notes?: string;
   outstandingBalance: number;
 }
 
@@ -61,6 +63,7 @@ export default function CustomersPage() {
     phone: '',
     address: '',
     gstin: '',
+    notes: '',
     outstandingBalance: 0,
   });
 
@@ -118,6 +121,7 @@ export default function CustomersPage() {
       phone: '',
       address: '',
       gstin: '',
+      notes: '',
       outstandingBalance: 0,
     });
     setIsModalOpen(true);
@@ -132,6 +136,7 @@ export default function CustomersPage() {
       phone: c.phone || '',
       address: c.address || '',
       gstin: c.gstin || '',
+      notes: c.notes || '',
       outstandingBalance: c.outstandingBalance,
     });
     setIsModalOpen(true);
@@ -289,6 +294,12 @@ export default function CustomersPage() {
                         </span>
                       )}
                     </div>
+                    {selectedCustomer.notes && (
+                      <p className="mt-2 flex items-start gap-1.5 text-sm text-zinc-400">
+                        <MessageSquare className="h-3.5 w-3.5 mt-0.5 shrink-0 text-zinc-500" />
+                        <span className="whitespace-pre-wrap">{selectedCustomer.notes}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -500,6 +511,17 @@ export default function CustomersPage() {
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
                     className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                     placeholder="e.g. Sector-15, Rohini, New Delhi"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300">Comment (Optional)</label>
+                  <textarea
+                    rows={3}
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    className="mt-1 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    placeholder="Anything to remember about this customer"
                   />
                 </div>
 

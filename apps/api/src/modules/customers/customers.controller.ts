@@ -39,6 +39,10 @@ class CreateCustomerDto {
   gstin?: string;
 
   @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
   @IsNumber()
   outstandingBalance?: number;
 }
@@ -63,6 +67,10 @@ class UpdateCustomerDto {
   @IsOptional()
   @IsString()
   gstin?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
   @IsOptional()
   @IsNumber()

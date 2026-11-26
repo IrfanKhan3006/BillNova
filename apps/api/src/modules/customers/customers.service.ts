@@ -46,6 +46,7 @@ export class CustomersService {
         phone: data.phone,
         address: data.address,
         gstin: data.gstin,
+        notes: data.notes,
         outstandingBalance: data.outstandingBalance ?? 0,
       },
     });
@@ -62,6 +63,7 @@ export class CustomersService {
         phone: data.phone,
         address: data.address,
         gstin: data.gstin,
+        notes: data.notes,
         outstandingBalance: data.outstandingBalance,
       },
     });
