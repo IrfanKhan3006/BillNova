@@ -17,7 +17,7 @@
  * Bump VERSION to roll the cache; old caches are dropped on activate.
  */
 
-const VERSION = 'bc-v1';
+const VERSION = 'bc-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 const SHELL_CACHE = `${VERSION}-shell`;
 const OFFLINE_URL = '/offline.html';

@@ -18,8 +18,26 @@ export default function ServiceWorker() {
       });
     };
 
+    /*
+     * When a new worker takes over, the page is still showing the previous
+     * build's JavaScript — which is how a stale string survives an ordinary
+     * refresh. Reload once, the first time control changes, so people always
+     * end up on the deployed build without being told to hard refresh.
+     */
+    let reloading = false;
+    const onControllerChange = () => {
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+
     if (document.readyState === 'complete') register();
     else window.addEventListener('load', register, { once: true });
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    };
   }, []);
 
   return null;
