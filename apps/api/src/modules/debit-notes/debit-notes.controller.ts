@@ -208,7 +208,7 @@ export class DebitNotesController {
 
   @Get(':id/share')
   @ApiOperation({
-    summary: 'Debit note ka public share token (WhatsApp link ke liye) lo',
+    summary: 'Get the public share token for a debit note (used in the WhatsApp link)',
   })
   async share(@CurrentUser() user: any, @Param('id') id: string) {
     return this.debitNotesService.ensureShareToken(user.tenantId, id);

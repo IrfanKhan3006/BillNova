@@ -213,7 +213,7 @@ export class CreditNotesController {
 
   @Get(':id/share')
   @ApiOperation({
-    summary: 'Credit note ka public share token (WhatsApp link ke liye) lo',
+    summary: 'Get the public share token for a credit note (used in the WhatsApp link)',
   })
   async share(@CurrentUser() user: any, @Param('id') id: string) {
     return this.creditNotesService.ensureShareToken(user.tenantId, id);

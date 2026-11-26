@@ -93,7 +93,7 @@ export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Appointments ki list dekho' })
+  @ApiOperation({ summary: 'List appointments' })
   async list(
     @CurrentUser() user: any,
     @Query('status') status?: string,
@@ -105,19 +105,19 @@ export class AppointmentsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Ek appointment ka detail dekho' })
+  @ApiOperation({ summary: 'Get one appointment' })
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {
     return this.appointmentsService.findOne(user.tenantId, id);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Naya appointment book karo' })
+  @ApiOperation({ summary: 'Book a new appointment' })
   async create(@CurrentUser() user: any, @Body() dto: CreateAppointmentDto) {
     return this.appointmentsService.create(user.tenantId, dto, user.id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Appointment update karo (reschedule / status)' })
+  @ApiOperation({ summary: 'Update an appointment (reschedule or status)' })
   async update(
     @CurrentUser() user: any,
     @Param('id') id: string,
@@ -128,7 +128,7 @@ export class AppointmentsController {
 
   @Roles(Role.ADMIN)
   @Delete(':id')
-  @ApiOperation({ summary: 'Appointment delete karo' })
+  @ApiOperation({ summary: 'Delete an appointment' })
   async remove(@CurrentUser() user: any, @Param('id') id: string) {
     return this.appointmentsService.remove(user.tenantId, id);
   }

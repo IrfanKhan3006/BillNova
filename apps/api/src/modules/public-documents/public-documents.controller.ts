@@ -29,7 +29,7 @@ export class PublicDocumentsController {
   @Get(':token')
   @ApiOperation({
     summary:
-      'Shared quotation / order / note / challan dekho (no login)',
+      'Get a shared quotation, order, note or challan (no login)',
   })
   async findByToken(@Param('token') token: string) {
     const lookups = [

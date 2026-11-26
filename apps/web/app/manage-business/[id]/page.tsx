@@ -383,7 +383,7 @@ export default function ManageBusinessDetailPage() {
                 {invoices.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-sm text-zinc-500">
-                      Is business ne abhi koi bill nahi banaya.
+                      This business has not created any bills yet.
                     </td>
                   </tr>
                 ) : (
@@ -419,7 +419,7 @@ export default function ManageBusinessDetailPage() {
           </div>
           {invoices.length > 50 && (
             <p className="mt-3 text-[11px] text-zinc-500">
-              Pehle 50 bills dikhaye gaye hain (kul {invoices.length}).
+              Showing the first 50 bills ({invoices.length} in total).
             </p>
           )}
         </div>

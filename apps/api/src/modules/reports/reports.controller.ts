@@ -17,7 +17,7 @@ export class ReportsController {
 
   @Get('sales')
   @ApiOperation({
-    summary: 'Sales report (subtotal, tax, discount details) dekho',
+    summary: 'Get the sales report (subtotal, tax and discount)',
   })
   async getSalesReport(
     @CurrentUser() user: any,
@@ -32,7 +32,7 @@ export class ReportsController {
   }
 
   @Get('purchases')
-  @ApiOperation({ summary: 'Purchase register (vendor bills) dekho' })
+  @ApiOperation({ summary: 'Get the purchase register (vendor bills)' })
   async getPurchaseReport(
     @CurrentUser() user: any,
     @Query('startDate') startDate?: string,
@@ -47,14 +47,14 @@ export class ReportsController {
 
   @Get('customers')
   @ApiOperation({
-    summary: 'Customer outstanding aur pending invoice balances dekho',
+    summary: 'Get customer outstanding and pending invoice balances',
   })
   async getCustomerReport(@CurrentUser() user: any) {
     return this.reportsService.getCustomerReport(user.tenantId);
   }
 
   @Get('payments')
-  @ApiOperation({ summary: 'Payment history details aur summaries dekho' })
+  @ApiOperation({ summary: 'Get payment history and summaries' })
   async getPaymentReport(
     @CurrentUser() user: any,
     @Query('startDate') startDate?: string,
@@ -88,7 +88,7 @@ export class ReportsController {
 
   @Get('tax')
   @ApiOperation({
-    summary: 'Tax rates details breakdown (GSTR-1 data format) dekho',
+    summary: 'Get the tax-rate breakdown (GSTR-1 format)',
   })
   async getTaxReport(
     @CurrentUser() user: any,

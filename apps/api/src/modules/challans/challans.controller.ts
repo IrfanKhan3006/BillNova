@@ -297,7 +297,7 @@ export class ChallansController {
 
   @Get(':id/share')
   @ApiOperation({
-    summary: 'Challan ka public share token (WhatsApp link ke liye) lo',
+    summary: 'Get the public share token for a challan (used in the WhatsApp link)',
   })
   async share(@CurrentUser() user: any, @Param('id') id: string) {
     return this.challansService.ensureShareToken(user.tenantId, id);

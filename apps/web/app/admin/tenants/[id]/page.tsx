@@ -270,9 +270,9 @@ export default function TenantDetailPage({ params }: PageProps) {
     if (!resetLink) return;
     try {
       await navigator.clipboard.writeText(resetLink.url);
-      toast.success('Link copied — business ko bhej dein.');
+      toast.success('Link copied — send it to the business.');
     } catch {
-      toast.error('Copy nahi hua — link select karke manually copy karein.');
+      toast.error('Could not copy — select the link and copy it manually.');
     }
   };
 
@@ -695,13 +695,14 @@ export default function TenantDetailPage({ params }: PageProps) {
                       <tr>
                         <td colSpan={5} className="px-6 pb-4">
                           {linkLoading ? (
-                            <p className="text-xs text-zinc-400">Link ban raha hai...</p>
+                            <p className="text-xs text-zinc-400">Creating link...</p>
                           ) : resetLink ? (
                             <div className="space-y-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
                               <p className="text-xs text-zinc-300">
-                                Ye link <span className="font-semibold text-white">{u.email}</span>{' '}
-                                ke liye hai — business ko bhej dein. Wo apna naya password set karke
-                                seedha login ho jayega.
+                                This link is for{' '}
+                                <span className="font-semibold text-white">{u.email}</span> — send it
+                                to the business. They set their own new password and are signed in
+                                straight away.
                               </p>
                               <div className="flex flex-wrap items-center gap-2">
                                 <input
@@ -718,7 +719,7 @@ export default function TenantDetailPage({ params }: PageProps) {
                                 </button>
                                 <a
                                   href={`https://wa.me/?text=${encodeURIComponent(
-                                    `${tenant.name}: apna BillCraft password set karne ke liye ye link kholein — ${resetLink.url} (${LINK_VALID_HOURS} ghante tak valid hai)`,
+                                    `${tenant.name}: open this link to set your BillCraft password — ${resetLink.url} (valid for ${LINK_VALID_HOURS} hours)`,
                                   )}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
@@ -730,7 +731,7 @@ export default function TenantDetailPage({ params }: PageProps) {
                               <p className="text-[11px] text-zinc-500">
                                 Ek hi baar chalega aur{' '}
                                 {new Date(resetLink.expiresAt).toLocaleString('en-IN')} tak valid
-                                hai. Naya link banate hi purana band ho jata hai.
+                                Creating a new link closes the previous one.
                               </p>
                             </div>
                           ) : null}

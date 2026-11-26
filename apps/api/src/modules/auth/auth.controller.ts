@@ -10,7 +10,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Request } from 'express'; // ye line hatao
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { SendEmailOtpDto } from './dto/send-email-otp.dto';
@@ -102,7 +102,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign out from this device' })
   async logout(@CurrentUser() user: any, @Body() dto: RefreshDto) {
     await this.authService.logout(user.id, dto.refreshToken);
-    return { message: 'Logout ho gaye.' };
+    return { message: 'Signed out.' };
   }
 
   @Post('logout-all')
@@ -111,7 +111,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign out from all active devices' })
   async logoutAll(@CurrentUser() user: any) {
     await this.authService.logoutAll(user.id);
-    return { message: 'Sabhi devices se logout ho gaye.' };
+    return { message: 'Signed out of every device.' };
   }
 
   @Get('me')

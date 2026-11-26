@@ -61,7 +61,7 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Sabhi payments ki history dekho' })
+  @ApiOperation({ summary: 'List the full payment history' })
   async list(
     @CurrentUser() user: any,
     @Query('customerId') customerId?: string,
@@ -70,7 +70,7 @@ export class PaymentsController {
   }
 
   @Get('invoice/:invoiceId')
-  @ApiOperation({ summary: 'Ek invoice ke saare payments dekho' })
+  @ApiOperation({ summary: 'List every payment against one invoice' })
   async findByInvoice(
     @CurrentUser() user: any,
     @Param('invoiceId') invoiceId: string,

@@ -152,8 +152,8 @@ export default function AppointmentsPage() {
     if (!phone) {
       toast.error(
         appt.customer.phone
-          ? 'Customer ka phone number valid nahi hai.'
-          : 'Is customer ka phone number save nahi hai. Pehle Customers page par number add karein.',
+          ? 'This customer\'s phone number is not valid.'
+          : 'This customer has no phone number saved. Add one on the Customers page first.',
       );
       return;
     }
@@ -201,7 +201,7 @@ export default function AppointmentsPage() {
     const url = calendarUrlFor(appt);
 
     if (!url) {
-      toast.error('Is appointment ki date/time theek nahi hai.');
+      toast.error('This appointment has an invalid date or time.');
       return;
     }
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -256,9 +256,9 @@ export default function AppointmentsPage() {
       setForm((prev) => ({ ...prev, customerId: created.id }));
       setQuickCustomer({ name: '', phone: '' });
       setShowQuickCustomer(false);
-      toast.success(`Customer "${created.name}" add ho gaya.`);
+      toast.success(`Customer "${created.name}" added.`);
     } catch (err: any) {
-      toast.error(err.message || 'Customer add nahi ho paya.');
+      toast.error(err.message || 'Could not add the customer.');
     } finally {
       setSavingCustomer(false);
     }
@@ -267,7 +267,7 @@ export default function AppointmentsPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.customerId) {
-      toast.error('Pehle customer chunein.');
+      toast.error('Choose a customer first.');
       return;
     }
     if (!form.service.trim()) {
@@ -314,7 +314,7 @@ export default function AppointmentsPage() {
       sendWhatsApp(created);
     } catch (err: any) {
       toast.error(
-        err.message || (editingId ? 'Appointment update nahi hua.' : 'Appointment book nahi ho paya.'),
+        err.message || (editingId ? 'Could not update the appointment.' : 'Could not book the appointment.'),
       );
     } finally {
       setSaving(false);
@@ -326,7 +326,7 @@ export default function AppointmentsPage() {
       const updated = await api.patch(`/appointments/${appt.id}`, { status });
       setAppointments((prev) => prev.map((a) => (a.id === appt.id ? { ...a, ...updated } : a)));
     } catch (err: any) {
-      toast.error(err.message || 'Status update nahi hua.');
+      toast.error(err.message || 'Could not update the status.');
     }
   };
 
@@ -340,7 +340,7 @@ export default function AppointmentsPage() {
       }
       toast.success('Appointment deleted.');
     } catch (err: any) {
-      toast.error(err.message || 'Delete nahi hua.');
+      toast.error(err.message || 'Could not delete it.');
     }
   };
 
@@ -381,7 +381,7 @@ export default function AppointmentsPage() {
               <CalendarClock className="h-7 w-7 text-emerald-500" /> Appointments
             </h1>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Appointment book karein — confirmation WhatsApp par customer ko bhej dein.
+              Book an appointment and send the customer a confirmation on WhatsApp.
             </p>
           </div>
           <button
@@ -420,7 +420,7 @@ export default function AppointmentsPage() {
             {customers.length === 0 ? (
               <div className="space-y-3">
                 <p className="text-sm text-amber-500">
-                  Abhi koi customer nahi hai — yahin se ek add kar lein.
+                  No customers yet — add one right here.
                 </p>
                 {showQuickCustomer ? null : (
                   <button
@@ -610,7 +610,7 @@ export default function AppointmentsPage() {
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     rows={2}
-                    placeholder="Koi khaas baat..."
+                    placeholder="Anything worth noting..."
                     className="mt-1.5 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder-zinc-600"
                   />
                 </div>
@@ -652,8 +652,8 @@ export default function AppointmentsPage() {
                   )}
                   <p className="text-[11px] text-zinc-500">
                     {editingId
-                      ? 'Changes save karne ke baad customer ko dobara WhatsApp bhej sakte hain.'
-                      : 'Book hote hi WhatsApp khulega — aapko bas Send dabana hai.'}
+                      ? 'Save your changes, then you can send the customer another WhatsApp.'
+                      : 'WhatsApp opens as soon as it is booked — you only have to press Send.'}
                   </p>
                 </div>
               </>
@@ -798,7 +798,7 @@ export default function AppointmentsPage() {
           <div className="rounded-2xl border border-zinc-200 bg-white p-10 text-center dark:border-zinc-800 dark:bg-zinc-900/40">
             <CalendarClock className="mx-auto h-10 w-10 text-zinc-400 dark:text-zinc-600" />
             <p className="mt-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-              {appointments.length === 0 ? 'Abhi koi appointment nahi hai.' : 'Is filter se kuch nahi mila.'}
+              {appointments.length === 0 ? 'No appointments yet.' : 'Nothing matches this filter.'}
             </p>
             {appointments.length === 0 && (
               <p className="mt-1 text-xs text-zinc-500">
@@ -851,7 +851,7 @@ export default function AppointmentsPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => startEdit(a)}
-                          title="Appointment edit karein"
+                          title="Edit appointment"
                           className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-500 hover:bg-emerald-500/20"
                         >
                           <Pencil className="h-3.5 w-3.5" /> Edit
@@ -865,7 +865,7 @@ export default function AppointmentsPage() {
                         </button>
                         <button
                           onClick={() => addToCalendar(a)}
-                          title="Google Calendar mein save karein"
+                          title="Save to Google Calendar"
                           className="flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-600 hover:bg-sky-500/20 dark:text-sky-400"
                         >
                           <CalendarPlus className="h-3.5 w-3.5" /> Calendar

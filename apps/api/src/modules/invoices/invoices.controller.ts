@@ -232,7 +232,7 @@ export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Sabhi invoices ki list dekho' })
+  @ApiOperation({ summary: 'List every invoice' })
   async list(
     @CurrentUser() user: any,
     @Query('customerId') customerId?: string,
@@ -251,7 +251,7 @@ export class InvoicesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Ek invoice ka complete details dekho' })
+  @ApiOperation({ summary: 'Get one invoice in full' })
   async findOne(@CurrentUser() user: any, @Param('id') id: string) {
     return this.invoicesService.findOne(user.tenantId, id);
   }

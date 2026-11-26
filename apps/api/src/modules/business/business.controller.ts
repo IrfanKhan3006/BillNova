@@ -158,20 +158,20 @@ export class BusinessController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Apne business ka profile dekho' })
+  @ApiOperation({ summary: 'Get your own business profile' })
   async getProfile(@CurrentUser() user: any) {
     return this.businessService.getProfile(user.tenantId);
   }
 
   @Get('plan')
-  @ApiOperation({ summary: 'Current business plan and bill usage metrics dekho' })
+  @ApiOperation({ summary: 'Get the current plan and bill usage' })
   async getPlanStatus(@CurrentUser() user: any) {
     return this.subscriptionService.getTenantPlanStatus(user.tenantId);
   }
 
   @Roles(Role.ADMIN, Role.USER)
   @Post('enquiry')
-  @ApiOperation({ summary: 'Extra users ke liye enquiry Super Admin ko bhejo' })
+  @ApiOperation({ summary: 'Send the Super Admin an enquiry for extra users' })
   async createEnquiry(@CurrentUser() user: any, @Body() dto: CreateEnquiryDto) {
     return this.subscriptionService.createEnquiry(user.tenantId, dto);
   }
@@ -179,7 +179,7 @@ export class BusinessController {
   // USER may also ask for activation when the plan limit blocks them.
   @Roles(Role.ADMIN, Role.USER)
   @Post('request-upgrade')
-  @ApiOperation({ summary: 'Basic Plan (₹3,000/year) ke liye activation request send kro' })
+  @ApiOperation({ summary: 'Request activation of the Basic plan (₹3,000/year)' })
   async requestUpgrade(
     @CurrentUser() user: any,
     @Body() dto: RequestUpgradeDto,

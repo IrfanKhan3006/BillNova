@@ -1085,8 +1085,8 @@ export default function BillingPage() {
     if (!phone) {
       toast.error(
         createdInvoice.customer?.phone
-          ? 'Customer ka phone number valid nahi hai. Customers page par theek karein.'
-          : 'Is customer ka phone number save nahi hai. Pehle number add karein.',
+          ? 'This customer\'s phone number is not valid. Fix it on the Customers page.'
+          : 'This customer has no phone number saved. Add one first.',
       );
       return;
     }

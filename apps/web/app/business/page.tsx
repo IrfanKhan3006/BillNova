@@ -642,7 +642,7 @@ export default function BusinessSettingsPage() {
                     <div>
                       <h3 className="text-sm font-bold text-white">Appointment Confirmation Message</h3>
                       <p className="mt-1 text-[11px] text-zinc-400">
-                        Appointment book karte hi WhatsApp par ye message bheja jata hai.
+                        This message is sent on WhatsApp as soon as an appointment is booked.
                       </p>
                     </div>
                     <div>

@@ -191,8 +191,8 @@ export default function SetPasswordPage() {
             </button>
 
             <p className="text-center text-xs text-zinc-500">
-              Save hote hi aap seedha apne dashboard mein pahunch jayenge. Baaki devices logout ho
-              jayenge.
+              You go straight to your dashboard once it is saved. Every other device is signed
+              out.
             </p>
           </form>
         )}

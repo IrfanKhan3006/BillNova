@@ -23,7 +23,7 @@ export class PlatformController {
   }
 
   @Get('tenants')
-  @ApiOperation({ summary: 'Sabhi businesses ki list (read-only)' })
+  @ApiOperation({ summary: 'List every business (read-only)' })
   async tenants() {
     return this.adminService.listTenants();
   }

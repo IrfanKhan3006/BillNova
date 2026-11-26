@@ -129,7 +129,7 @@ export default function ManageBusinessPage() {
               <Building2 className="h-7 w-7 text-emerald-400" /> Manage Business
             </h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Platform par registered sabhi businesses. Naya business register hote hi yahan aa jayega.
+              Every business registered on the platform. A new one appears here as soon as it signs up.
             </p>
           </div>
           <div className="flex items-center gap-2 self-start">
@@ -208,7 +208,7 @@ export default function ManageBusinessPage() {
                   {filtered.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-10 text-center text-sm text-zinc-500">
-                        {search ? 'Is search se koi business nahi mila.' : 'Abhi koi business nahi hai.'}
+                        {search ? 'No business matches this search.' : 'No businesses yet.'}
                       </td>
                     </tr>
                   ) : (
@@ -266,8 +266,8 @@ export default function ManageBusinessPage() {
         </div>
 
         <p className="text-[11px] text-zinc-500">
-          Ye section sirf dekhne ke liye hai — plan, limits aur feature access platform admin
-          manage karte hain.
+          This section is read-only — plans, limits and feature access are managed by the platform
+          admin.
         </p>
       </div>
     </SidebarLayout>

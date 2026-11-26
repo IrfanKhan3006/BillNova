@@ -16,7 +16,7 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('metrics')
-  @ApiOperation({ summary: 'Dashboard ke important metrics dekho' })
+  @ApiOperation({ summary: 'Get the key dashboard metrics' })
   async getMetrics(@CurrentUser() user: any) {
     return this.dashboardService.getMetrics(user.tenantId);
   }
@@ -42,7 +42,7 @@ export class DashboardController {
 
   @Get('top-items')
   @ApiOperation({
-    summary: 'Highest selling products aur high outstanding customers dekho',
+    summary: 'Get the best-selling products and the customers who owe the most',
   })
   async getTopItems(@CurrentUser() user: any) {
     return this.dashboardService.getTopItems(user.tenantId);

@@ -259,7 +259,7 @@ export default function AppointmentCalendar({
 
       {visible.length === 0 && (
         <p className="text-center text-xs text-zinc-500">
-          Is {view === 'day' ? 'din' : 'hafte'} koi appointment nahi hai.
+          No appointments this {view === 'day' ? 'day' : 'week'}.
         </p>
       )}
     </div>

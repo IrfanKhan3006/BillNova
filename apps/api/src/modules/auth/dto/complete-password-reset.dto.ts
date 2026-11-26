@@ -8,6 +8,6 @@ export class CompletePasswordResetDto {
 
   @ApiProperty({ example: 'NewPass@123' })
   @IsString()
-  @MinLength(6, { message: 'Password kam se kam 6 characters ka hona chahiye' })
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
 }

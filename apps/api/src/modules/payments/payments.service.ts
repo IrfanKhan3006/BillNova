@@ -43,7 +43,7 @@ export class PaymentsService {
       data;
 
     if (amount <= 0) {
-      throw new BadRequestException('Payment amount 0 se zyada hona chahiye.');
+      throw new BadRequestException('The payment amount must be greater than 0.');
     }
 
     // Verify customer

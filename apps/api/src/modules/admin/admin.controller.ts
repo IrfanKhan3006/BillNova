@@ -146,25 +146,25 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get('dashboard')
-  @ApiOperation({ summary: 'Platform statistics metrics dekho' })
+  @ApiOperation({ summary: 'Get platform statistics' })
   async getDashboard() {
     return this.adminService.getDashboardStats();
   }
 
   @Get('tenants')
-  @ApiOperation({ summary: 'Sabhi businesses ki list dekho' })
+  @ApiOperation({ summary: 'List every business' })
   async listTenants() {
     return this.adminService.listTenants();
   }
 
   @Get('requests')
-  @ApiOperation({ summary: 'Businesses jinhone plan activation request ki hai unki list dekho' })
+  @ApiOperation({ summary: 'List businesses that have requested plan activation' })
   async listUpgradeRequests() {
     return this.adminService.listUpgradeRequests();
   }
 
   @Get('enquiries')
-  @ApiOperation({ summary: 'Extra users enquiries ki list dekho' })
+  @ApiOperation({ summary: 'List extra-user enquiries' })
   async listEnquiries() {
     return this.adminService.listEnquiries();
   }
@@ -200,7 +200,7 @@ export class AdminController {
   }
 
   @Get('tenants/:id/invoices/:invoiceId')
-  @ApiOperation({ summary: 'Kisi business ka ek bill detail me dekho' })
+  @ApiOperation({ summary: 'Get one bill of a business in full' })
   async getTenantInvoice(
     @Param('id') id: string,
     @Param('invoiceId') invoiceId: string,
@@ -267,7 +267,7 @@ export class AdminController {
   }
 
   @Delete('tenants/:id/permanent')
-  @ApiOperation({ summary: 'Business ko soft delete kro (email dobara register ho sake)' })
+  @ApiOperation({ summary: 'Soft delete a business so its email can register again' })
   async deleteTenant(@Param('id') id: string) {
     return this.adminService.softDeleteTenant(id);
   }
@@ -287,7 +287,7 @@ export class AdminController {
   @Post('users/:id/password-reset-link')
   @ApiOperation({
     summary:
-      'Super Admin: ek one-time link banao jisse business khud apna naya password set kare',
+      'Super Admin: create a one-time link the business uses to set its own new password',
   })
   async createPasswordResetLink(
     @Param('id') id: string,

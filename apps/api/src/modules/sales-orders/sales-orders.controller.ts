@@ -264,7 +264,7 @@ export class SalesOrdersController {
 
   @Get(':id/share')
   @ApiOperation({
-    summary: 'Sales order ka public share token (WhatsApp link ke liye) lo',
+    summary: 'Get the public share token for a sales order (used in the WhatsApp link)',
   })
   async share(@CurrentUser() user: any, @Param('id') id: string) {
     return this.salesOrdersService.ensureShareToken(user.tenantId, id);

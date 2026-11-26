@@ -52,7 +52,7 @@ export class UsersController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Naya team user banao (username@business.com)' })
+  @ApiOperation({ summary: 'Create a team user (username@business.com)' })
   async create(@CurrentUser() user: any, @Body() dto: CreateTeamUserDto) {
     return this.usersService.createTeamUser(user.tenantId, dto);
   }
